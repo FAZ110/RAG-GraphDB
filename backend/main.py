@@ -38,12 +38,15 @@ def extract_graph_data(request: ArticleRequest):
     Nie zapomnij o odpowiednim nazewnictwie węzłów i relacji między nimi.
     
     Bardzo ważne zasady:
-    1. Każdy węzeł MUSI posiadać właściwość 'name' z konkretną nazwą wyciągniętą z tekstu. Używaj formatu: (zmienna: ETYKIETA {{name: "Pełna nazwa"}}).
-    2. Używaj tylko polskich, wielkich liter dla ETYKIET, np.: ZAWODNIK, DRUŻYNA, TRENER, ROZGRYWKI.
-    3. Zawsze najpierw twórz wszystkie węzły używając instrukcji MERGE. Nie używaj w relacjach zmiennych, których wcześniej nie zdefiniowałeś.
-    4. Relacje twórz dopiero po zdefiniowaniu węzłów. Format relacji: (zmienna1)-[:RELACJA]->(zmienna2).
-    5. Nazwy relacji pisz wielkimi literami z podkreślnikami, np. GRA_DLA, STRZELIL_GOLA, TRENUJE.
-    6. Zwróć TYLKO czysty kod Cypher, bez żadnych powitań, dodatkowych wyjaśnień czy wstępów.
+    1. Każdy węzeł MUSI posiadać właściwość 'name'. Używaj formatu: MERGE (zmienna:ETYKIETA {{name: "Pełna nazwa"}}).
+    2. Używaj tylko polskich, wielkich liter dla ETYKIET, np.: ZAWODNIK, DRUŻYNA.
+    3. Zawsze najpierw twórz wszystkie węzły (każdy w osobnej linii).
+    4. Relacje twórz ZAWSZE na samym końcu kodu.
+    5. Każda linijka z relacją MUSI zaczynać się od instrukcji MERGE i zawierać dokładnie JEDNĄ relację. 
+       NIE ŁĄCZ wielu relacji w łańcuchy! (Źle: A-[]->B-[]->C, Dobrze: A-[]->B w jednej linii, B-[]->C w drugiej).
+    6. W relacjach UŻYWAJ TYLKO SAMYCH ZMIENNYCH w pojedynczych nawiasach. SUROWO ZABRONIONE jest dodawanie etykiet (np. :MIEJSCE) czy właściwości (np. {{name: ...}}) wewnątrz definicji relacji. Używaj formatu: MERGE (zmienna1)-[:RELACJA]->(zmienna2).
+    7. Nazwy relacji pisz wielkimi literami z podkreślnikami, np. GRA_DLA.
+    8. Zwróć TYLKO czysty kod Cypher, bez znaczników markdown (```cypher).
 
     Artykuł:
     {request.text}
