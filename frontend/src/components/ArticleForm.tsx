@@ -18,14 +18,14 @@ export function ArticleForm({ onSubmit, isLoading }: ArticleFormProps) {
     try {
       const parsedData = JSON.parse(text) as ExtractRequest;
 
-      if (!parsedData.content) {
+      if (!parsedData.content?.trim()) {
         setParseError("Pasted JSON has to have field: 'content'.");
         return;
       }
 
       onSubmit(parsedData);
     } catch (err) {
-      setParseError("Format error");
+      setParseError(`JSON parse error: ${(err as Error).message}`);
     }
   };
 

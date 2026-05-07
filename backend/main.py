@@ -1,14 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List
-from openai import OpenAI
+from openai import AsyncOpenAI
 import os
+import re
 from dotenv import load_dotenv
-from neo4j import GraphDatabase
+from neo4j import AsyncGraphDatabase
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import HTTPException
-
-
 
 load_dotenv()
 
@@ -16,21 +13,43 @@ app = FastAPI(title="Graph-LLM-JS API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
-    allow_methods=["*"],  
-    allow_headers=["*"],  
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-
-client = OpenAI(base_url="http://127.0.0.1:1234/v1", api_key="lm-studio")
-
+LM_STUDIO_URL = os.getenv("LM_STUDIO_URL", "http://127.0.0.1:1234/v1")
+LM_STUDIO_API_KEY = os.getenv("LM_STUDIO_API_KEY", "lm-studio")
+client = AsyncOpenAI(base_url=LM_STUDIO_URL, api_key=LM_STUDIO_API_KEY)
 
 NEO4J_URI = os.getenv("NEO4J_URI")
 NEO4J_USER = os.getenv("NEO4J_USER")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
 
-driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+if not all([NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD]):
+    raise RuntimeError(
+        "Brakuje zmiennych środowiskowych: NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD"
+    )
+
+driver = AsyncGraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+
+_DANGEROUS_CYPHER = re.compile(
+    r"\b(DETACH\s+DELETE|DELETE|DROP|REMOVE|CALL\s+apoc\.)\b",
+    re.IGNORECASE,
+)
+
+
+def validate_cypher(cypher: str) -> None:
+    match = _DANGEROUS_CYPHER.search(cypher)
+    if match:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Wygenerowany kod Cypher zawiera niedozwoloną operację: '{match.group()}'",
+        )
 
 
 class ArticleRequest(BaseModel):
@@ -45,8 +64,7 @@ def read_root():
 
 
 @app.post("/extract")
-def extract_graph_data(request: ArticleRequest):
-
+async def extract_graph_data(request: ArticleRequest):
     prompt = f"""
     Poniżej wyśle ci artykuł sportowy, twoim zadaniem jest wyekstrahować obiekty i relacje semantyczne między nimi.
     Podaj odpowiedź w języku cypher abym mógł od razu wrzucić wynik do neo4j'a.
@@ -67,30 +85,24 @@ def extract_graph_data(request: ArticleRequest):
     Treść: {request.content}
     """
 
-    try:
-        response = client.chat.completions.create(
-            model="local-model",
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.1
-        )
+    response = await client.chat.completions.create(
+        model="local-model",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.1,
+    )
 
-        if not response.choices or response.choices is None:
-            return {"error": "No answer from LM Studio"}
-        
-        raw_cypher = response.choices[0].message.content
+    if not response.choices:
+        raise HTTPException(status_code=502, detail="Brak odpowiedzi od LM Studio")
 
-        clean_cypher = raw_cypher.replace("```cypher", "").replace("```", "").strip()
+    raw_cypher = response.choices[0].message.content
+    clean_cypher = raw_cypher.replace("```cypher", "").replace("```", "").strip()
 
-        with driver.session() as session:
-            session.run(clean_cypher)
+    validate_cypher(clean_cypher)
 
-        return {
-            "status": "Success! Graph generated and saved in Neo4j",
-            "executed_code": clean_cypher
-        }
-    except Exception as e:
-        print("BŁĄD:", e)
-        raise HTTPException(status_code=500, detail="No answer from LM Studio")
+    async with driver.session() as session:
+        await session.run(clean_cypher)
 
+    return {
+        "status": "Success! Graph generated and saved in Neo4j",
+        "executed_code": clean_cypher,
+    }
