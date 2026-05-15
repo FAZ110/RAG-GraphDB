@@ -5,7 +5,7 @@ from db.database import execute_cypher
 from services.llm_service import LLMService
 
 router = APIRouter()
-_llm = LLMService()
+llm_service = LLMService()
 
 
 @router.get("/")
@@ -16,7 +16,7 @@ def read_root():
 @router.post("/extract", response_model=ExtractResponse)
 async def extract_graph_data(request: ArticleRequest) -> ExtractResponse:
     try:
-        cypher = await _llm.generate_cypher(request.title, request.content)
+        cypher = await llm_service.generate_cypher(request.title, request.content)
     except ValueError as e:
         raise HTTPException(status_code=502, detail=str(e))
 

@@ -1,5 +1,6 @@
 from openai import AsyncOpenAI
-from core.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+from core.config import (LLM_PROVIDER, GROQ_API_KEY, GROQ_MODEL,
+    LLM_BASE_URL, LLM_API_KEY, LLM_MODEL)
 
 _CYPHER_PROMPT = """\
 Poniżej wyśle ci artykuł sportowy, twoim zadaniem jest wyekstrahować obiekty i relacje semantyczne między nimi.
@@ -26,8 +27,24 @@ Treść: {content}\
 
 class LLMService:
     def __init__(self) -> None:
-        self._client = AsyncOpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY)
-        self._model = LLM_MODEL
+        if LLM_PROVIDER == "groq":
+            if not GROQ_API_KEY:
+                raise ValueError("No GROQ_API_KEY in environmental variables")
+            self._client = AsyncOpenAI(
+                base_url="https://api.groq.com/openai/v1",
+                api_key=GROQ_API_KEY
+            )
+            self._model = GROQ_MODEL
+            print(f"ZAINICJALIZOWANO LLM: Groq (Model: {self._model})")
+
+        else:
+            self._client = AsyncOpenAI(
+                base_url=LLM_BASE_URL,
+                api_key=LLM_API_KEY
+            )
+            self._model = LLM_MODEL
+            print(f"ZAINICJALIZOWANO LLM: Lokalne (Model: {self._model})")
+
 
     async def generate_cypher(self, title: str, content: str) -> str:
         prompt = _CYPHER_PROMPT.format(title=title, content=content)
@@ -37,6 +54,10 @@ class LLMService:
             temperature=0.1,
         )
         if not response.choices:
-            raise ValueError("Brak odpowiedzi od LLM")
+            raise ValueError("Missing response from LLM")
         raw = response.choices[0].message.content
+
+        if not raw:
+            return ""
+        
         return raw.replace("```cypher", "").replace("```", "").strip()
