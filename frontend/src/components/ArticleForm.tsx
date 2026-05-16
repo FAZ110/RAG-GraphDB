@@ -1,9 +1,8 @@
-import type { FormEvent } from 'react';
 import { useState } from 'react';
-import type { ExtractRequest } from '../types';
+import type { BulkExtractRequest, ArticleRequest } from '../types';
 
 interface ArticleFormProps {
-  onSubmit: (text: ExtractRequest) => void;
+  onSubmit: (data: BulkExtractRequest) => void;
   isLoading: boolean;
 }
 
@@ -11,22 +10,27 @@ export function ArticleForm({ onSubmit, isLoading }: ArticleFormProps) {
   const [text, setText] = useState('');
   const [parseError, setParseError] = useState<string | null>(null);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = (e: { preventDefault(): void }) => {
     e.preventDefault();
     setParseError(null);
 
+    let parsed: unknown;
     try {
-      const parsedData = JSON.parse(text) as ExtractRequest;
-
-      if (!parsedData.content?.trim()) {
-        setParseError("Pasted JSON has to have field: 'content'.");
-        return;
-      }
-
-      onSubmit(parsedData);
+      parsed = JSON.parse(text);
     } catch (err) {
       setParseError(`JSON parse error: ${(err as Error).message}`);
+      return;
     }
+
+    const articles: ArticleRequest[] = Array.isArray(parsed) ? parsed : [parsed as ArticleRequest];
+
+    const invalid = articles.find((a) => !a.content?.trim());
+    if (invalid !== undefined) {
+      setParseError("Every article has to have field: 'content'.");
+      return;
+    }
+
+    onSubmit({ articles });
   };
 
   return (
@@ -34,7 +38,7 @@ export function ArticleForm({ onSubmit, isLoading }: ArticleFormProps) {
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Paste the JSON here... {url: '...', title: '...', content: '...'}"
+        placeholder={`Paste JSON - one article or array:\n[{ "title": "...", "content": "..." }, ...]`}
         className="w-full h-64 p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none font-sans"
         disabled={isLoading}
       />

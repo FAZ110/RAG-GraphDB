@@ -35,7 +35,7 @@ class LLMService:
                 api_key=GROQ_API_KEY
             )
             self._model = GROQ_MODEL
-            print(f"ZAINICJALIZOWANO LLM: Groq (Model: {self._model})")
+            print(f"Initialized LLM: Groq (Model: {self._model})")
 
         else:
             self._client = AsyncOpenAI(
@@ -43,7 +43,7 @@ class LLMService:
                 api_key=LLM_API_KEY
             )
             self._model = LLM_MODEL
-            print(f"ZAINICJALIZOWANO LLM: Lokalne (Model: {self._model})")
+            print(f"Initialized LLM: Local (Model: {self._model})")
 
 
     async def generate_cypher(self, title: str, content: str) -> str:

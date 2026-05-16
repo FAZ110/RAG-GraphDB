@@ -8,6 +8,15 @@ class ArticleRequest(BaseModel):
 
 
 class ExtractResponse(BaseModel):
+    title: str | None = None
     status: str
     executed_code: str | None = None
     error: str | None = None
+
+
+class BulkExtractRequest(BaseModel):
+    articles: list[ArticleRequest]
+
+
+class BulkExtractResponse(BaseModel):
+    results: list[ExtractResponse]
