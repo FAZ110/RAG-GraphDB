@@ -34,9 +34,8 @@ export function ExtractorPage(){
                 )}
                 
                 {mutation.isSuccess && (
-                <ResultDisplay 
-                    status={mutation.data.status} 
-                    cypherCode={mutation.data.executed_code} 
+                <ResultDisplay
+                    results={mutation.data.results}
                 />
                 )}
 

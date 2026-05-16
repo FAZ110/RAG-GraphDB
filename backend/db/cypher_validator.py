@@ -1,5 +1,4 @@
 import re
-from fastapi import HTTPException
 
 _DANGEROUS_CYPHER = re.compile(
     r"\b(DETACH\s+DELETE|DELETE|DROP|REMOVE|CALL\s+apoc\.)\b",
@@ -10,7 +9,4 @@ _DANGEROUS_CYPHER = re.compile(
 def validate_cypher(cypher: str) -> None:
     match = _DANGEROUS_CYPHER.search(cypher)
     if match:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Wygenerowany kod Cypher zawiera niedozwoloną operację: '{match.group()}'",
-        )
+        raise ValueError(f"Dangerous cypher operation: '{match.group()}'")
