@@ -1,24 +1,27 @@
 from openai import AsyncOpenAI
 from core.config import (LLM_PROVIDER, GROQ_API_KEY, GROQ_MODEL,
     LLM_BASE_URL, LLM_API_KEY, LLM_MODEL)
+import json, re
 
-_CYPHER_PROMPT = """\
-Poniżej wyśle ci artykuł sportowy, twoim zadaniem jest wyekstrahować obiekty i relacje semantyczne między nimi.
-Podaj odpowiedź w języku cypher abym mógł od razu wrzucić wynik do neo4j'a.
-Nie zapomnij o odpowiednim nazewnictwie węzłów i relacji między nimi.
+_GRAPH_JSON_PROMPT = """\
+Poniżej wyśle ci tekst, twoim zadaniem jest wyekstrahować encje i relacje semantyczne między nimi.
+Zwróć odpowiedź WYŁĄCZNIE jako poprawny JSON (bez żadnych znaczników markdown, bez ```json).
+JSON musi zawierać dwa klucze: "nodes" i "edges".
+
+Format węzła:
+{{"id": "unikalny_id", "label": "ETYKIETA", "properties": {{"name": "Pełna nazwa"}}}}
+
+Format krawędzi:
+{{"source": "id_węzła", "target": "id_węzła", "type": "TYP_RELACJI", "properties": {{}}}}
 
 Bardzo ważne zasady:
-1. Każdy węzeł MUSI posiadać właściwość 'name'. Używaj formatu: MERGE (zmienna:ETYKIETA {{name: "Pełna nazwa"}}).
-2. Używaj tylko polskich, wielkich liter dla ETYKIET, np.: ZAWODNIK, DRUŻYNA, MECZ, LIGA, TRENER.
-3. Zawsze najpierw twórz wszystkie węzły (każdy w osobnej linii).
-4. Relacje twórz ZAWSZE na samym końcu kodu.
-5. Każda linijka z relacją MUSI zaczynać się od instrukcji MERGE i zawierać dokładnie JEDNĄ relację.
-   NIE ŁĄCZ wielu relacji w łańcuchy! (Źle: A-[]->B-[]->C, Dobrze: A-[]->B w jednej linii, B-[]->C w drugiej).
-6. W relacjach UŻYWAJ TYLKO SAMYCH ZMIENNYCH w pojedynczych nawiasach. SUROWO ZABRONIONE jest dodawanie etykiet \
-(np. :MIEJSCE) czy właściwości (np. {{name: ...}}) wewnątrz definicji relacji. \
-Używaj formatu: MERGE (zmienna1)-[:RELACJA]->(zmienna2).
-7. Nazwy relacji pisz wielkimi literami z podkreślnikami, np. GRA_DLA, STRZELI_GOLA, TRENUJE.
-8. Zwróć TYLKO czysty kod Cypher, bez znaczników markdown (```cypher).
+1. Dobierz etykiety (label) odpowiednio do domeny tekstu (np. OSOBA, ORGANIZACJA, MIEJSCE, WYDARZENIE lub inne pasujące).
+   Etykiety pisz wielkimi literami, np. OSOBA, FIRMA, PRODUKT.
+2. Każdy węzeł MUSI mieć właściwość "name" z pełną nazwą encji.
+3. Pole "id" to wewnętrzny identyfikator do budowania relacji (np. "p1", "org_microsoft").
+4. Typy relacji pisz wielkimi literami z podkreślnikami, np. PRACUJE_W, JEST_CZĘŚCIĄ, POSIADA.
+5. Pola "source" i "target" MUSZĄ odpowiadać istniejącym "id" węzłów.
+6. Zwróć TYLKO surowy JSON — bez komentarzy, bez tekstu poza JSON.
 
 Tytuł: {title}
 Treść: {content}\
@@ -46,8 +49,8 @@ class LLMService:
             print(f"Initialized LLM: Local (Model: {self._model})")
 
 
-    async def generate_cypher(self, title: str, content: str) -> str:
-        prompt = _CYPHER_PROMPT.format(title=title, content=content)
+    async def generate_graph_json(self, title: str, content: str) -> dict:
+        prompt = _GRAPH_JSON_PROMPT.format(title=title, content=content)
         response = await self._client.chat.completions.create(
             model=self._model,
             messages=[{"role": "user", "content": prompt}],
@@ -58,6 +61,12 @@ class LLMService:
         raw = response.choices[0].message.content
 
         if not raw:
-            return ""
+            raise ValueError("Empty response from LLM")
         
-        return raw.replace("```cypher", "").replace("```", "").strip()
+        cleaned = re.sub(r"^```[a-z]*\n?", "", raw.strip(), flags=re.IGNORECASE)
+        cleaned = re.sub(r"```$", "", cleaned).strip()
+
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"LLM returned invalid JSON: {e}") from e
