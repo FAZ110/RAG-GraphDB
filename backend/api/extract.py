@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException
-from schemas.requests import ArticleRequest, ExtractResponse, BulkExtractResponse, BulkExtractRequest
-from db.cypher_validator import validate_cypher
-from db.database import execute_cypher
+from fastapi import APIRouter
+from schemas.requests import ArticleRequest, ExtractResponse, BulkExtractResponse, BulkExtractRequest, NodeResult, EdgeResult
+from db.json_validator import validate_graph_json
+from db.database import execute_graph
 from services.llm_service import LLMService
 
 router = APIRouter()
@@ -20,11 +20,20 @@ async def extract_graph_data(request: BulkExtractRequest) -> BulkExtractResponse
 
     for article in request.articles:
         try:
-            cypher = await llm_service.generate_cypher(article.title, article.content)
-            validate_cypher(cypher)
+            raw_json = await llm_service.generate_graph_json(article.title, article.content)
+            graph = validate_graph_json(raw_json)
+            nodes_dicts = [n.model_dump() for n in graph.nodes]
+            edges_dicts = [e.model_dump() for e in graph.edges]
+            await execute_graph(nodes_dicts, edges_dicts)
 
-            await execute_cypher(cypher)
-            results.append(ExtractResponse(title=article.title, status="ok", executed_code=cypher))
+            results.append(ExtractResponse(
+                title=article.title,
+                status='ok',
+                nodes=[NodeResult(**n) for n in nodes_dicts],
+                edges=[EdgeResult(**e) for e in edges_dicts],
+                nodes_count=len(graph.nodes),
+                edges_count=len(graph.edges),
+            )) 
 
         except Exception as e:
             results.append(ExtractResponse(title=article.title, status="error", error=str(e)))

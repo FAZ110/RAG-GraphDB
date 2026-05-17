@@ -4,17 +4,35 @@ export interface ArticleRequest {
     content: string;
 }
 
-export interface BulkExtractRequest {
-    articles: ArticleRequest[];
-}
 
 export interface ArticleResult {
     title?: string;
     status: string;
-    executed_code?: string;
+    nodes?: NodeResult[];
+    edges?: EdgeResult[];
+    nodes_count?: number;
+    edges_count?: number;
     error?: string;
 }
 
 export interface BulkExtractResponse {
     results: ArticleResult[];
+}
+
+export interface BulkExtractRequest {
+    articles: ArticleRequest[];
+}
+
+
+export interface NodeResult {
+    id: string;
+    label: string
+    properties: Record<string, unknown>
+}
+
+export interface EdgeResult {
+    source: string;
+    target: string;
+    type: string;
+    properties: Record<string, unknown>
 }

@@ -35,10 +35,37 @@ export function ResultDisplay({ results }: ResultDisplayProps) {
             <p className="text-red-600 text-sm">{result.error}</p>
           )}
 
-          {result.executed_code && (
-            <pre className="bg-slate-900 text-green-400 p-4 rounded-md overflow-x-auto text-sm font-mono shadow-inner">
-              <code>{result.executed_code}</code>
-            </pre>
+          {result.status === "ok" && (
+            <div className="mt-2 space-y-3">
+              <p className="text-sm text-gray-600">
+                Extracted: <span className="font-semibold">{result.nodes_count} nodes</span>,{" "}
+                <span className="font-semibold">{result.edges_count} edges</span>
+              </p>
+              {result.nodes && result.nodes.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Nodes</p>
+                  <div className="flex flex-wrap gap-2">
+                    {result.nodes.map((n, i) => (
+                      <span key={i} className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                        {n.label}: {n.properties.name as string}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {result.edges && result.edges.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Edges</p>
+                  <div className="flex flex-col gap-1">
+                    {result.edges.map((e, i) => (
+                      <span key={i} className="text-xs text-gray-600 font-mono">
+                        {e.source} —[{e.type}]→ {e.target}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       ))}

@@ -13,7 +13,7 @@ export const extractGraphData = async (data: BulkExtractRequest): Promise<BulkEx
 
   if (!response.ok) {
     const backendMessage = responseData.detail?.[0]?.msg || responseData.detail || responseData.error;
-    throw new Error(backendMessage || `Błąd serwera: ${response.status}`);
+    throw new Error(backendMessage || `Server error: ${response.status}`);
   }
 
   return responseData;
