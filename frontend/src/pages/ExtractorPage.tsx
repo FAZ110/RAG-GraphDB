@@ -1,16 +1,12 @@
-import { useMutation } from "@tanstack/react-query";
-import { extractGraphData } from "../services/api";
 import { ArticleForm } from "../components/ArticleForm";
 import { ErrorMessage } from "../components/ErrorMessage";
 import { ResultDisplay } from "../components/ResultDisplay";
+import { useExtractGraph } from "../hooks/useExtractGraph";
 
 
 export function ExtractorPage(){
 
-    const mutation = useMutation({
-        mutationFn: extractGraphData,
-    })
-
+    const mutation = useExtractGraph();
     return (
         <div className="max-w-4xl mx-auto space-y-8">
             <div className="text-center">
