@@ -36,3 +36,8 @@ export interface EdgeResult {
     type: string;
     properties: Record<string, unknown>
 }
+
+export interface GraphResponse {
+    nodes: NodeResult[]
+    edges: EdgeResult[]
+}

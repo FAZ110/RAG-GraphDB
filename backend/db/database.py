@@ -25,6 +25,23 @@ async def execute_graph(nodes: list[dict], edges: list[dict]) -> None:
         raise RuntimeError(f"Neo4j error: {e.message}") from e
 
 
+async def fetch_graph() -> dict:
+    async with get_driver().session() as session:
+        nodes_res = await session.run(
+            "MATCH (n) RETURN elementId(n) AS id, labels(n)[0] AS label, properties(n) AS props"
+        )
+        edges_res = await session.run(
+            "MATCH (n)-[r]->(m) RETURN elementId(n) AS source, elementId(m) AS target, "
+            "type(r) AS type, properties(r) AS props"
+        )
+
+        nodes = [{"id": r["id"], "label": r["label"], "properties": dict(r["props"])}
+                async for r in nodes_res]
+        edges = [{"source": r["source"], "target": r["target"], "type": r["type"], "properties": dict(r["props"])}
+                async for r in edges_res]
+        
+    return {"nodes": nodes, "edges": edges}
+
 
 async def close_driver() -> None:
     global _driver
