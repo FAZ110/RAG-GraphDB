@@ -1,4 +1,4 @@
-import type { BulkExtractRequest, BulkExtractResponse } from '../types';
+import type { BulkExtractRequest, BulkExtractResponse, GraphResponse } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
 
@@ -18,3 +18,9 @@ export const extractGraphData = async (data: BulkExtractRequest): Promise<BulkEx
 
   return responseData;
 };
+
+export const fetchGraph = async (): Promise<GraphResponse> => {
+  const response = await fetch(`${API_URL}/graph`);
+  if (!response.ok) throw new Error(`Server error: ${response.status}`);
+  return response.json();
+}
