@@ -4,13 +4,14 @@ import { ErrorMessage } from "../components/ErrorMessage";
 import { ResultDisplay } from "../components/ResultDisplay";
 import { useExtractGraph } from "../hooks/useExtractGraph";
 import { useState } from "react";
+import type { ChangeEvent } from "react";
 
 
 export function ExtractorPage(){
 
     const [mode, setMode] = useState('json');
 
-    const handleModeChange = (e:React.ChangeEvent<HTMLSelectElement>) => {
+    const handleModeChange = (e: ChangeEvent<HTMLSelectElement>) => {
         setMode(e.target.value)
     }
 
