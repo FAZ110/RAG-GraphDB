@@ -32,6 +32,7 @@ export function FileProvider({children}:{children: ReactNode}){
         setFiles([]);
     };
 
+
     return (
     <FileContext.Provider value={{files, addFile, removeFile, clearFiles}}>
         {children}
