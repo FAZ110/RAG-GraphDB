@@ -22,7 +22,7 @@ export function GraphVisualizer({ nodes, edges }: GraphResponse) {
           className='absolute bottom-2 right-2 p-1.5 rounded-lg bg-white border border-gray-200 shadow-sm hover:bg-gray-50 text-gray-600'
           title={isFullscreen ? 'exit fullscreen' : 'fullscreen'}
         >
-          {isFullscreen ? '✕ Wyjdź' : '⛶ Pełny ekran'}
+          {isFullscreen ? '✕ Exit' : '⛶ Fullscreen'}
         </button>
       </div>
       <Legend
