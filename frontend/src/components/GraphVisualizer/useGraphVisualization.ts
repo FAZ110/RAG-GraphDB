@@ -21,16 +21,26 @@ export function useGraphVisualization(nodes: NodeResult[], edges: EdgeResult[]) 
   const containerRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<SelectedElement | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const selectedCategoryRef = useRef<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const colorMap = useMemo(() => buildLabelColorMap(nodes), [nodes]);
 
+  const selectedCategoryRef = useRef<string | null>(null);
   const cyRef = useRef<Core | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   const toggleCategory = (label: string | null) => {
     const next = selectedCategoryRef.current === label ? null : label;
     selectedCategoryRef.current = next;
     setSelectedCategory(next);
   };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement){
+        wrapperRef.current?.requestFullscreen();
+    }else{
+        document.exitFullscreen();
+    }
+  }
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -161,5 +171,11 @@ export function useGraphVisualization(nodes: NodeResult[], edges: EdgeResult[]) 
     if (cyRef.current) applyCategoryHighlight(cyRef.current, selectedCategory);
   }, [selectedCategory, nodes, edges]);
 
-  return { containerRef, cyRef, selected, setSelected, colorMap, selectedCategory, toggleCategory };
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, [])
+
+  return { containerRef, cyRef, selected, setSelected, colorMap, selectedCategory, toggleCategory, wrapperRef, isFullscreen, toggleFullscreen };
 }
