@@ -1,5 +1,6 @@
-from pydantic import BaseModel
 from typing import Any
+
+from pydantic import BaseModel
 
 
 class ArticleRequest(BaseModel):
@@ -7,10 +8,12 @@ class ArticleRequest(BaseModel):
     title: str = ""
     content: str
 
+
 class NodeResult(BaseModel):
     id: str
     label: str
     properties: dict[str, Any]
+
 
 class EdgeResult(BaseModel):
     source: str

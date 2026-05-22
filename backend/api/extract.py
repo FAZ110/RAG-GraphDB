@@ -1,7 +1,14 @@
 from fastapi import APIRouter
-from schemas.requests import ArticleRequest, ExtractResponse, BulkExtractResponse, BulkExtractRequest, NodeResult, EdgeResult
-from db.json_validator import validate_graph_json
+
 from db.database import execute_graph
+from db.json_validator import validate_graph_json
+from schemas.requests import (
+    BulkExtractRequest,
+    BulkExtractResponse,
+    EdgeResult,
+    ExtractResponse,
+    NodeResult,
+)
 from services.llm_service import LLMService
 
 router = APIRouter()
@@ -26,14 +33,16 @@ async def extract_graph_data(request: BulkExtractRequest) -> BulkExtractResponse
             edges_dicts = [e.model_dump() for e in graph.edges]
             await execute_graph(nodes_dicts, edges_dicts)
 
-            results.append(ExtractResponse(
-                title=article.title,
-                status='ok',
-                nodes=[NodeResult(**n) for n in nodes_dicts],
-                edges=[EdgeResult(**e) for e in edges_dicts],
-                nodes_count=len(graph.nodes),
-                edges_count=len(graph.edges),
-            )) 
+            results.append(
+                ExtractResponse(
+                    title=article.title,
+                    status="ok",
+                    nodes=[NodeResult(**n) for n in nodes_dicts],
+                    edges=[EdgeResult(**e) for e in edges_dicts],
+                    nodes_count=len(graph.nodes),
+                    edges_count=len(graph.edges),
+                )
+            )
 
         except Exception as e:
             results.append(ExtractResponse(title=article.title, status="error", error=str(e)))

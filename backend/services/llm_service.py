@@ -1,7 +1,9 @@
+import json
+import re
+
 from openai import AsyncOpenAI
-from core.config import (LLM_PROVIDER, GROQ_API_KEY, GROQ_MODEL,
-    LLM_BASE_URL, LLM_API_KEY, LLM_MODEL)
-import json, re
+
+from core.config import GROQ_API_KEY, GROQ_MODEL, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER
 
 _GRAPH_JSON_PROMPT = """\
 Poniżej wyśle ci tekst, twoim zadaniem jest wyekstrahować encje i relacje semantyczne między nimi.
@@ -34,20 +36,15 @@ class LLMService:
             if not GROQ_API_KEY:
                 raise ValueError("No GROQ_API_KEY in environmental variables")
             self._client = AsyncOpenAI(
-                base_url="https://api.groq.com/openai/v1",
-                api_key=GROQ_API_KEY
+                base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY
             )
             self._model = GROQ_MODEL
             print(f"Initialized LLM: Groq (Model: {self._model})")
 
         else:
-            self._client = AsyncOpenAI(
-                base_url=LLM_BASE_URL,
-                api_key=LLM_API_KEY
-            )
+            self._client = AsyncOpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY)
             self._model = LLM_MODEL
             print(f"Initialized LLM: Local (Model: {self._model})")
-
 
     async def generate_graph_json(self, title: str, content: str) -> dict:
         prompt = _GRAPH_JSON_PROMPT.format(title=title, content=content)
@@ -62,7 +59,7 @@ class LLMService:
 
         if not raw:
             raise ValueError("Empty response from LLM")
-        
+
         cleaned = re.sub(r"^```[a-z]*\n?", "", raw.strip(), flags=re.IGNORECASE)
         cleaned = re.sub(r"```$", "", cleaned).strip()
 
