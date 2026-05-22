@@ -18,7 +18,7 @@ export function ResultDisplay({ results }: ResultDisplayProps) {
         >
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-gray-800 truncate pr-4">
-              {`Article ${index + 1} -  ${result.title}`}
+              {`Article ${index + 1}${result.title ? ` - ${result.title}` : ''}`}
             </h3>
             <span
               className={`text-xs font-bold uppercase px-2 py-1 rounded ${

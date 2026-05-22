@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from api.extract import router as extract_router
 from api.graph import router as graph_router
-from db.database import get_driver, close_driver
+from db.database import close_driver, get_driver
 
 
 @asynccontextmanager

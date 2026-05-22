@@ -1,0 +1,20 @@
+target-version = "py312"
+line-length = 100
+exclude = ["venv"]
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes (nieużywane importy, zmienne)
+    "I",   # isort (kolejność importów)
+    "UP",  # pyupgrade (nowoczesna składnia Pythona)
+    "B",   # flake8-bugbear (częste błędy logiczne)
+]
+ignore = [
+    "E501", # długość linii — pilnuje formatter
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"

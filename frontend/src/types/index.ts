@@ -41,3 +41,9 @@ export interface GraphResponse {
     nodes: NodeResult[]
     edges: EdgeResult[]
 }
+
+export interface UploadedFile {
+    id: string;
+    fileName: string;
+    articles: ArticleRequest[];
+}

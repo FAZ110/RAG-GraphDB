@@ -1,10 +1,11 @@
+import type { ReactNode } from 'react'
 import { ExtractorPage } from "./pages/ExtractorPage"
 import { GraphPage } from "./pages/GraphPage"
 import { HomePlaceholder } from "./pages/HomePage"
 
 export interface AppRoute {
     path: string
-    element: React.ReactNode
+    element: ReactNode
     label: string
     showInNavbar: boolean
 }
