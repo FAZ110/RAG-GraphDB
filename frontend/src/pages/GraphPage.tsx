@@ -1,5 +1,5 @@
 import { useGraphQuery } from "../hooks/useGraphQuery";
-import { GraphVisualizer } from "../components/GraphVisualizer";
+import { GraphVisualizer } from "../components/GraphVisualizer/GraphVisualizer";
 
 export function GraphPage() {
   const { data, isLoading, isError, error, refetch } = useGraphQuery();
