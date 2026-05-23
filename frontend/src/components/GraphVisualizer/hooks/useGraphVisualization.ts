@@ -1,20 +1,20 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
 import cytoscape, { type StylesheetStyle, type Core } from 'cytoscape';
-import type { NodeResult, EdgeResult } from '../../types';
-import { buildLabelColorMap } from './buildLabelColorMap';
-import { DEFAULT_COLOR } from './constants';
+import type { NodeResult, EdgeResult } from '../../../types';
+import { buildLabelColorMap } from '../utils/buildLabelColorMap';
+import { DEFAULT_COLOR } from '../utils/constants';
 
 export type SelectedElement =
-  | { 
+  | {
       type: 'node';
-      data: { 
-        id: string; 
-        label: string; 
+      data: {
+        id: string;
+        label: string;
         category: string;
         inDegree: number;
         outDegree: number;
         edgeTypes: string[];
-      } 
+      }
     }
   | { type: 'edge'; data: { id: string; label: string; sourceName: string; targetName: string } };
 

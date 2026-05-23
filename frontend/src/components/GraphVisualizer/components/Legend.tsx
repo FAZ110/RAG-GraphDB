@@ -27,9 +27,9 @@ export function Legend({ colorMap, selectedCategory, onCategoryClick }: LegendPr
               ${onCategoryClick ? 'cursor-pointer hover:brightness-110 hover:scale-105' : 'cursor-default'}
               ${isSelected ? 'ring-2 ring-offset-2 ring-gray-400 shadow-md' : ''}
             `}
-            style={{ 
+            style={{
               backgroundColor: color,
-              opacity: isDimmed ? 0.4 : 1 
+              opacity: isDimmed ? 0.4 : 1
             }}
           >
             {label}

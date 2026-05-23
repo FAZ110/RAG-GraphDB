@@ -1,4 +1,4 @@
-import type { NodeResult } from '../../types';
+import type { NodeResult } from '../../../types';
 import { COLOR_PALETTE, DEFAULT_COLOR } from './constants';
 
 export function buildLabelColorMap(nodes: NodeResult[]): Record<string, string> {

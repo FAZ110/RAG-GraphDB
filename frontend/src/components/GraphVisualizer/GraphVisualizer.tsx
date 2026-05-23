@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import type { GraphResponse } from '../../types';
-import { useGraphVisualization } from './useGraphVisualization';
-import { DetailsPanel } from './DetailsPanel';
-import { Legend } from './Legend';
+import { useGraphVisualization } from './hooks/useGraphVisualization';
+import { DetailsPanel } from './components/DetailsPanel';
+import { Legend } from './components/Legend';
+import { GraphStatsPanel } from './components/GraphStatsPanel';
 
 export function GraphVisualizer({ nodes, edges }: GraphResponse) {
   const { containerRef, wrapperRef, selected, setSelected, colorMap, selectedCategory, toggleCategory, isFullscreen, toggleFullscreen } = useGraphVisualization(nodes, edges);
+
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div ref={wrapperRef} className={isFullscreen ? 'bg-white p-4 flex flex-col': ''}>
@@ -24,6 +28,15 @@ export function GraphVisualizer({ nodes, edges }: GraphResponse) {
         >
           {isFullscreen ? '✕ Exit' : '⛶ Fullscreen'}
         </button>
+
+        <button
+          onClick={() => setIsOpen(true)}
+          className='absolute bottom-2 left-2 p-1.5 rounded-lg bg-white border border-gray-200 shadow-sm hover:bg-gray-50 text-gray-600 text-sm'
+        >
+          Statistics
+        </button>
+
+        <GraphStatsPanel nodes={nodes} edges={edges} isOpen={isOpen} onClose={() => setIsOpen(false)} />
       </div>
       <Legend
         colorMap={colorMap}

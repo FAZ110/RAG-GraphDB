@@ -1,4 +1,4 @@
-import type { SelectedElement } from './useGraphVisualization';
+import type { SelectedElement } from '../hooks/useGraphVisualization';
 
 interface DetailsPanelProps {
   element: SelectedElement;
@@ -37,21 +37,20 @@ export function DetailsPanel({ element, onClose }: DetailsPanelProps) {
               <div>out's</div>
             </div>
           </div>
-        {element.data.edgeTypes.length > 0 && (
-          <div className="mt-2">
-            <p className="text-xs text-gray-500 mb-1">Relations</p>
-            <div className="flex flex-wrap gap-1">
-              {element.data.edgeTypes.map((t) => (
-                <span key={t} className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded">
-                  {t}
-                </span>
-              ))}
+          {element.data.edgeTypes.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs text-gray-500 mb-1">Relations</p>
+              <div className="flex flex-wrap gap-1">
+                {element.data.edgeTypes.map((t) => (
+                  <span key={t} className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded">
+                    {t}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       )}
-      
 
       {element.type === 'edge' && (
         <div className="space-y-2">
