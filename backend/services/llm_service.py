@@ -36,7 +36,7 @@ class LLMService:
             if not GROQ_API_KEY:
                 raise ValueError("No GROQ_API_KEY in environmental variables")
             self._client = AsyncOpenAI(
-                base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY
+                base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY, max_retries=5
             )
             self._model = GROQ_MODEL
             print(f"Initialized LLM: Groq (Model: {self._model})")
