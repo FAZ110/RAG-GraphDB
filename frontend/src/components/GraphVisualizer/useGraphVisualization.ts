@@ -5,7 +5,17 @@ import { buildLabelColorMap } from './buildLabelColorMap';
 import { DEFAULT_COLOR } from './constants';
 
 export type SelectedElement =
-  | { type: 'node'; data: { id: string; label: string; category: string } }
+  | { 
+      type: 'node';
+      data: { 
+        id: string; 
+        label: string; 
+        category: string;
+        inDegree: number;
+        outDegree: number;
+        edgeTypes: string[];
+      } 
+    }
   | { type: 'edge'; data: { id: string; label: string; sourceName: string; targetName: string } };
 
 function applyCategoryHighlight(cy: Core, category: string | null) {
@@ -119,8 +129,15 @@ export function useGraphVisualization(nodes: NodeResult[], edges: EdgeResult[]) 
     cyRef.current = cy;
 
     cy.on('tap', 'node', (evt) => {
-      const data = evt.target.data() as Extract<SelectedElement, { type: 'node' }>['data'];
-      setSelected({ type: 'node', data });
+      const node = evt.target;
+      const data = node.data() as { id: string; label: string; category: string };
+      const inDegree = node.indegree(false);
+      const outDegree = node.outdegree(false);
+
+      const edgeTypes = [... new Set<string>(
+        node.connectedEdges().map((e: {data: (key: string) => string}) => e.data('label'))
+      )]
+      setSelected({ type: 'node', data: {...data, inDegree, outDegree, edgeTypes} });
     });
 
     cy.on('tap', 'edge', (evt) => {
