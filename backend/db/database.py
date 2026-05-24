@@ -58,3 +58,11 @@ async def close_driver() -> None:
     if _driver is not None:
         await _driver.close()
         _driver = None
+
+
+async def reset_graph() -> None:
+    try:
+        async with get_driver().session() as session:
+            await session.run("MATCH (n) DETACH DELETE n")
+    except Neo4jError as e:
+        raise RuntimeError(f"Neo4j error: {e.message}") from e

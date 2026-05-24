@@ -24,3 +24,10 @@ export const fetchGraph = async (): Promise<GraphResponse> => {
   if (!response.ok) throw new Error(`Server error: ${response.status}`);
   return response.json();
 }
+
+export const deleteGraph = async (): Promise<void> => {
+  const response = await fetch(`${API_URL}/graph`, {
+    method: 'DELETE'
+  })
+  if (!response.ok) throw new Error(`Server error: ${response.status}`);
+}
