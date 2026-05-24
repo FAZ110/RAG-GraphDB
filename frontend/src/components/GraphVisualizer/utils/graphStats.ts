@@ -37,5 +37,12 @@ export function computeStats(nodes: NodeResult[], edges: EdgeResult[]) {
     const connectedComponents = findConnectedComponents({nodes, edges});
     const sccs = kosaraju({nodes, edges});
 
-    return { N, E, density, avgDegree, categoryCount, edgeTypeCount, topNodes, isolated, connectedComponents, sccs };
+    const largestComponent = connectedComponents.components.length > 0
+        ? Math.max(...connectedComponents.components.map(c => c.length))
+        : 0;
+    const maxDegree = N > 0
+        ? Math.max(...[...degreeMap.values()].map(d => d.in + d.out))
+        : 0;
+
+    return { N, E, density, avgDegree, categoryCount, edgeTypeCount, topNodes, isolated, connectedComponents, sccs, largestComponent, maxDegree };
 }

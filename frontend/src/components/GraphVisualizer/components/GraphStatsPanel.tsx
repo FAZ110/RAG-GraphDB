@@ -2,6 +2,7 @@ import type { NodeResult, EdgeResult } from '../../../types';
 import { useGraphStats } from '../hooks/useGraphStats';
 import { MetricsTiles } from './MetricsTiles';
 import { BarSection } from './BarSection';
+import {COLORS} from '../utils/constants'
 
 interface GraphStatsPanelProps {
   nodes: NodeResult[];
@@ -9,8 +10,6 @@ interface GraphStatsPanelProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-const COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6'];
 
 export function GraphStatsPanel({ nodes, edges, isOpen, onClose }: GraphStatsPanelProps) {
   const stats = useGraphStats(nodes, edges);
@@ -43,7 +42,9 @@ export function GraphStatsPanel({ nodes, edges, isOpen, onClose }: GraphStatsPan
             { label: 'Edges', value: stats.E },
             { label: 'Density', value: `${(stats.density * 100).toFixed(2)}%` },
             { label: 'Avg degree', value: stats.avgDegree.toFixed(1) },
+            { label: 'Max degree', value: stats.maxDegree},
             { label: 'Components', value: stats.connectedComponents.count },
+            { label: 'Largest component', value: stats.largestComponent},
             { label: 'SCCs', value: stats.sccs.count },
           ]} />
 
