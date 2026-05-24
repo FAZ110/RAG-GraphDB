@@ -1,10 +1,33 @@
 services:
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+  
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+  
+  worker:
+    build: ./backend
+    command: celery -A celery_app worker --loglevel=info --concurrency=4
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - rabbitmq
+      - redis
   backend:
     build: ./backend
     ports:
       - "8000:8000"
     env_file:
       - ./backend/.env
+    depends_on:
+      - rabbitmq
+      - redis
 
   frontend:
     build:

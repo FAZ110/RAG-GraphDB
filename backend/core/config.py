@@ -17,5 +17,9 @@ LLM_API_KEY = os.getenv("LLM_API_KEY", "lm-studio")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://127.0.0.1:1234/v1")
 LLM_MODEL = os.getenv("LLM_MODEL", "local-model")
 
+RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672//")
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+
 if not all([NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD]):
     raise RuntimeError("Environmental variables missing: NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD")
