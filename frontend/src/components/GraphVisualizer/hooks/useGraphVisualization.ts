@@ -55,6 +55,11 @@ export function useGraphVisualization(nodes: NodeResult[], edges: EdgeResult[]) 
   useEffect(() => {
     if (!containerRef.current) return;
 
+    const container = document.createElement('div');
+    container.style.width = '100%';
+    container.style.height = '100%';
+    containerRef.current.appendChild(container);
+
     const elements = [
       ...nodes.map((node) => ({
         data: {
@@ -120,7 +125,7 @@ export function useGraphVisualization(nodes: NodeResult[], edges: EdgeResult[]) 
     ];
 
     const cy = cytoscape({
-      container: containerRef.current,
+      container,
       elements,
       style: stylesheet,
       layout: { name: 'cose' },
@@ -161,6 +166,7 @@ export function useGraphVisualization(nodes: NodeResult[], edges: EdgeResult[]) 
     });
 
     return () => {
+        container.remove();
         cy.destroy();
         cyRef.current = null;
     };

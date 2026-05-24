@@ -1,4 +1,5 @@
 import type { EdgeResult, NodeResult } from '../../../types';
+import { findConnectedComponents, kosaraju } from './algorithms';
 
 export function computeStats(nodes: NodeResult[], edges: EdgeResult[]) {
     const N = nodes.length;
@@ -33,5 +34,8 @@ export function computeStats(nodes: NodeResult[], edges: EdgeResult[]) {
         return d.in + d.out === 0;
     }).length;
 
-    return { N, E, density, avgDegree, categoryCount, edgeTypeCount, topNodes, isolated };
+    const connectedComponents = findConnectedComponents({nodes, edges});
+    const sccs = kosaraju({nodes, edges});
+
+    return { N, E, density, avgDegree, categoryCount, edgeTypeCount, topNodes, isolated, connectedComponents, sccs };
 }

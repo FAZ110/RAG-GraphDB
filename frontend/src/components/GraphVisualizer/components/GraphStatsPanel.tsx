@@ -62,6 +62,8 @@ export function GraphStatsPanel({ nodes, edges, isOpen, onClose }: GraphStatsPan
               { label: 'Edges', value: stats.E },
               { label: 'Density', value: `${(stats.density * 100).toFixed(2)}%` },
               { label: 'Avg degree', value: stats.avgDegree.toFixed(1) },
+              { label: 'Components', value: stats.connectedComponents.count },
+              { label: 'SCCs', value: stats.sccs.count },
             ].map(({ label, value }) => (
               <div key={label} className="bg-gray-50 rounded-lg px-3 py-2 text-center">
                 <div className="text-base font-semibold text-gray-900">{value}</div>
