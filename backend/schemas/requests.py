@@ -38,3 +38,7 @@ class BulkExtractRequest(BaseModel):
 
 class BulkExtractResponse(BaseModel):
     results: list[ExtractResponse]
+
+
+class JobSubmitResponse(BaseModel):
+    job_id: str

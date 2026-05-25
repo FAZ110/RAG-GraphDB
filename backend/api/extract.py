@@ -1,50 +1,67 @@
-from fastapi import APIRouter
+import asyncio
+import json
+import uuid
 
-from db.database import execute_graph
-from db.json_validator import validate_graph_json
-from schemas.requests import (
-    BulkExtractRequest,
-    BulkExtractResponse,
-    EdgeResult,
-    ExtractResponse,
-    NodeResult,
-)
-from services.llm_service import LLMService
+import redis.asyncio as aioredis
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+
+from core.config import REDIS_URL
+from schemas.requests import BulkExtractRequest, JobSubmitResponse
+from tasks.extract_task import extract_article_task
 
 router = APIRouter()
-llm_service = LLMService()
 
 
-@router.get("/")
-def read_root():
-    return {"status": "Server works!!!"}
+def _get_redis() -> aioredis.Redis:
+    return aioredis.from_url(REDIS_URL, decode_responses=True)
 
 
-@router.post("/extract", response_model=BulkExtractResponse)
-async def extract_graph_data(request: BulkExtractRequest) -> BulkExtractResponse:
+@router.post("/extract", response_model=JobSubmitResponse)
+async def submit_extract_job(request: BulkExtractRequest) -> JobSubmitResponse:
+    job_id = str(uuid.uuid4())
+    r = _get_redis()
 
-    results = []
-
+    try:
+        await r.set(f"job:{job_id}:total", len(request.articles), ex=3600)
+    finally:
+        await r.aclose()
     for article in request.articles:
+        extract_article_task.delay(
+            job_id=job_id,
+            title=article.title,
+            content=article.content,
+        )
+    return JobSubmitResponse(job_id=job_id)
+
+
+@router.get("/extract/stream/{job_id}")
+async def stream_extract_results(job_id: str):
+    async def event_generator():
+        r = _get_redis()
         try:
-            raw_json = await llm_service.generate_graph_json(article.title, article.content)
-            graph = validate_graph_json(raw_json)
-            nodes_dicts = [n.model_dump() for n in graph.nodes]
-            edges_dicts = [e.model_dump() for e in graph.edges]
-            await execute_graph(nodes_dicts, edges_dicts)
+            raw_total = await r.get(f"job:{job_id}:total")
+            if raw_total is None:
+                yield 'event: error\ndata: {"error": "job not found"}\n\n'
+                return
+            total = int(raw_total)
+            yield f"event: start\ndata: {json.dumps({'total': total, 'job_id': job_id})}\n\n"
 
-            results.append(
-                ExtractResponse(
-                    title=article.title,
-                    status="ok",
-                    nodes=[NodeResult(**n) for n in nodes_dicts],
-                    edges=[EdgeResult(**e) for e in edges_dicts],
-                    nodes_count=len(graph.nodes),
-                    edges_count=len(graph.edges),
-                )
-            )
+            offset = 0
+            while offset < total:
+                raw = await r.lindex(f"job:{job_id}:results", offset)
+                if raw is None:
+                    await asyncio.sleep(0.5)
+                    continue
+                yield f"event: result\ndata: {raw}\n\n"
+                offset += 1
 
-        except Exception as e:
-            results.append(ExtractResponse(title=article.title, status="error", error=str(e)))
+            yield f"event: done\ndata: {json.dumps({'total': total})}\n\n"
+        finally:
+            await r.aclose()
 
-    return BulkExtractResponse(results=results)
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

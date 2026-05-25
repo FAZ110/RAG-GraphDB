@@ -27,3 +27,8 @@ app.add_middleware(
 
 app.include_router(extract_router)
 app.include_router(graph_router)
+
+
+@app.get("/")
+def read_root():
+    return {"status": "Server works!!!"}
