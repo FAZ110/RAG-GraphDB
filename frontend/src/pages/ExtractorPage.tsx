@@ -9,7 +9,7 @@ import type { ChangeEvent } from "react";
 
 export function ExtractorPage(){
 
-    const [mode, setMode] = useState('json');
+    const [mode, setMode] = useState('file');
 
     const handleModeChange = (e: ChangeEvent<HTMLSelectElement>) => {
         setMode(e.target.value)
@@ -58,13 +58,18 @@ export function ExtractorPage(){
                 
                 
                 {mutation.isError && (
-                <ErrorMessage message={mutation.error.message} />
+                    <ErrorMessage message={mutation.error?.message ?? 'Unknown error'} />
                 )}
-                
-                {mutation.isSuccess && (
-                <ResultDisplay
-                    results={mutation.data.results}
-                />
+
+                {(mutation.isSuccess || mutation.status === 'streaming') && (
+                    <>
+                        {mutation.status === 'streaming' && (
+                            <p className="mt-4 text-sm text-blue-600 font-medium">
+                                Processing: {mutation.results.length} / {mutation.total}...
+                            </p>
+                        )}
+                        <ResultDisplay results={mutation.results} />
+                    </>
                 )}
 
             </div>

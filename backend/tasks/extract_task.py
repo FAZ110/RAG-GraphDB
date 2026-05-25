@@ -1,9 +1,9 @@
-import asyncio
 import json
 
 import redis
-from neo4j import AsyncGraphDatabase
+from neo4j import GraphDatabase
 from neo4j.exceptions import Neo4jError
+from openai import RateLimitError
 
 from celery_app import celery_app
 from core.config import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER, REDIS_URL
@@ -12,30 +12,42 @@ from db.json_validator import validate_graph_json
 from services.llm_service import LLMService
 
 
-@celery_app.task
-def extract_article_task(job_id: str, title: str, content: str) -> None:
-    result = asyncio.run(_run_extraction(title, content))
+@celery_app.task(
+    bind=True,
+    rate_limit="10/m",
+    max_retries=5,
+    time_limit=120,
+)
+def extract_article_task(self, job_id: str, title: str, content: str) -> None:
+    try:
+        result = _run_extraction(title, content)
+    except RateLimitError as exc:
+        retry_after = int(float(exc.response.headers.get("retry-after", 60)))
+        raise self.retry(exc=exc, countdown=retry_after) from exc
+
     r = redis.from_url(REDIS_URL)
     r.rpush(f"job:{job_id}:results", json.dumps(result))
     r.expire(f"job:{job_id}:results", 3600)
+    r.rpush(f"job:{job_id}:notify", "1")
+    r.expire(f"job:{job_id}:notify", 3600)
 
 
-async def _run_extraction(title: str, content: str) -> dict:
-    driver = AsyncGraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+def _run_extraction(title: str, content: str) -> dict:
+    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+    llm = LLMService()
     try:
-        llm = LLMService()
-        raw_json = await llm.generate_graph_json(title, content)
+        raw_json = llm.generate_graph_json(title, content)
         graph = validate_graph_json(raw_json)
         nodes_dicts = [n.model_dump() for n in graph.nodes]
         edges_dicts = [e.model_dump() for e in graph.edges]
 
         statements = build_statements(nodes_dicts, edges_dicts)
         try:
-            async with driver.session() as session:
-                async with await session.begin_transaction() as tx:
+            with driver.session() as session:
+                with session.begin_transaction() as tx:
                     for cypher, params in statements:
-                        await tx.run(cypher, params)
-                    await tx.commit()
+                        tx.run(cypher, params)
+                    tx.commit()
         except Neo4jError as e:
             raise RuntimeError(f"Neo4j error: {e.message}") from e
 
@@ -48,6 +60,8 @@ async def _run_extraction(title: str, content: str) -> dict:
             "edges_count": len(graph.edges),
             "error": None,
         }
+    except RateLimitError:
+        raise
     except Exception as e:
         return {
             "title": title,
@@ -59,4 +73,4 @@ async def _run_extraction(title: str, content: str) -> dict:
             "error": str(e),
         }
     finally:
-        await driver.close()
+        driver.close()

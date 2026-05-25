@@ -1,7 +1,7 @@
 import json
 import re
 
-from openai import AsyncOpenAI
+from openai import OpenAI
 
 from core.config import GROQ_API_KEY, GROQ_MODEL, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER
 
@@ -35,20 +35,22 @@ class LLMService:
         if LLM_PROVIDER == "groq":
             if not GROQ_API_KEY:
                 raise ValueError("No GROQ_API_KEY in environmental variables")
-            self._client = AsyncOpenAI(
-                base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY, max_retries=5
+            self._client = OpenAI(
+                base_url="https://api.groq.com/openai/v1",
+                api_key=GROQ_API_KEY,
+                max_retries=0,
             )
             self._model = GROQ_MODEL
             print(f"Initialized LLM: Groq (Model: {self._model})")
 
         else:
-            self._client = AsyncOpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY)
+            self._client = OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY, max_retries=0)
             self._model = LLM_MODEL
             print(f"Initialized LLM: Local (Model: {self._model})")
 
-    async def generate_graph_json(self, title: str, content: str) -> dict:
+    def generate_graph_json(self, title: str, content: str) -> dict:
         prompt = _GRAPH_JSON_PROMPT.format(title=title, content=content)
-        response = await self._client.chat.completions.create(
+        response = self._client.chat.completions.create(
             model=self._model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,

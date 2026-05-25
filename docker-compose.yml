@@ -13,7 +13,7 @@ services:
   
   worker:
     build: ./backend
-    command: celery -A celery_app worker --loglevel=info --concurrency=4
+    command: celery -A celery_app worker --loglevel=info --concurrency=2
     env_file:
       - ./backend/.env
     depends_on:

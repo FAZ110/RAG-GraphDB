@@ -47,3 +47,7 @@ export interface UploadedFile {
     fileName: string;
     articles: ArticleRequest[];
 }
+
+export interface JobSubmitResponse {
+    job_id: string;
+}

@@ -1,4 +1,3 @@
-import asyncio
 import json
 import uuid
 
@@ -21,7 +20,6 @@ def _get_redis() -> aioredis.Redis:
 async def submit_extract_job(request: BulkExtractRequest) -> JobSubmitResponse:
     job_id = str(uuid.uuid4())
     r = _get_redis()
-
     try:
         await r.set(f"job:{job_id}:total", len(request.articles), ex=3600)
     finally:
@@ -39,6 +37,8 @@ async def submit_extract_job(request: BulkExtractRequest) -> JobSubmitResponse:
 async def stream_extract_results(job_id: str):
     async def event_generator():
         r = _get_redis()
+        results_key = f"job:{job_id}:results"
+        notify_key = f"job:{job_id}:notify"
         try:
             raw_total = await r.get(f"job:{job_id}:total")
             if raw_total is None:
@@ -48,13 +48,33 @@ async def stream_extract_results(job_id: str):
             yield f"event: start\ndata: {json.dumps({'total': total, 'job_id': job_id})}\n\n"
 
             offset = 0
+
+            # Faza 1: drenaż wyników już dostępnych (obsługa reconnect)
             while offset < total:
-                raw = await r.lindex(f"job:{job_id}:results", offset)
+                raw = await r.lindex(results_key, offset)
                 if raw is None:
-                    await asyncio.sleep(0.5)
-                    continue
+                    break
                 yield f"event: result\ndata: {raw}\n\n"
                 offset += 1
+
+            # Faza 2: blokujące oczekiwanie na nowe wyniki przez BLPOP
+            while offset < total:
+                notification = await r.blpop(notify_key, timeout=30)
+                if notification is None:
+                    # timeout — sprawdź czy wynik pojawił się mimo braku notyfikacji
+                    raw = await r.lindex(results_key, offset)
+                    if raw is None:
+                        continue
+                    yield f"event: result\ndata: {raw}\n\n"
+                    offset += 1
+
+                # Drenaż wszystkich wyników dostępnych po notyfikacji
+                while offset < total:
+                    raw = await r.lindex(results_key, offset)
+                    if raw is None:
+                        break
+                    yield f"event: result\ndata: {raw}\n\n"
+                    offset += 1
 
             yield f"event: done\ndata: {json.dumps({'total': total})}\n\n"
         finally:
