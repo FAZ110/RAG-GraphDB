@@ -1,7 +1,7 @@
 import json
 
 import redis
-from celery.exceptions import MaxRetriesExceededError
+from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
 from neo4j import GraphDatabase
 from neo4j.exceptions import Neo4jError
 from openai import RateLimitError
@@ -17,11 +17,24 @@ from services.llm_service import LLMService
     bind=True,
     rate_limit="10/m",
     max_retries=5,
-    time_limit=120,
+    soft_time_limit=120,
+    time_limit=130,
 )
-def extract_article_task(self, job_id: str, title: str, content: str) -> None:
+def extract_article_task(
+    self, job_id: str, title: str, content: str, provider: str = "local"
+) -> None:
     try:
-        result = _run_extraction(title, content)
+        result = _run_extraction(title, content, provider)
+    except SoftTimeLimitExceeded:
+        result = {
+            "title": title,
+            "status": "error",
+            "nodes": [],
+            "edges": [],
+            "nodes_count": 0,
+            "edges_count": 0,
+            "error": "Task timed out (120s) — article may be too long",
+        }
     except RateLimitError as exc:
         retry_after = 60
         if exc.response is not None:
@@ -46,9 +59,9 @@ def extract_article_task(self, job_id: str, title: str, content: str) -> None:
     r.expire(f"job:{job_id}:notify", 3600)
 
 
-def _run_extraction(title: str, content: str) -> dict:
+def _run_extraction(title: str, content: str, provider: str) -> dict:
     driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
-    llm = LLMService()
+    llm = LLMService(provider=provider)
     try:
         raw_json = llm.generate_graph_json(title, content)
         graph = validate_graph_json(raw_json)

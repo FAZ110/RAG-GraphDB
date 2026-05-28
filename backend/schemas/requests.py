@@ -34,6 +34,7 @@ class ExtractResponse(BaseModel):
 
 class BulkExtractRequest(BaseModel):
     articles: list[ArticleRequest]
+    provider: str = "local"
 
 
 class BulkExtractResponse(BaseModel):

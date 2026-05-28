@@ -3,7 +3,15 @@ import re
 
 from openai import OpenAI
 
-from core.config import GROQ_API_KEY, GROQ_MODEL, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER
+from core.config import (
+    GROQ_API_KEY,
+    GROQ_MODEL,
+    LLM_API_KEY,
+    LLM_BASE_URL,
+    LLM_MODEL,
+    OPENAI_API_KEY,
+    OPENAI_MODEL,
+)
 
 _GRAPH_JSON_PROMPT = """\
 Poniżej wyśle ci tekst, twoim zadaniem jest wyekstrahować encje i relacje semantyczne między nimi.
@@ -31,8 +39,8 @@ Treść: {content}\
 
 
 class LLMService:
-    def __init__(self) -> None:
-        if LLM_PROVIDER == "groq":
+    def __init__(self, provider: str = "local") -> None:
+        if provider == "groq":
             if not GROQ_API_KEY:
                 raise ValueError("No GROQ_API_KEY in environmental variables")
             self._client = OpenAI(
@@ -41,12 +49,16 @@ class LLMService:
                 max_retries=0,
             )
             self._model = GROQ_MODEL
-            print(f"Initialized LLM: Groq (Model: {self._model})")
-
+        elif provider == "openai":
+            if not OPENAI_API_KEY:
+                raise ValueError("No OPENAI_API_KEY in environmental variables")
+            self._client = OpenAI(api_key=OPENAI_API_KEY, max_retries=0)
+            self._model = OPENAI_MODEL
         else:
             self._client = OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY, max_retries=0)
             self._model = LLM_MODEL
-            print(f"Initialized LLM: Local (Model: {self._model})")
+
+        print(f"Initialized with: {self._model}")
 
     def generate_graph_json(self, title: str, content: str) -> dict:
         prompt = _GRAPH_JSON_PROMPT.format(title=title, content=content)

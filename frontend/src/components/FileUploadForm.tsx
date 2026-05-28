@@ -1,9 +1,9 @@
-import type { BulkExtractRequest } from '../types';
+import type { ArticleRequest } from '../types';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { useFiles } from '../contexts/FileContext';
 
 interface FileUploadFormProps {
-  onSubmit: (data: BulkExtractRequest) => void;
+  onSubmit: (data: { articles: ArticleRequest[] }) => void;
   isLoading: boolean;
 }
 

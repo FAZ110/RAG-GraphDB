@@ -4,6 +4,7 @@ import uuid
 import redis.asyncio as aioredis
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from core.config import REDIS_URL
 from schemas.requests import BulkExtractRequest, JobSubmitResponse
@@ -11,9 +12,15 @@ from tasks.extract_task import extract_article_task
 
 router = APIRouter()
 
+_BLPOP_TIMEOUT = 30
+
 
 def _get_redis() -> aioredis.Redis:
     return aioredis.from_url(REDIS_URL, decode_responses=True)
+
+
+def _get_redis_stream() -> aioredis.Redis:
+    return aioredis.from_url(REDIS_URL, decode_responses=True, socket_timeout=_BLPOP_TIMEOUT + 5)
 
 
 @router.post("/extract", response_model=JobSubmitResponse)
@@ -29,6 +36,7 @@ async def submit_extract_job(request: BulkExtractRequest) -> JobSubmitResponse:
             job_id=job_id,
             title=article.title,
             content=article.content,
+            provider=request.provider,
         )
     return JobSubmitResponse(job_id=job_id)
 
@@ -36,7 +44,7 @@ async def submit_extract_job(request: BulkExtractRequest) -> JobSubmitResponse:
 @router.get("/extract/stream/{job_id}")
 async def stream_extract_results(job_id: str):
     async def event_generator():
-        r = _get_redis()
+        r = _get_redis_stream()
         results_key = f"job:{job_id}:results"
         notify_key = f"job:{job_id}:notify"
         try:
@@ -49,7 +57,6 @@ async def stream_extract_results(job_id: str):
 
             offset = 0
 
-            # Faza 1: drenaż wyników już dostępnych (obsługa reconnect)
             while offset < total:
                 raw = await r.lindex(results_key, offset)
                 if raw is None:
@@ -57,18 +64,19 @@ async def stream_extract_results(job_id: str):
                 yield f"event: result\ndata: {raw}\n\n"
                 offset += 1
 
-            # Faza 2: blokujące oczekiwanie na nowe wyniki przez BLPOP
             while offset < total:
-                notification = await r.blpop(notify_key, timeout=30)
+                try:
+                    notification = await r.blpop(notify_key, timeout=_BLPOP_TIMEOUT)
+                except RedisTimeoutError:
+                    notification = None
+
                 if notification is None:
-                    # timeout — sprawdź czy wynik pojawił się mimo braku notyfikacji
                     raw = await r.lindex(results_key, offset)
                     if raw is None:
                         continue
                     yield f"event: result\ndata: {raw}\n\n"
                     offset += 1
 
-                # Drenaż wszystkich wyników dostępnych po notyfikacji
                 while offset < total:
                     raw = await r.lindex(results_key, offset)
                     if raw is None:
