@@ -1,6 +1,7 @@
 import json
 
 import redis
+from celery.exceptions import MaxRetriesExceededError
 from neo4j import GraphDatabase
 from neo4j.exceptions import Neo4jError
 from openai import RateLimitError
@@ -22,8 +23,21 @@ def extract_article_task(self, job_id: str, title: str, content: str) -> None:
     try:
         result = _run_extraction(title, content)
     except RateLimitError as exc:
-        retry_after = int(float(exc.response.headers.get("retry-after", 60)))
-        raise self.retry(exc=exc, countdown=retry_after) from exc
+        retry_after = 60
+        if exc.response is not None:
+            retry_after = int(float(exc.response.headers.get("retry-after", 60)))
+        try:
+            raise self.retry(exc=exc, countdown=retry_after) from exc
+        except MaxRetriesExceededError:
+            result = {
+                "title": title,
+                "status": "error",
+                "nodes": [],
+                "edges": [],
+                "nodes_count": 0,
+                "edges_count": 0,
+                "error": "Rate limit exceeded - too much retries",
+            }
 
     r = redis.from_url(REDIS_URL)
     r.rpush(f"job:{job_id}:results", json.dumps(result))
