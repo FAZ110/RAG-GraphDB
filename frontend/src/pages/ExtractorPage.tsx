@@ -36,39 +36,42 @@ export function ExtractorPage(){
                 </p>
             </div>
 
-            <div className="flex items-center gap-3">
-                <label className="text-sm font-medium text-gray-700">Input mode:</label>
-                <select
-                    value={mode}
-                    onChange={handleModeChange}
-                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                    <option value="json">JSON (paste)</option>
-                    <option value="file">File (drag & drop)</option>
-                </select>
+            <div className="flex items-start justify-evenly">
+                <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-gray-700">Input mode:</label>
+                    <select
+                        value={mode}
+                        onChange={handleModeChange}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                        <option value="json">JSON (paste)</option>
+                        <option value="file">File (drag & drop)</option>
+                    </select>
+                </div>
+
+                <div className="flex items-center gap-3 flex-col">
+                    <div className="flex items-center gap-3">
+                        <label className="text-sm font-medium text-gray-700">Provider:</label>
+                        <select className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            value={provider} onChange={e => setProvider(e.target.value)}>
+                                {PROVIDERS.map(p => (
+                                    <option key={p.value} value={p.value}>
+                                        {p.label} ({p.model})
+                                    </option>
+                                ))}
+                        </select>
+                    </div>
+                    
+                    {selected.paid && (
+                        <p className="text-sm text-amber-600 font-medium">
+                            ⚠ {selected.label} is a paid provider.
+                        </p>
+                        )
+                    }
+
+                </div>
+
             </div>
-
-            <div className="flex items-center gap-3">
-                <label className="text-sm font-medium text-gray-700">Provider:</label>
-                <select className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={provider} onChange={e => setProvider(e.target.value)}>
-                        {PROVIDERS.map(p => (
-                            <option key={p.value} value={p.value}>
-                                {p.label} ({p.model})
-                            </option>
-                        ))}
-                </select>
-
-            </div>
-
-            
-
-            {selected.paid && (
-                <p className="text-sm text-amber-600 font-medium">
-                    ⚠ {selected.label} is a paid provider.
-                </p>
-                )
-            }
             
 
             <div className="bg-white p-6 sm:p-8 shadow-xl sm:rounded-2xl border border-gray-100">
