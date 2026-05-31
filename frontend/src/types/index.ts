@@ -21,6 +21,7 @@ export interface BulkExtractResponse {
 
 export interface BulkExtractRequest {
     articles: ArticleRequest[];
+    provider: string
 }
 
 
@@ -47,3 +48,8 @@ export interface UploadedFile {
     fileName: string;
     articles: ArticleRequest[];
 }
+
+export interface JobSubmitResponse {
+    job_id: string;
+}
+

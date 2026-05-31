@@ -57,11 +57,16 @@ export function ResultDisplay({ results }: ResultDisplayProps) {
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Edges</p>
                   <div className="flex flex-col gap-1">
-                    {result.edges.map((e, i) => (
-                      <span key={i} className="text-xs text-gray-600 font-mono">
-                        {e.source} —[{e.type}]→ {e.target}
-                      </span>
-                    ))}
+                    {(() => {
+                      const idToName = Object.fromEntries(
+                        (result.nodes ?? []).map((n) => [n.id, n.properties.name as string])
+                      );
+                      return result.edges.map((e, i) => (
+                        <span key={i} className="text-xs text-gray-600 font-mono">
+                          {idToName[e.source] ?? e.source} —[{e.type}]→ {idToName[e.target] ?? e.target}
+                        </span>
+                      ));
+                    })()}
                   </div>
                 </div>
               )}

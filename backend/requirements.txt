@@ -3,3 +3,5 @@ uvicorn[standard]>=0.29.0
 python-dotenv>=1.0.0
 neo4j>=5.19.0
 openai>=1.30.0
+celery[rabbitmq]>=5.4.0
+redis>=5.0.0

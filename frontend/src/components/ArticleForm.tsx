@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import type { BulkExtractRequest, ArticleRequest } from '../types';
+import type { ArticleRequest } from '../types';
 
 interface ArticleFormProps {
-  onSubmit: (data: BulkExtractRequest) => void;
+  onSubmit: (data: { articles: ArticleRequest[] }) => void;
   isLoading: boolean;
 }
 
