@@ -28,7 +28,7 @@ async def submit_extract_job(request: BulkExtractRequest) -> JobSubmitResponse:
     job_id = str(uuid.uuid4())
     r = _get_redis()
     try:
-        await r.set(f"job:{job_id}:total", len(request.articles), ex=3600)
+        await r.set(f"job:{job_id}:total", len(request.articles), ex=86400)
     finally:
         await r.aclose()
     for article in request.articles:
@@ -58,11 +58,12 @@ async def stream_extract_results(job_id: str):
             offset = 0
 
             while offset < total:
-                raw = await r.lindex(results_key, offset)
-                if raw is None:
+                batch = await r.lrange(results_key, offset, offset + 49)
+                if not batch:
                     break
-                yield f"event: result\ndata: {raw}\n\n"
-                offset += 1
+                for raw in batch:
+                    yield f"event: result\ndata: {raw}\n\n"
+                offset += len(batch)
 
             while offset < total:
                 try:
@@ -71,18 +72,21 @@ async def stream_extract_results(job_id: str):
                     notification = None
 
                 if notification is None:
-                    raw = await r.lindex(results_key, offset)
-                    if raw is None:
+                    batch = await r.lrange(results_key, offset, offset + 49)
+                    if not batch:
                         continue
-                    yield f"event: result\ndata: {raw}\n\n"
-                    offset += 1
+                    for raw in batch:
+                        yield f"event: result\ndata: {raw}\n\n"
+                    offset += len(batch)
+                    continue
 
                 while offset < total:
-                    raw = await r.lindex(results_key, offset)
-                    if raw is None:
+                    batch = await r.lrange(results_key, offset, offset + 49)
+                    if not batch:
                         break
-                    yield f"event: result\ndata: {raw}\n\n"
-                    offset += 1
+                    for raw in batch:
+                        yield f"event: result\ndata: {raw}\n\n"
+                    offset += len(batch)
 
             yield f"event: done\ndata: {json.dumps({'total': total})}\n\n"
         finally:

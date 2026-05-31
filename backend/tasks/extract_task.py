@@ -54,13 +54,15 @@ def extract_article_task(
 
     r = redis.from_url(REDIS_URL)
     r.rpush(f"job:{job_id}:results", json.dumps(result))
-    r.expire(f"job:{job_id}:results", 3600)
+    r.expire(f"job:{job_id}:results", 86400)
     r.rpush(f"job:{job_id}:notify", "1")
-    r.expire(f"job:{job_id}:notify", 3600)
+    r.expire(f"job:{job_id}:notify", 86400)
+
+
+driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
 
 def _run_extraction(title: str, content: str, provider: str) -> dict:
-    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
     llm = LLMService(provider=provider)
     try:
         raw_json = llm.generate_graph_json(title, content)
@@ -99,5 +101,3 @@ def _run_extraction(title: str, content: str, provider: str) -> dict:
             "edges_count": 0,
             "error": str(e),
         }
-    finally:
-        driver.close()
