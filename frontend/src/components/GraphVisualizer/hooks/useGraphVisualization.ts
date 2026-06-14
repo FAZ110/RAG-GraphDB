@@ -30,8 +30,9 @@ function applyVisibility(
 ) {
   const hasSearch = highlightedIds.length > 0;
   const hasCategory = category !== null;
+  const hasSelected = selectedId !== null;
 
-  if (!hasSearch && !hasCategory) {
+  if (!hasSearch && !hasCategory && !hasSelected) {
     cy.nodes().style('opacity', 1);
     cy.edges().style('opacity', 1);
     return;
@@ -40,22 +41,24 @@ function applyVisibility(
   cy.nodes().style('opacity', 0.15);
   cy.edges().style('opacity', 0.15);
 
-  let visible = hasSearch
-    ? highlightedIds.reduce(
-        (acc, id) => acc.union(cy.getElementById(id)),
-        cy.collection(),
-      )
-    : cy.nodes();
-
-  if (hasCategory) {
-    visible = visible.filter(`[category = "${escapeSelectorValue(category!)}"]`);
+  let visible = cy.collection();
+  if (hasSearch) {
+    visible = highlightedIds.reduce(
+      (acc, id) => acc.union(cy.getElementById(id)),
+      cy.collection(),
+    );
+    if (hasCategory) {
+      visible = visible.filter(`[category = "${escapeSelectorValue(category!)}"]`);
+    }
+  } else if (hasCategory) {
+    visible = cy.nodes(`[category = "${escapeSelectorValue(category!)}"]`);
   }
 
   visible.style('opacity', 1);
   visible.edgesWith(visible).style('opacity', 1);
 
-  if (selectedId) {
-    const selectedNode = cy.getElementById(selectedId);
+  if (hasSelected) {
+    const selectedNode = cy.getElementById(selectedId!);
     selectedNode.style('opacity', 1);
     selectedNode.connectedEdges().style('opacity', 1);
     selectedNode.neighborhood('node').style('opacity', 1);
@@ -208,20 +211,6 @@ export function useGraphVisualization(
 
     cy.on('tap', (evt) => {
       if (evt.target === cy) setSelected(null);
-    });
-
-    cy.on('mouseover', 'node', (evt) => {
-      const node = evt.target;
-      cy.elements().not(node.neighborhood().add(node)).style('opacity', 0.2);
-    });
-
-    cy.on('mouseout', 'node', () => {
-      applyVisibility(
-        cy,
-        selectedCategoryRef.current,
-        highlightedIdsRef.current,
-        selectedIdRef.current,
-      );
     });
 
     return () => {
