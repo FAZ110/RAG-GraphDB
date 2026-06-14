@@ -27,15 +27,33 @@ def _find_node(nodes: list[dict], node_id: str) -> dict:
     raise ValueError(f"Edge references unknown node id: '{node_id}'")
 
 
-def build_statements(nodes: list[dict], edges: list[dict]) -> list[tuple[str, dict]]:
+def build_statements(
+    nodes: list[dict],
+    edges: list[dict],
+    embeddings: dict[str, list[float]] | None = None,
+) -> list[tuple[str, dict]]:
     statements = []
     for node in nodes:
         _assert_safe_identifier(node["label"], "label")
-        cypher = f"MERGE (n:{node['label']} {{name: $name}}) SET n += $props"
+        embedding = embeddings.get(node["id"]) if embeddings else None
+        if embedding is not None:
+            cypher = (
+                f"MERGE (n:{node['label']}:Entity {{name: $name}}) "
+                "SET n += $props, n.embedding = $embedding"
+            )
+            params = {
+                "name": node["properties"].get("name", ""),
+                "props": node["properties"],
+                "embedding": embedding,
+            }
+        else:
+            cypher = f"MERGE (n:{node['label']}:Entity {{name: $name}}) SET n += $props"
+            params = {
+                "name": node["properties"].get("name", ""),
+                "props": node["properties"],
+            }
         validate_cypher(cypher)
-        statements.append(
-            (cypher, {"name": node["properties"].get("name", ""), "props": node["properties"]})
-        )
+        statements.append((cypher, params))
     for edge in edges:
         src = _find_node(nodes, edge["source"])
         tgt = _find_node(nodes, edge["target"])
