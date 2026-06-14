@@ -1,4 +1,4 @@
-import type { BulkExtractRequest, GraphResponse, JobSubmitResponse } from '../types';
+import type { BulkExtractRequest, GraphResponse, JobSubmitResponse, SimilarNode } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
 
@@ -34,4 +34,12 @@ export const deleteGraph = async (): Promise<void> => {
     method: 'DELETE'
   })
   if (!response.ok) throw new Error(`Server error: ${response.status}`);
+}
+
+export const fetchSimilarNodes = async (q: string, topK = 10): Promise<SimilarNode[]> => {
+  const response = await fetch(
+    `${API_URL}/graph/similar?q=${encodeURIComponent(q)}&top_k=${topK}`
+  );
+  if (!response.ok) throw new Error(`Server error: ${response.status}`);
+  return response.json();
 }
