@@ -77,7 +77,8 @@ async def similar_nodes(vec: list[float], top_k: int) -> list[dict]:
     cypher = (
         "CALL db.index.vector.queryNodes('entity_embeddings', $top_k, $vec) "
         "YIELD node, score "
-        "RETURN node.name AS name, "
+        "RETURN elementId(node) AS id, "
+        "node.name AS name, "
         "[l IN labels(node) WHERE l <> 'Entity'][0] AS label, "
         "score"
     )
@@ -85,7 +86,7 @@ async def similar_nodes(vec: list[float], top_k: int) -> list[dict]:
         async with get_driver().session() as session:
             res = await session.run(cypher, {"top_k": top_k, "vec": vec})
             return [
-                {"name": r["name"], "label": r["label"], "score": r["score"]}
+                {"id": r["id"], "name": r["name"], "label": r["label"], "score": r["score"]}
                 async for r in res
             ]
     except Neo4jError as e:

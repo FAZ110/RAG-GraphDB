@@ -4,34 +4,34 @@ import { fetchSimilarNodes } from '../../services/api';
 import type { SimilarNode } from '../../types';
 
 interface Props {
-  onResults: (names: string[]) => void;
-  onFocus: (name: string | null) => void;
-  focusedName: string | null;
+  onResults: (ids: string[]) => void;
+  onFocus: (id: string | null) => void;
+  focusedId: string | null;
 }
 
 const PAGE_SIZE = 20;
 const MAX_RESULTS = 100;
 
-export function SemanticSearch({ onResults, onFocus, focusedName }: Props) {
+export function SemanticSearch({ onResults, onFocus, focusedId }: Props) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SimilarNode[]>([]);
   const [lastQuery, setLastQuery] = useState('');
   const [topK, setTopK] = useState(PAGE_SIZE);
-  const focusedNameRef = useRef(focusedName);
-  focusedNameRef.current = focusedName;
+  const focusedIdRef = useRef(focusedId);
+  focusedIdRef.current = focusedId;
 
   const mutation = useMutation({
     mutationFn: ({ q, k }: { q: string; k: number }) => fetchSimilarNodes(q, k),
     onSuccess: (data: SimilarNode[]) => {
       setResults(data);
-      onResults(data.map((d) => d.name));
+      onResults(data.map((d) => d.id));
       if (data.length === 0) {
         onFocus(null);
         return;
       }
-      const current = focusedNameRef.current;
-      if (!current || !data.some((d) => d.name === current)) {
-        onFocus(data[0].name);
+      const current = focusedIdRef.current;
+      if (!current || !data.some((d) => d.id === current)) {
+        onFocus(data[0].id);
       }
     },
   });
@@ -67,8 +67,8 @@ export function SemanticSearch({ onResults, onFocus, focusedName }: Props) {
   const canLoadMore =
     results.length > 0 && results.length === topK && topK < MAX_RESULTS;
 
-  const focusedIndex = focusedName
-    ? results.findIndex((r) => r.name === focusedName)
+  const focusedIndex = focusedId
+    ? results.findIndex((r) => r.id === focusedId)
     : -1;
 
   const resultsRef = useRef(results);
@@ -78,19 +78,19 @@ export function SemanticSearch({ onResults, onFocus, focusedName }: Props) {
   focusedIndexRef.current = focusedIndex;
 
   useEffect(() => {
-    if (!focusedName || !listRef.current) return;
+    if (!focusedId || !listRef.current) return;
     const el = listRef.current.querySelector<HTMLElement>(
-      `[data-name="${CSS.escape(focusedName)}"]`,
+      `[data-id="${CSS.escape(focusedId)}"]`,
     );
     el?.scrollIntoView({ block: 'nearest' });
-  }, [focusedName]);
+  }, [focusedId]);
 
   const goTo = (offset: number) => {
     const list = resultsRef.current;
     if (list.length === 0) return;
     const base = focusedIndexRef.current >= 0 ? focusedIndexRef.current : 0;
     const next = (base + offset + list.length) % list.length;
-    onFocus(list[next].name);
+    onFocus(list[next].id);
   };
 
   useEffect(() => {
@@ -171,13 +171,13 @@ export function SemanticSearch({ onResults, onFocus, focusedName }: Props) {
             className="flex-1 min-h-0 text-sm text-gray-700 divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-y-auto"
           >
             {results.map((node) => {
-              const isFocused = node.name === focusedName;
+              const isFocused = node.id === focusedId;
               return (
-                <li key={node.name} data-name={node.name}>
+                <li key={node.id} data-id={node.id}>
                   <button
                     type="button"
                     title={`score: ${node.score.toFixed(3)}`}
-                    onClick={(e) => { onFocus(node.name); e.currentTarget.blur(); }}
+                    onClick={(e) => { onFocus(node.id); e.currentTarget.blur(); }}
                     className={`w-full px-3 py-2 text-left transition-colors cursor-pointer ${
                       isFocused ? 'bg-orange-50' : 'hover:bg-gray-50'
                     }`}

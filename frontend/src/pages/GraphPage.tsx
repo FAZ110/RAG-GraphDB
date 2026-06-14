@@ -10,8 +10,8 @@ const PANEL_HEIGHT = "h-[calc(100vh-7rem)]";
 export function GraphPage() {
   const { data, isLoading, isError, error, refetch } = useGraphQuery();
   const { mutate: deleteGraph, isPending: isDeleting } = useDeleteGraph();
-  const [highlightedNames, setHighlightedNames] = useState<string[]>([]);
-  const [focusedName, setFocusedName] = useState<string | null>(null);
+  const [highlightedIds, setHighlightedIds] = useState<string[]>([]);
+  const [focusedId, setFocusedId] = useState<string | null>(null);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
 
   return (
@@ -61,9 +61,9 @@ export function GraphPage() {
           {data && (
             <div className="flex-1 min-h-0 mt-3">
               <SemanticSearch
-                onResults={setHighlightedNames}
-                onFocus={setFocusedName}
-                focusedName={focusedName}
+                onResults={setHighlightedIds}
+                onFocus={setFocusedId}
+                focusedId={focusedId}
               />
             </div>
           )}
@@ -85,8 +85,8 @@ export function GraphPage() {
               <GraphVisualizer
                 nodes={data.nodes}
                 edges={data.edges}
-                highlightedNames={highlightedNames}
-                focusedName={focusedName}
+                highlightedIds={highlightedIds}
+                focusedId={focusedId}
               />
             </div>
           )}

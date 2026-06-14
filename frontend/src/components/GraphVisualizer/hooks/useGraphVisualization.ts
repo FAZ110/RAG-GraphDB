@@ -25,10 +25,10 @@ function escapeSelectorValue(value: string): string {
 function applyVisibility(
   cy: Core,
   category: string | null,
-  highlightedNames: string[],
+  highlightedIds: string[],
   selectedId: string | null,
 ) {
-  const hasSearch = highlightedNames.length > 0;
+  const hasSearch = highlightedIds.length > 0;
   const hasCategory = category !== null;
 
   if (!hasSearch && !hasCategory) {
@@ -41,8 +41,8 @@ function applyVisibility(
   cy.edges().style('opacity', 0.15);
 
   let visible = hasSearch
-    ? highlightedNames.reduce(
-        (acc, name) => acc.union(cy.nodes(`[name = "${escapeSelectorValue(name)}"]`)),
+    ? highlightedIds.reduce(
+        (acc, id) => acc.union(cy.getElementById(id)),
         cy.collection(),
       )
     : cy.nodes();
@@ -65,8 +65,8 @@ function applyVisibility(
 export function useGraphVisualization(
   nodes: NodeResult[],
   edges: EdgeResult[],
-  highlightedNames: string[] = [],
-  focusedName: string | null = null,
+  highlightedIds: string[] = [],
+  focusedId: string | null = null,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<SelectedElement | null>(null);
@@ -75,12 +75,12 @@ export function useGraphVisualization(
   const colorMap = useMemo(() => buildLabelColorMap(nodes), [nodes]);
 
   const selectedCategoryRef = useRef<string | null>(null);
-  const highlightedNamesRef = useRef<string[]>(highlightedNames);
+  const highlightedIdsRef = useRef<string[]>(highlightedIds);
   const selectedIdRef = useRef<string | null>(null);
   const cyRef = useRef<Core | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  highlightedNamesRef.current = highlightedNames;
+  highlightedIdsRef.current = highlightedIds;
   selectedIdRef.current = selected?.data.id ?? null;
 
   const toggleCategory = (label: string | null) => {
@@ -219,7 +219,7 @@ export function useGraphVisualization(
       applyVisibility(
         cy,
         selectedCategoryRef.current,
-        highlightedNamesRef.current,
+        highlightedIdsRef.current,
         selectedIdRef.current,
       );
     });
@@ -249,18 +249,18 @@ export function useGraphVisualization(
       applyVisibility(
         cyRef.current,
         selectedCategory,
-        highlightedNames,
+        highlightedIds,
         selected?.data.id ?? null,
       );
     }
-  }, [selectedCategory, highlightedNames, selected, nodes, edges]);
+  }, [selectedCategory, highlightedIds, selected, nodes, edges]);
 
   useEffect(() => {
     if (!cyRef.current) return;
     const cy = cyRef.current;
     cy.elements().removeClass('semantic-focused');
-    if (!focusedName) return;
-    const node = cy.nodes(`[name = "${escapeSelectorValue(focusedName)}"]`);
+    if (!focusedId) return;
+    const node = cy.getElementById(focusedId);
     if (node.length === 0) return;
     node.addClass('semantic-focused');
     cy.stop(true, true);
@@ -275,7 +275,7 @@ export function useGraphVisualization(
       ),
     ];
     setSelected({ type: 'node', data: { ...data, inDegree, outDegree, edgeTypes } });
-  }, [focusedName, nodes, edges]);
+  }, [focusedId, nodes, edges]);
 
   useEffect(() => {
     const handler = () => setIsFullscreen(!!document.fullscreenElement);

@@ -54,6 +54,7 @@ export interface JobSubmitResponse {
 }
 
 export interface SimilarNode {
+    id: string;
     name: string;
     label: string;
     score: number;

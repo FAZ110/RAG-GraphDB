@@ -4,12 +4,12 @@ import { DetailsPanel } from './components/DetailsPanel';
 import { Legend } from './components/Legend';
 
 interface Props extends GraphResponse {
-  highlightedNames?: string[];
-  focusedName?: string | null;
+  highlightedIds?: string[];
+  focusedId?: string | null;
 }
 
-export function GraphVisualizer({ nodes, edges, highlightedNames, focusedName }: Props) {
-  const { containerRef, wrapperRef, selected, setSelected, colorMap, selectedCategory, toggleCategory, isFullscreen, toggleFullscreen } = useGraphVisualization(nodes, edges, highlightedNames, focusedName);
+export function GraphVisualizer({ nodes, edges, highlightedIds, focusedId }: Props) {
+  const { containerRef, wrapperRef, selected, setSelected, colorMap, selectedCategory, toggleCategory, isFullscreen, toggleFullscreen } = useGraphVisualization(nodes, edges, highlightedIds, focusedId);
 
   return (
     <div ref={wrapperRef} className={`flex flex-col h-full ${isFullscreen ? 'bg-white p-4' : ''}`}>
