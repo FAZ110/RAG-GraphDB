@@ -1,58 +1,106 @@
+import { useState } from "react";
 import { useGraphQuery } from "../hooks/useGraphQuery";
 import { GraphVisualizer } from "../components/GraphVisualizer/GraphVisualizer";
+import { GraphStatsPanel } from "../components/GraphVisualizer/components/GraphStatsPanel";
 import { useDeleteGraph } from "../hooks/useDeleteGraph";
+import { SemanticSearch } from "../components/SemanticSearch/SemanticSearch";
+
+const PANEL_HEIGHT = "h-[calc(100vh-7rem)]";
 
 export function GraphPage() {
   const { data, isLoading, isError, error, refetch } = useGraphQuery();
-  const {mutate: deleteGraph, isPending: isDeleting} = useDeleteGraph();
+  const { mutate: deleteGraph, isPending: isDeleting } = useDeleteGraph();
+  const [highlightedNames, setHighlightedNames] = useState<string[]>([]);
+  const [focusedName, setFocusedName] = useState<string | null>(null);
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      <div className="text-center">
-        <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-          Graph Display
-        </h1>
-        <p className="mt-3 text-xl text-gray-600">Explore your graph</p>
-      </div>
+    <div className="flex flex-col lg:flex-row gap-4 items-stretch">
+      <aside className="w-full lg:w-96 lg:flex-shrink-0">
+        <div className={`bg-white p-5 shadow-xl rounded-2xl border border-gray-100 flex flex-col ${PANEL_HEIGHT}`}>
+          <div className="space-y-3">
+            <div>
+              <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+                Graf wiedzy
+              </h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Encje i powiązania wyekstrahowane z artykułów
+              </p>
+            </div>
 
-      <div className="bg-white p-6 shadow-xl rounded-2xl border border-gray-100">
-        <div className="flex justify-between items-center mb-4">
-          <span className="text-sm text-gray-500">
-            {data && `${data.nodes.length} nodes, ${data.edges.length} edges`}
-          </span>
+            <div className="text-sm text-gray-500">
+              {data && `${data.nodes.length} węzłów, ${data.edges.length} krawędzi`}
+            </div>
 
-          <div className="flex gap-2">
-            <button 
-            onClick={() => {
-              if (window.confirm('Are you sure? The graph will be deleted forever.')) deleteGraph()}}
-            disabled={isDeleting}
-            className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
-            >
-              {isDeleting ? 'Resetting...' : 'Reset'}
-            </button>
-            <button
-              onClick={() => refetch()}
-              className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-            >
-              Refresh
-            </button>
-
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (window.confirm('Na pewno? Graf zostanie nieodwracalnie usunięty.')) deleteGraph();
+                }}
+                disabled={isDeleting}
+                className="flex-1 px-2 py-1.5 text-sm font-medium text-red-700 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              >
+                {isDeleting ? '...' : 'Wyczyść'}
+              </button>
+              <button
+                onClick={() => refetch()}
+                className="flex-1 px-2 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer whitespace-nowrap"
+              >
+                Odśwież
+              </button>
+              <button
+                onClick={() => setIsStatsOpen(true)}
+                disabled={!data}
+                className="flex-1 px-2 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                Statystyki
+              </button>
+            </div>
           </div>
-          
+
+          {data && (
+            <div className="flex-1 min-h-0 mt-3">
+              <SemanticSearch
+                onResults={setHighlightedNames}
+                onFocus={setFocusedName}
+                focusedName={focusedName}
+              />
+            </div>
+          )}
         </div>
+      </aside>
 
-        {isLoading && (
-          <p className="text-center text-gray-500 py-16">Loading graph...</p>
-        )}
+      <main className="flex-1 min-w-0 w-full">
+        <div className={`bg-white p-5 shadow-xl rounded-2xl border border-gray-100 ${PANEL_HEIGHT} flex flex-col`}>
+          {isLoading && (
+            <p className="text-center text-gray-500 py-16">Ładowanie grafu...</p>
+          )}
 
-        {isError && (
-          <p className="text-center text-red-500 py-16">{error.message}</p>
-        )}
+          {isError && (
+            <p className="text-center text-red-500 py-16">{error.message}</p>
+          )}
 
-        {data && (
-          <GraphVisualizer nodes={data.nodes} edges={data.edges} />
-        )}
-      </div>
+          {data && (
+            <div className="flex-1 min-h-0">
+              <GraphVisualizer
+                nodes={data.nodes}
+                edges={data.edges}
+                highlightedNames={highlightedNames}
+                focusedName={focusedName}
+              />
+            </div>
+          )}
+        </div>
+      </main>
+
+      {data && (
+        <GraphStatsPanel
+          nodes={data.nodes}
+          edges={data.edges}
+          isOpen={isStatsOpen}
+          onClose={() => setIsStatsOpen(false)}
+        />
+      )}
     </div>
   );
 }

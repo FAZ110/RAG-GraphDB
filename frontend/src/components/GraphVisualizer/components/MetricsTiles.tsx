@@ -11,7 +11,7 @@ export function MetricsTiles({ metrics }: { metrics: Metric[] }) {
         className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 w-full text-left cursor-pointer hover:text-gray-700"
       >
         <span>{expanded ? '▾' : '▸'}</span>
-        <span>Overview</span>
+        <span>Podsumowanie</span>
       </button>
       {expanded && (
         <div className="grid grid-cols-2 gap-2">

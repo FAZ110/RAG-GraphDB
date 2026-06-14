@@ -30,16 +30,16 @@ export function DetailsPanel({ element, onClose }: DetailsPanelProps) {
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600">
             <div className="bg-gray-50 rounded-lg px-2 py-1.5 text-center">
               <div className="font-semibold text-gray-900 text-sm">{element.data.inDegree}</div>
-              <div>in's</div>
+              <div>wejścia</div>
             </div>
             <div className="bg-gray-50 rounded-lg px-2 py-1.5 text-center">
               <div className="font-semibold text-gray-900 text-sm">{element.data.outDegree}</div>
-              <div>out's</div>
+              <div>wyjścia</div>
             </div>
           </div>
           {element.data.edgeTypes.length > 0 && (
             <div className="mt-2">
-              <p className="text-xs text-gray-500 mb-1">Relations</p>
+              <p className="text-xs text-gray-500 mb-1">Relacje</p>
               <div className="flex flex-wrap gap-1">
                 {element.data.edgeTypes.map((t) => (
                   <span key={t} className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded">
