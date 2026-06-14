@@ -5,12 +5,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.extract import router as extract_router
 from api.graph import router as graph_router
-from db.database import close_driver, get_driver
+from db.database import close_driver, ensure_vector_index, get_driver
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     get_driver()
+    await ensure_vector_index()
     yield
     await close_driver()
 

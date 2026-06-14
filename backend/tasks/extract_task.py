@@ -10,6 +10,7 @@ from celery_app import celery_app
 from core.config import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER, REDIS_URL
 from db.graph_builder import build_statements
 from db.json_validator import validate_graph_json
+from services.embedding_service import get_embedding_service
 from services.llm_service import LLMService
 
 
@@ -70,7 +71,12 @@ def _run_extraction(title: str, content: str, provider: str) -> dict:
         nodes_dicts = [n.model_dump() for n in graph.nodes]
         edges_dicts = [e.model_dump() for e in graph.edges]
 
-        statements = build_statements(nodes_dicts, edges_dicts)
+        embedder = get_embedding_service()
+        texts = [f"{n['label']}: {n['properties'].get('name', '')}" for n in nodes_dicts]
+        vectors = embedder.embed_batch(texts)
+        embeddings_map = {n["id"]: v for n, v in zip(nodes_dicts, vectors, strict=True)}
+
+        statements = build_statements(nodes_dicts, edges_dicts, embeddings=embeddings_map)
         try:
             with driver.session() as session:
                 with session.begin_transaction() as tx:

@@ -18,16 +18,59 @@ export type SelectedElement =
     }
   | { type: 'edge'; data: { id: string; label: string; sourceName: string; targetName: string } };
 
-function applyCategoryHighlight(cy: Core, category: string | null) {
-  if (category === null) {
+function escapeSelectorValue(value: string): string {
+  return value.replace(/"/g, '\\"');
+}
+
+function applyVisibility(
+  cy: Core,
+  category: string | null,
+  highlightedIds: string[],
+  selectedId: string | null,
+) {
+  const hasSearch = highlightedIds.length > 0;
+  const hasCategory = category !== null;
+  const hasSelected = selectedId !== null;
+
+  if (!hasSearch && !hasCategory && !hasSelected) {
     cy.nodes().style('opacity', 1);
-  } else {
-    cy.nodes().style('opacity', 0.15);
-    cy.nodes(`[category = "${category}"]`).style('opacity', 1);
+    cy.edges().style('opacity', 1);
+    return;
+  }
+
+  cy.nodes().style('opacity', 0.15);
+  cy.edges().style('opacity', 0.15);
+
+  let visible = cy.collection();
+  if (hasSearch) {
+    visible = highlightedIds.reduce(
+      (acc, id) => acc.union(cy.getElementById(id)),
+      cy.collection(),
+    );
+    if (hasCategory) {
+      visible = visible.filter(`[category = "${escapeSelectorValue(category!)}"]`);
+    }
+  } else if (hasCategory) {
+    visible = cy.nodes(`[category = "${escapeSelectorValue(category!)}"]`);
+  }
+
+  visible.style('opacity', 1);
+  visible.edgesWith(visible).style('opacity', 1);
+
+  if (hasSelected) {
+    const selectedNode = cy.getElementById(selectedId!);
+    selectedNode.style('opacity', 1);
+    selectedNode.connectedEdges().style('opacity', 1);
+    selectedNode.neighborhood('node').style('opacity', 1);
   }
 }
 
-export function useGraphVisualization(nodes: NodeResult[], edges: EdgeResult[]) {
+export function useGraphVisualization(
+  nodes: NodeResult[],
+  edges: EdgeResult[],
+  highlightedIds: string[] = [],
+  focusedId: string | null = null,
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<SelectedElement | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -35,8 +78,13 @@ export function useGraphVisualization(nodes: NodeResult[], edges: EdgeResult[]) 
   const colorMap = useMemo(() => buildLabelColorMap(nodes), [nodes]);
 
   const selectedCategoryRef = useRef<string | null>(null);
+  const highlightedIdsRef = useRef<string[]>(highlightedIds);
+  const selectedIdRef = useRef<string | null>(null);
   const cyRef = useRef<Core | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  highlightedIdsRef.current = highlightedIds;
+  selectedIdRef.current = selected?.data.id ?? null;
 
   const toggleCategory = (label: string | null) => {
     const next = selectedCategoryRef.current === label ? null : label;
@@ -65,6 +113,7 @@ export function useGraphVisualization(nodes: NodeResult[], edges: EdgeResult[]) 
         data: {
           id: node.id,
           label: node.properties.name as string,
+          name: node.properties.name as string,
           category: node.label,
         },
       })),
@@ -121,6 +170,14 @@ export function useGraphVisualization(nodes: NodeResult[], edges: EdgeResult[]) 
             'border-width': 4,
             'border-color': '#000000',
         }
+      },
+      {
+        selector: '.semantic-focused',
+        style: {
+            'border-width': 6,
+            'border-color': '#000000',
+            'border-opacity': 1,
+        }
       }
     ];
 
@@ -156,15 +213,6 @@ export function useGraphVisualization(nodes: NodeResult[], edges: EdgeResult[]) 
       if (evt.target === cy) setSelected(null);
     });
 
-    cy.on('mouseover', 'node', (evt) => {
-      const node = evt.target;
-      cy.elements().not(node.neighborhood().add(node)).style('opacity', 0.2);
-    });
-
-    cy.on('mouseout', 'node', () => {
-      applyCategoryHighlight(cy, selectedCategoryRef.current);
-    });
-
     return () => {
         container.remove();
         cy.destroy();
@@ -182,23 +230,58 @@ export function useGraphVisualization(nodes: NodeResult[], edges: EdgeResult[]) 
     if (selected) {
       const selectedElement = cy.getElementById(selected.data.id);
       selectedElement.addClass('selected');
-
-      cy.animate({
-        center: { eles: selectedElement },
-        duration: 300,
-      });
     }
   }, [selected]);
 
   useEffect(() => {
-    if (cyRef.current) applyCategoryHighlight(cyRef.current, selectedCategory);
-  }, [selectedCategory, nodes, edges]);
+    if (cyRef.current) {
+      applyVisibility(
+        cyRef.current,
+        selectedCategory,
+        highlightedIds,
+        selected?.data.id ?? null,
+      );
+    }
+  }, [selectedCategory, highlightedIds, selected, nodes, edges]);
+
+  useEffect(() => {
+    if (!cyRef.current) return;
+    const cy = cyRef.current;
+    cy.elements().removeClass('semantic-focused');
+    if (!focusedId) return;
+    const node = cy.getElementById(focusedId);
+    if (node.length === 0) return;
+    node.addClass('semantic-focused');
+    cy.stop(true, true);
+    cy.animate({ center: { eles: node }, zoom: 1.2, duration: 350 });
+
+    const data = node.data() as { id: string; label: string; category: string };
+    const inDegree = node.indegree(false);
+    const outDegree = node.outdegree(false);
+    const edgeTypes = [
+      ...new Set<string>(
+        node.connectedEdges().map((e: { data: (key: string) => string }) => e.data('label')),
+      ),
+    ];
+    setSelected({ type: 'node', data: { ...data, inDegree, outDegree, edgeTypes } });
+  }, [focusedId, nodes, edges]);
 
   useEffect(() => {
     const handler = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', handler);
     return () => document.removeEventListener('fullscreenchange', handler);
   }, [])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const active = document.activeElement as HTMLElement | null;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+      setSelected(null);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   return { containerRef, cyRef, selected, setSelected, colorMap, selectedCategory, toggleCategory, wrapperRef, isFullscreen, toggleFullscreen };
 }
