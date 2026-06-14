@@ -172,7 +172,7 @@ export function useGraphVisualization(
         selector: '.semantic-focused',
         style: {
             'border-width': 6,
-            'border-color': '#ff5722',
+            'border-color': '#000000',
             'border-opacity': 1,
         }
       }
