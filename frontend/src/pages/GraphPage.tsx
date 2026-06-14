@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGraphQuery } from "../hooks/useGraphQuery";
 import { GraphVisualizer } from "../components/GraphVisualizer/GraphVisualizer";
 import { GraphStatsPanel } from "../components/GraphVisualizer/components/GraphStatsPanel";
@@ -13,6 +13,17 @@ export function GraphPage() {
   const [highlightedIds, setHighlightedIds] = useState<string[]>([]);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const active = document.activeElement as HTMLElement | null;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+      setFocusedId(null);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 items-stretch">

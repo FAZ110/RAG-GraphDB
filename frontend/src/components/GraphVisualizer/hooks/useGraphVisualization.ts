@@ -272,5 +272,16 @@ export function useGraphVisualization(
     return () => document.removeEventListener('fullscreenchange', handler);
   }, [])
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const active = document.activeElement as HTMLElement | null;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+      setSelected(null);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   return { containerRef, cyRef, selected, setSelected, colorMap, selectedCategory, toggleCategory, wrapperRef, isFullscreen, toggleFullscreen };
 }
