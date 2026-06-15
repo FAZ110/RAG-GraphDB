@@ -1,16 +1,20 @@
 import { useLocation, Link } from "react-router-dom";
+import { motion } from "motion/react";
 import { appRoutes } from "../routes";
 
-export function Navbar(){
+export function Navbar() {
     const location = useLocation();
-
+    const navRoutes = appRoutes.filter((route) => route.showInNavbar);
 
     return (
-        <nav className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
+        <nav className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl shadow-[0_1px_0_0_rgba(15,23,42,0.04)]">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
-                    <div className="flex items-center gap-8">
-                        <span className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
+                    <div className="flex items-center gap-12 flex-1">
+                        <Link
+                            to="/"
+                            className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-slate-900 hover:text-blue-600 transition-colors"
+                        >
                             <svg
                                 aria-hidden="true"
                                 width="26"
@@ -30,36 +34,41 @@ export function Navbar(){
                                 <path d="M6.6 18h10.8" />
                             </svg>
                             <span>Atlas</span>
-                        </span>
+                        </Link>
 
-                        <div className="flex gap-4">
-                            {appRoutes
-                                .filter(route => route.showInNavbar)
-                                .map((route) => {
-                                    const isActive = route.path === location.pathname;
+                        <div className="relative flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100/70 p-1">
+                            {navRoutes.map((route) => {
+                                const isActive = route.path === location.pathname;
 
-                                    return (
-                                        <Link
-                                            key={route.path}
-                                            to={route.path}
-                                            className={`px-3 py-2 rounded-md font-medium text-sm transition-colors ${
-                                                        isActive
-                                                        ? 'bg-blue-50 text-blue-700'
-                                                        : 'text-gray-600 hover:text-blue-600'
-                                                    }`}>
-                                                {route.label}
-                                            </Link>
-                                    )
-                                })}
+                                return (
+                                    <Link
+                                        key={route.path}
+                                        to={route.path}
+                                        className={`relative px-10 py-1.5 rounded-full text-sm font-semibold tracking-wide transition-colors duration-200 ${
+                                            isActive
+                                                ? "text-white"
+                                                : "text-slate-600 hover:text-slate-900"
+                                        }`}
+                                    >
+                                        {isActive && (
+                                            <motion.span
+                                                layoutId="navbar-active-pill"
+                                                className="absolute inset-0 rounded-full bg-blue-600 shadow-sm shadow-blue-600/30"
+                                                transition={{
+                                                    type: "spring",
+                                                    stiffness: 380,
+                                                    damping: 30,
+                                                }}
+                                            />
+                                        )}
+                                        <span className="relative z-10">{route.label}</span>
+                                    </Link>
+                                );
+                            })}
                         </div>
-
                     </div>
                 </div>
             </div>
-
-            
-
         </nav>
-        
-    )
-} 
+    );
+}
