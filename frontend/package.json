@@ -14,6 +14,7 @@
     "@tailwindcss/vite": "^4.2.4",
     "@tanstack/react-query": "^5.100.9",
     "cytoscape": "^3.33.3",
+    "motion": "^12.40.0",
     "react": "^19.2.5",
     "react-cytoscapejs": "^2.0.0",
     "react-dom": "^19.2.5",
