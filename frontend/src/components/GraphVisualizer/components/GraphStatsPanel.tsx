@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import type { NodeResult, EdgeResult } from '../../../types';
 import { useGraphStats } from '../hooks/useGraphStats';
 import { MetricsTiles } from './MetricsTiles';
@@ -14,7 +15,7 @@ interface GraphStatsPanelProps {
 export function GraphStatsPanel({ nodes, edges, isOpen, onClose }: GraphStatsPanelProps) {
   const stats = useGraphStats(nodes, edges);
 
-  return (
+  return createPortal(
     <>
       {isOpen && (
         <div className="fixed inset-0 z-20" onClick={onClose} />
@@ -85,6 +86,7 @@ export function GraphStatsPanel({ nodes, edges, isOpen, onClose }: GraphStatsPan
 
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
