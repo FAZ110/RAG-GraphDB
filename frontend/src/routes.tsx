@@ -16,21 +16,21 @@ export const appRoutes: AppRoute[] = [
     {
         path: '/',
         element: <PageTransition><HomePlaceholder/></PageTransition>,
-        label: 'Home',
+        label: 'Start',
         showInNavbar: true,
     },
 
     {
         path: '/extract',
         element: <PageTransition><ExtractorPage/></PageTransition>,
-        label: 'Extract',
+        label: 'Ekstrakcja',
         showInNavbar: true,
     },
 
     {
         path: '/graph',
         element: <PageTransition><GraphPage/></PageTransition>,
-        label: 'Graph',
+        label: 'Graf wiedzy',
         showInNavbar: true,
     }
 ]
