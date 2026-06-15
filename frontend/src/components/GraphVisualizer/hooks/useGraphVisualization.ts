@@ -83,8 +83,13 @@ export function useGraphVisualization(
   const cyRef = useRef<Core | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  highlightedIdsRef.current = highlightedIds;
-  selectedIdRef.current = selected?.data.id ?? null;
+  useEffect(() => {
+    highlightedIdsRef.current = highlightedIds;
+  }, [highlightedIds]);
+
+  useEffect(() => {
+    selectedIdRef.current = selected?.data.id ?? null;
+  }, [selected]);
 
   const toggleCategory = (label: string | null) => {
     const next = selectedCategoryRef.current === label ? null : label;
