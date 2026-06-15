@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-float-slow {
+  animation: float-slow 4s ease-in-out infinite;
+}
+
+.bg-dot-grid {
+  background-image: radial-gradient(circle, rgba(59, 130, 246, 0.18) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
