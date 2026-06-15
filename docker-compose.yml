@@ -1,5 +1,22 @@
 services:
 
+  neo4j:
+    image: neo4j:5
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/password123
+      - NEO4J_server_memory_heap_initial__size=512m
+      - NEO4J_server_memory_heap_max__size=1G
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-O", "/dev/null", "-q", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
   rabbitmq:
     image: rabbitmq:3-management
     ports:
@@ -17,8 +34,12 @@ services:
     env_file:
       - ./backend/.env
     depends_on:
-      - rabbitmq
-      - redis
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_started
+      neo4j:
+        condition: service_healthy
   backend:
     build: ./backend
     ports:
@@ -26,8 +47,12 @@ services:
     env_file:
       - ./backend/.env
     depends_on:
-      - rabbitmq
-      - redis
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_started
+      neo4j:
+        condition: service_healthy
 
   frontend:
     build:
@@ -38,3 +63,6 @@ services:
       - "5173:80"
     depends_on:
       - backend
+
+volumes:
+  neo4j_data:

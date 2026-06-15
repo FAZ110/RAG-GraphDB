@@ -1,5 +1,7 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
 import cytoscape, { type StylesheetStyle, type Core } from 'cytoscape';
+import fcose from 'cytoscape-fcose';
+cytoscape.use(fcose);
 import type { NodeResult, EdgeResult } from '../../../types';
 import { buildLabelColorMap } from '../utils/buildLabelColorMap';
 import { DEFAULT_COLOR } from '../utils/constants';
@@ -51,7 +53,7 @@ function applyVisibility(
       visible = visible.filter(`[category = "${escapeSelectorValue(category!)}"]`);
     }
   } else if (hasCategory) {
-    visible = cy.nodes(`[category = "${escapeSelectorValue(category!)}"]`);
+    visible = cy.nodes(`[category = "${escapeSelectorValue(category!)}"]`) as unknown as cytoscape.CollectionReturnValue;
   }
 
   visible.style('opacity', 1);
@@ -190,7 +192,18 @@ export function useGraphVisualization(
       container,
       elements,
       style: stylesheet,
-      layout: { name: 'cose' },
+      layout: {
+        name: 'fcose',
+        animate: false,
+        quality: 'default',
+        nodeRepulsion: 8000,
+        idealEdgeLength: 180,
+        nodeSeparation: 150,
+        fit: true,
+        padding: 40,
+        randomize: true,
+        numIter: 1000,
+      } as cytoscape.LayoutOptions,
     });
 
     cyRef.current = cy;
