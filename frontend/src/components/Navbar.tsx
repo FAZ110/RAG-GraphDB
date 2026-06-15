@@ -54,7 +54,7 @@ export function Navbar() {
                             strokeWidth="1.6"
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            className="group-hover:text-blue-600 transition-colors"
+                            className="group-hover:text-slate-900 transition-colors"
                         >
                             <circle cx="12" cy="5" r="1.8" fill="currentColor" />
                             <circle cx="5" cy="18" r="1.8" fill="currentColor" />
@@ -63,15 +63,15 @@ export function Navbar() {
                             <path d="M12.7 6.4L18.3 16.6" />
                             <path d="M6.6 18h10.8" />
                         </svg>
-                        <span className="text-2xl font-bold tracking-tight group-hover:text-blue-600 transition-colors">
+                        <span className="text-2xl font-bold tracking-tight group-hover:text-slate-900 transition-colors">
                             Atlas
                         </span>
-                        <span className="h-6 w-px bg-slate-200" aria-hidden="true" />
-                        <span className="flex flex-col leading-tight">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600">
+                        <span className="hidden md:inline-block h-6 w-px bg-slate-200" aria-hidden="true" />
+                        <span className="hidden md:flex flex-col leading-tight">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-900">
                                 Graf wiedzy
                             </span>
-                            <span className="text-[11px] text-slate-500">
+                            <span className="hidden lg:inline text-[11px] text-slate-500">
                                 Inteligentna eksploracja dokumentów
                             </span>
                         </span>
@@ -85,27 +85,27 @@ export function Navbar() {
                                 <Link
                                     key={route.path}
                                     to={route.path}
-                                    className={`group relative flex items-center gap-2 px-5 text-sm font-semibold tracking-wide transition-colors duration-200 ${
+                                    className={`group relative flex items-center gap-2 px-2 sm:px-5 text-sm font-semibold tracking-wide transition-colors duration-200 ${
                                         isActive
-                                            ? "text-blue-600"
+                                            ? "text-slate-900"
                                             : "text-slate-500 hover:text-slate-900"
                                     }`}
                                 >
                                     <span
                                         className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-200 ${
                                             isActive
-                                                ? "bg-blue-50 text-blue-600 ring-1 ring-blue-200"
+                                                ? "bg-slate-100 text-slate-900 ring-1 ring-slate-200"
                                                 : "text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-700"
                                         }`}
                                     >
                                         {navIcons[route.path]}
                                     </span>
-                                    <span>{route.label}</span>
+                                    <span className="hidden sm:inline">{route.label}</span>
 
                                     {isActive && (
                                         <motion.span
                                             layoutId="navbar-active-underline"
-                                            className="absolute left-3 right-3 -bottom-px h-[3px] rounded-full bg-blue-600"
+                                            className="absolute left-3 right-3 -bottom-px h-[3px] rounded-full bg-slate-900"
                                             transition={{
                                                 type: "spring",
                                                 stiffness: 400,
