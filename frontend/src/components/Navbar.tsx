@@ -39,85 +39,83 @@ export function Navbar() {
     return (
         <nav className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-stretch h-16">
-                    <div className="flex items-stretch gap-12 flex-1">
-                        <Link
-                            to="/"
-                            className="group flex items-center gap-3 text-slate-900 transition-colors"
+                <div className="flex justify-between items-stretch h-16 gap-8">
+                    <Link
+                        to="/"
+                        className="group flex items-center gap-3 text-slate-900 transition-colors shrink-0"
+                    >
+                        <svg
+                            aria-hidden="true"
+                            width="26"
+                            height="26"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="group-hover:text-blue-600 transition-colors"
                         >
-                            <svg
-                                aria-hidden="true"
-                                width="26"
-                                height="26"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.6"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="group-hover:text-blue-600 transition-colors"
-                            >
-                                <circle cx="12" cy="5" r="1.8" fill="currentColor" />
-                                <circle cx="5" cy="18" r="1.8" fill="currentColor" />
-                                <circle cx="19" cy="18" r="1.8" fill="currentColor" />
-                                <path d="M11.3 6.4L5.7 16.6" />
-                                <path d="M12.7 6.4L18.3 16.6" />
-                                <path d="M6.6 18h10.8" />
-                            </svg>
-                            <span className="text-2xl font-bold tracking-tight group-hover:text-blue-600 transition-colors">
-                                Atlas
+                            <circle cx="12" cy="5" r="1.8" fill="currentColor" />
+                            <circle cx="5" cy="18" r="1.8" fill="currentColor" />
+                            <circle cx="19" cy="18" r="1.8" fill="currentColor" />
+                            <path d="M11.3 6.4L5.7 16.6" />
+                            <path d="M12.7 6.4L18.3 16.6" />
+                            <path d="M6.6 18h10.8" />
+                        </svg>
+                        <span className="text-2xl font-bold tracking-tight group-hover:text-blue-600 transition-colors">
+                            Atlas
+                        </span>
+                        <span className="h-6 w-px bg-slate-200" aria-hidden="true" />
+                        <span className="flex flex-col leading-tight">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600">
+                                Graf wiedzy
                             </span>
-                            <span className="h-6 w-px bg-slate-200" aria-hidden="true" />
-                            <span className="flex flex-col leading-tight">
-                                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600">
-                                    Graf wiedzy
-                                </span>
-                                <span className="text-[11px] text-slate-500">
-                                    Ekstrakcja i wizualizacja relacji
-                                </span>
+                            <span className="text-[11px] text-slate-500">
+                                Inteligentna eksploracja dokumentów
                             </span>
-                        </Link>
+                        </span>
+                    </Link>
 
-                        <div className="flex items-stretch gap-2">
-                            {navRoutes.map((route) => {
-                                const isActive = route.path === location.pathname;
+                    <div className="flex items-stretch gap-2">
+                        {navRoutes.map((route) => {
+                            const isActive = route.path === location.pathname;
 
-                                return (
-                                    <Link
-                                        key={route.path}
-                                        to={route.path}
-                                        className={`group relative flex items-center gap-2 px-5 text-sm font-semibold tracking-wide transition-colors duration-200 ${
+                            return (
+                                <Link
+                                    key={route.path}
+                                    to={route.path}
+                                    className={`group relative flex items-center gap-2 px-5 text-sm font-semibold tracking-wide transition-colors duration-200 ${
+                                        isActive
+                                            ? "text-blue-600"
+                                            : "text-slate-500 hover:text-slate-900"
+                                    }`}
+                                >
+                                    <span
+                                        className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-200 ${
                                             isActive
-                                                ? "text-blue-600"
-                                                : "text-slate-500 hover:text-slate-900"
+                                                ? "bg-blue-50 text-blue-600 ring-1 ring-blue-200"
+                                                : "text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-700"
                                         }`}
                                     >
-                                        <span
-                                            className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-200 ${
-                                                isActive
-                                                    ? "bg-blue-50 text-blue-600 ring-1 ring-blue-200"
-                                                    : "text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-700"
-                                            }`}
-                                        >
-                                            {navIcons[route.path]}
-                                        </span>
-                                        <span>{route.label}</span>
+                                        {navIcons[route.path]}
+                                    </span>
+                                    <span>{route.label}</span>
 
-                                        {isActive && (
-                                            <motion.span
-                                                layoutId="navbar-active-underline"
-                                                className="absolute left-3 right-3 -bottom-px h-[3px] rounded-full bg-blue-600"
-                                                transition={{
-                                                    type: "spring",
-                                                    stiffness: 400,
-                                                    damping: 32,
-                                                }}
-                                            />
-                                        )}
-                                    </Link>
-                                );
-                            })}
-                        </div>
+                                    {isActive && (
+                                        <motion.span
+                                            layoutId="navbar-active-underline"
+                                            className="absolute left-3 right-3 -bottom-px h-[3px] rounded-full bg-blue-600"
+                                            transition={{
+                                                type: "spring",
+                                                stiffness: 400,
+                                                damping: 32,
+                                            }}
+                                        />
+                                    )}
+                                </Link>
+                            );
+                        })}
                     </div>
                 </div>
             </div>

@@ -30,7 +30,7 @@ export const appRoutes: AppRoute[] = [
     {
         path: '/graph',
         element: <PageTransition><GraphPage/></PageTransition>,
-        label: 'Graf wiedzy',
+        label: 'Graf',
         showInNavbar: true,
     }
 ]
