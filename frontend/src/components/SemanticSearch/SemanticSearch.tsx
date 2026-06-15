@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { fetchSimilarNodes } from '../../services/api';
 import type { SimilarNode } from '../../types';
@@ -18,7 +18,9 @@ export function SemanticSearch({ onResults, onFocus, focusedId }: Props) {
   const [lastQuery, setLastQuery] = useState('');
   const [topK, setTopK] = useState(PAGE_SIZE);
   const focusedIdRef = useRef(focusedId);
-  focusedIdRef.current = focusedId;
+  useEffect(() => {
+    focusedIdRef.current = focusedId;
+  }, [focusedId]);
 
   const mutation = useMutation({
     mutationFn: ({ q, k }: { q: string; k: number }) => fetchSimilarNodes(q, k),
@@ -74,8 +76,14 @@ export function SemanticSearch({ onResults, onFocus, focusedId }: Props) {
   const resultsRef = useRef(results);
   const focusedIndexRef = useRef(focusedIndex);
   const listRef = useRef<HTMLUListElement>(null);
-  resultsRef.current = results;
-  focusedIndexRef.current = focusedIndex;
+
+  useEffect(() => {
+    resultsRef.current = results;
+  }, [results]);
+
+  useEffect(() => {
+    focusedIndexRef.current = focusedIndex;
+  }, [focusedIndex]);
 
   useEffect(() => {
     if (!focusedId || !listRef.current) return;
@@ -85,13 +93,16 @@ export function SemanticSearch({ onResults, onFocus, focusedId }: Props) {
     el?.scrollIntoView({ block: 'nearest' });
   }, [focusedId]);
 
-  const goTo = (offset: number) => {
-    const list = resultsRef.current;
-    if (list.length === 0) return;
-    const base = focusedIndexRef.current >= 0 ? focusedIndexRef.current : 0;
-    const next = (base + offset + list.length) % list.length;
-    onFocus(list[next].id);
-  };
+  const goTo = useCallback(
+    (offset: number) => {
+      const list = resultsRef.current;
+      if (list.length === 0) return;
+      const base = focusedIndexRef.current >= 0 ? focusedIndexRef.current : 0;
+      const next = (base + offset + list.length) % list.length;
+      onFocus(list[next].id);
+    },
+    [onFocus],
+  );
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -107,7 +118,7 @@ export function SemanticSearch({ onResults, onFocus, focusedId }: Props) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [goTo]);
 
   return (
     <div className="flex flex-col h-full space-y-2 pt-3 border-t border-gray-100">
