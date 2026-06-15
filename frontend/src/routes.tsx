@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { ExtractorPage } from "./pages/ExtractorPage"
 import { GraphPage } from "./pages/GraphPage"
 import { HomePlaceholder } from "./pages/HomePage"
+import { PageTransition } from "./components/PageTransition"
 
 export interface AppRoute {
     path: string
@@ -14,21 +15,21 @@ export interface AppRoute {
 export const appRoutes: AppRoute[] = [
     {
         path: '/',
-        element: <HomePlaceholder/>,
+        element: <PageTransition><HomePlaceholder/></PageTransition>,
         label: 'Home',
         showInNavbar: true,
     },
 
     {
         path: '/extract',
-        element: <ExtractorPage/>,
+        element: <PageTransition><ExtractorPage/></PageTransition>,
         label: 'Extract',
         showInNavbar: true,
     },
 
     {
         path: '/graph',
-        element: <GraphPage/>,
+        element: <PageTransition><GraphPage/></PageTransition>,
         label: 'Graph',
         showInNavbar: true,
     }
