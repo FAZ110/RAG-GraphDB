@@ -1,9 +1,10 @@
 import type { NodeResult } from '../../../types';
 import { COLOR_PALETTE } from './constants';
+import { hslToHex } from './color';
 
 function generatedColor(index: number): string {
   const hue = Math.round((index * 137.508) % 360);
-  return `hsl(${hue}, 65%, 50%)`;
+  return hslToHex(hue, 65, 50);
 }
 
 export function buildLabelColorMap(nodes: NodeResult[]): Record<string, string> {

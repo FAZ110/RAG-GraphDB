@@ -9,6 +9,9 @@ import type { NodeResult, EdgeResult } from '../../../types';
 import { buildLabelColorMap } from '../utils/buildLabelColorMap';
 import { DEFAULT_COLOR } from '../utils/constants';
 
+const DIMMED_NODE_COLOR = '#cbd5e1';
+const DIMMED_EDGE_COLOR = '#e2e8f0';
+
 export type SelectedElement =
   | {
       type: 'node';
@@ -177,12 +180,16 @@ export function useGraphVisualization(
 
         if (!isVisible) return { ...data, color: safeColor, hidden: true };
 
+        const isDimmedBySelection =
+          !hasFilter && selectedId !== null && !isSelected && !isNeighborOfSelected;
+
         return {
           ...data,
-          color: isFocused ? '#f59e0b' : safeColor,
+          color: isFocused ? '#f59e0b' : isDimmedBySelection ? DIMMED_NODE_COLOR : safeColor,
+          label: isDimmedBySelection ? null : data.label,
           highlighted: isSelected || isFocused,
-          size: isSelected ? data.size * 1.4 : data.size,
-          zIndex: isSelected || isFocused ? 10 : 1,
+          size: isSelected ? data.size * 1.4 : isDimmedBySelection ? data.size * 0.4 : data.size,
+          zIndex: isSelected || isFocused ? 10 : isNeighborOfSelected ? 5 : isDimmedBySelection ? 0 : 1,
         };
       },
       edgeReducer: (edge, data) => {
@@ -194,10 +201,24 @@ export function useGraphVisualization(
         const highlighted = highlightedIdsRef.current;
         const hasFilter = category !== null || highlighted.size > 0;
 
-        if (!hasFilter) return { ...data };
-
         const src = graph.source(edge);
         const tgt = graph.target(edge);
+        const isConnectedToSelected = src === selectedId || tgt === selectedId;
+
+        if (isConnectedToSelected) {
+          return { ...data, color: '#475569', size: 2.5, zIndex: 4 };
+        }
+
+        if (!hasFilter) {
+          if (selectedId !== null) {
+            const neighbors = graph.hasNode(selectedId) ? graph.neighbors(selectedId) : [];
+            const isBetweenNeighbors = neighbors.includes(src) && neighbors.includes(tgt);
+            if (isBetweenNeighbors) return { ...data, zIndex: 4 };
+            return { ...data, color: DIMMED_EDGE_COLOR, zIndex: -1 };
+          }
+          return { ...data };
+        }
+
         const srcAttr = graph.getNodeAttributes(src);
         const tgtAttr = graph.getNodeAttributes(tgt);
 
@@ -208,11 +229,6 @@ export function useGraphVisualization(
           (!category || tgtAttr.category === category) &&
           (highlighted.size === 0 || highlighted.has(tgt));
 
-        const isConnectedToSelected = src === selectedId || tgt === selectedId;
-
-        if (isConnectedToSelected) {
-          return { ...data, color: '#475569', size: 2.5 };
-        }
         if (srcPasses && tgtPasses) return { ...data };
         return { ...data, hidden: true };
       },

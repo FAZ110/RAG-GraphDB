@@ -27,7 +27,7 @@ export function GraphPage() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 items-stretch">
-      <aside className="w-full lg:w-96 lg:flex-shrink-0">
+      <aside className="w-full lg:w-96 lg:shrink-0">
         <div className={`bg-white p-5 shadow-xl rounded-2xl border border-gray-100 flex flex-col ${PANEL_HEIGHT}`}>
           <div className="space-y-3">
             <div>
@@ -84,7 +84,10 @@ export function GraphPage() {
       <main className="flex-1 min-w-0 w-full">
         <div className={`bg-white p-5 shadow-xl rounded-2xl border border-gray-100 ${PANEL_HEIGHT} flex flex-col`}>
           {isLoading && (
-            <p className="text-center text-gray-500 py-16">Ładowanie grafu...</p>
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-16">
+              <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
+              <p className="text-sm text-gray-500">Ładowanie grafu...</p>
+            </div>
           )}
 
           {isError && (
