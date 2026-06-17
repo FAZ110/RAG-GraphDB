@@ -16,7 +16,7 @@ export function GraphVisualizer({ nodes, edges, highlightedIds, focusedId }: Pro
       <div className="relative flex-1 min-h-0">
         <div
           ref={containerRef}
-          className={`w-full border border-gray-200 rounded-lg bg-gray-50 ${isFullscreen ? 'h-[calc(100vh-80px)]' : 'h-full'}`}
+          className={`w-full border border-gray-200 rounded-lg bg-white ${isFullscreen ? 'h-[calc(100vh-80px)]' : 'h-full'}`}
         />
         {selected && (
           <DetailsPanel element={selected} onClose={() => setSelected(null)} />
