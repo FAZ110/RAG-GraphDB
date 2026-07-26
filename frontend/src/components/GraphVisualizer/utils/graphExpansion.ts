@@ -135,3 +135,17 @@ export function visibleDegree(edges: readonly LoadedEdge[], nodeId: string): num
   }
   return count;
 }
+
+export function adjacency(
+  edges: readonly LoadedEdge[],
+  nodeId: string,
+): { nodeIds: string[]; edgeIds: string[] } {
+  const nodeIds = new Set<string>();
+  const edgeIds: string[] = [];
+  for (const edge of edges) {
+    if (edge.source !== nodeId && edge.target !== nodeId) continue;
+    nodeIds.add(edge.source === nodeId ? edge.target : edge.source);
+    edgeIds.push(edge.id);
+  }
+  return { nodeIds: [...nodeIds], edgeIds };
+}

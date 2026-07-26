@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { GraphCanvas, lightTheme } from 'reagraph';
 import type { GraphCanvasRef, InternalGraphNode } from 'reagraph';
 import { useProgressiveGraph } from './hooks/useProgressiveGraph';
-import { isExpanded, visibleDegree } from './utils/graphExpansion';
+import { adjacency, isExpanded, visibleDegree } from './utils/graphExpansion';
 import { toReagraphEdges, toReagraphNodes } from './utils/toReagraph';
 import { buildLabelColorMap } from './utils/buildLabelColorMap';
 import { DetailsPanel } from './components/DetailsPanel';
@@ -148,10 +148,15 @@ export function GraphVisualizer({ highlightedIds = [], focusedId = null, onGraph
     };
   }, [selectedId, shownIds, state, shownEdges]);
 
-  const actives = useMemo(
-    () => highlightedIds.filter((id) => shownIds.has(id)),
-    [highlightedIds, shownIds],
-  );
+  // A selection takes over the highlight channel: while a node is selected we surface
+  // its neighbourhood, and search hits come back once it is deselected.
+  const actives = useMemo(() => {
+    if (selected) {
+      const { nodeIds, edgeIds } = adjacency(shownEdges, selected.id);
+      return [...nodeIds, ...edgeIds];
+    }
+    return highlightedIds.filter((id) => shownIds.has(id));
+  }, [selected, shownEdges, highlightedIds, shownIds]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -186,6 +191,7 @@ export function GraphVisualizer({ highlightedIds = [], focusedId = null, onGraph
           labelType="all"
           edgeLabelPosition="natural"
           edgeArrowPosition="end"
+          edgeInterpolation="curved"
           minDistance={50}
           maxDistance={20000}
           draggable
