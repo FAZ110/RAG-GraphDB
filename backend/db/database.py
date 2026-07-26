@@ -3,6 +3,15 @@ from neo4j.exceptions import Neo4jError
 
 from core.config import EMBEDDING_DIM, NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from db.graph_builder import build_statements
+from db.graph_queries import (
+    NEIGHBOURS_CYPHER,
+    ROOT_NODE_CYPHER,
+    SEED_EDGES_CYPHER,
+    SEED_NODES_CYPHER,
+    edge_from_row,
+    node_from_row,
+    split_neighbour_rows,
+)
 
 _driver = None
 
@@ -57,6 +66,49 @@ async def fetch_graph() -> dict:
         ]
 
     return {"nodes": nodes, "edges": edges}
+
+
+async def fetch_seed_graph(limit: int) -> dict:
+    """Return the `limit` highest-degree nodes plus the edges between them."""
+    try:
+        async with get_driver().session() as session:
+            nodes_res = await session.run(SEED_NODES_CYPHER, {"limit": limit})
+            nodes = [node_from_row(r) async for r in nodes_res]
+
+            ids = [n["id"] for n in nodes]
+            edges = []
+            if ids:
+                edges_res = await session.run(SEED_EDGES_CYPHER, {"ids": ids})
+                edges = [edge_from_row(r) async for r in edges_res]
+
+            total_res = await session.run("MATCH (n:Entity) RETURN count(n) AS total")
+            total_record = await total_res.single()
+            total_nodes = total_record["total"] if total_record else 0
+    except Neo4jError as e:
+        raise RuntimeError(f"Neo4j error: {e.message}") from e
+
+    return {"nodes": nodes, "edges": edges, "total_nodes": total_nodes}
+
+
+async def fetch_node_expansion(node_id: str, limit: int) -> dict:
+    """Return a node plus up to `limit` of its neighbours and the connecting edges."""
+    try:
+        async with get_driver().session() as session:
+            root_res = await session.run(ROOT_NODE_CYPHER, {"node_id": node_id})
+            root_record = await root_res.single()
+            if root_record is None:
+                return {"root": None, "nodes": [], "edges": []}
+            root = node_from_row(root_record)
+
+            neighbours_res = await session.run(
+                NEIGHBOURS_CYPHER, {"node_id": node_id, "limit": limit}
+            )
+            rows = [r async for r in neighbours_res]
+    except Neo4jError as e:
+        raise RuntimeError(f"Neo4j error: {e.message}") from e
+
+    nodes, edges = split_neighbour_rows(rows)
+    return {"root": root, "nodes": nodes, "edges": edges}
 
 
 async def ensure_vector_index() -> None:

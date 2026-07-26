@@ -15,14 +15,11 @@
     "@tanstack/react-query": "^5.100.9",
     "@types/d3-force": "^3.0.10",
     "d3-force": "^3.0.0",
-    "graphology": "^0.26.0",
-    "graphology-layout-forceatlas2": "^0.10.1",
-    "graphology-layout-noverlap": "^0.4.2",
     "motion": "^12.40.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.15.1",
-    "sigma": "^3.0.3",
+    "reagraph": "^4.32.0",
     "tailwindcss": "^4.2.4"
   },
   "devDependencies": {

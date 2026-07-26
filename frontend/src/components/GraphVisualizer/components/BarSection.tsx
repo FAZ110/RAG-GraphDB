@@ -2,7 +2,7 @@
 interface BarSectionProps {
   title: string;
   entries: [string, number][];
-  colors: string[];
+  colorFor: (label: string, index: number) => string;
 }
 
 
@@ -22,14 +22,14 @@ function BarRow({ label, count, max, color }: { label: string; count: number; ma
 }
 
 
-export function BarSection({ title, entries, colors }: BarSectionProps) {
+export function BarSection({ title, entries, colorFor }: BarSectionProps) {
   const max = entries[0]?.[1] ?? 1;
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">{title}</p>
       <div className="space-y-2">
         {entries.slice(0, 8).map(([label, count], i) => (
-          <BarRow key={label} label={label} count={count} max={max} color={colors[i % colors.length]} />
+          <BarRow key={label} label={label} count={count} max={max} color={colorFor(label, i)} />
         ))}
       </div>
     </div>
