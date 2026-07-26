@@ -38,11 +38,6 @@ export interface EdgeResult {
     properties: Record<string, unknown>
 }
 
-export interface GraphResponse {
-    nodes: NodeResult[]
-    edges: EdgeResult[]
-}
-
 export interface UploadedFile {
     id: string;
     fileName: string;
@@ -60,3 +55,30 @@ export interface SimilarNode {
     score: number;
 }
 
+export interface LoadedNode {
+    id: string;
+    label: string;
+    name: string;
+    degree: number;
+    properties: Record<string, unknown>;
+}
+
+export interface LoadedEdge {
+    id: string;
+    source: string;
+    target: string;
+    type: string;
+}
+
+export interface GraphChunk {
+    nodes: LoadedNode[];
+    edges: LoadedEdge[];
+}
+
+export interface SeedResponse extends GraphChunk {
+    total_nodes: number;
+}
+
+export interface ExpansionResponse extends GraphChunk {
+    root: LoadedNode;
+}

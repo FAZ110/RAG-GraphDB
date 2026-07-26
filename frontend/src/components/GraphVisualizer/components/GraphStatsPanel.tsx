@@ -1,19 +1,26 @@
+import { useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import type { NodeResult, EdgeResult } from '../../../types';
+import type { NodeResult, LoadedEdge } from '../../../types';
 import { useGraphStats } from '../hooks/useGraphStats';
 import { MetricsTiles } from './MetricsTiles';
 import { BarSection } from './BarSection';
-import {COLORS} from '../utils/constants'
+import {COLORS, DEFAULT_COLOR} from '../utils/constants'
 
 interface GraphStatsPanelProps {
   nodes: NodeResult[];
-  edges: EdgeResult[];
+  edges: LoadedEdge[];
+  totalNodes: number;
+  colorMap: Record<string, string>;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function GraphStatsPanel({ nodes, edges, isOpen, onClose }: GraphStatsPanelProps) {
-  const stats = useGraphStats(nodes, edges);
+export function GraphStatsPanel({ nodes, edges, totalNodes, colorMap, isOpen, onClose }: GraphStatsPanelProps) {
+  const statsEdges = useMemo(
+    () => edges.map((e) => ({ ...e, properties: {} as Record<string, unknown> })),
+    [edges],
+  );
+  const stats = useGraphStats(nodes, statsEdges);
 
   return createPortal(
     <>
@@ -27,7 +34,7 @@ export function GraphStatsPanel({ nodes, edges, isOpen, onClose }: GraphStatsPan
           ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <span className="text-sm font-semibold text-gray-900">Statystyki grafu</span>
+          <span className="text-sm font-semibold text-gray-900">Statystyki widocznego podgrafu</span>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-lg leading-none cursor-pointer"
@@ -37,6 +44,10 @@ export function GraphStatsPanel({ nodes, edges, isOpen, onClose }: GraphStatsPan
         </div>
 
         <div className="overflow-y-auto flex-1 px-4 py-3 space-y-5">
+          <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+            Statystyki dotyczą {nodes.length} wczytanych węzłów z {totalNodes} w bazie.
+            Rozwiń kolejne węzły, aby je uzupełnić.
+          </p>
 
           <MetricsTiles metrics={[
             { label: 'Węzły', value: stats.N },
@@ -56,11 +67,19 @@ export function GraphStatsPanel({ nodes, edges, isOpen, onClose }: GraphStatsPan
           )}
 
           {stats.categoryEntries.length > 0 && (
-            <BarSection title="Kategorie węzłów" entries={stats.categoryEntries} colors={COLORS} />
+            <BarSection
+              title="Kategorie węzłów"
+              entries={stats.categoryEntries}
+              colorFor={(label) => colorMap[label] ?? DEFAULT_COLOR}
+            />
           )}
 
           {stats.edgeTypeEntries.length > 0 && (
-            <BarSection title="Typy relacji" entries={stats.edgeTypeEntries} colors={COLORS} />
+            <BarSection
+              title="Typy relacji"
+              entries={stats.edgeTypeEntries}
+              colorFor={(_, i) => COLORS[i % COLORS.length]}
+            />
           )}
 
           {stats.topNodes.length > 0 && (
@@ -70,7 +89,7 @@ export function GraphStatsPanel({ nodes, edges, isOpen, onClose }: GraphStatsPan
               </p>
               <div className="space-y-1.5">
                 {stats.topNodes.map((node, i) => (
-                  <div key={node.name} className="flex items-center gap-2 text-xs">
+                  <div key={`${node.name}-${i}`} className="flex items-center gap-2 text-xs">
                     <span className="w-4 text-gray-400 text-right shrink-0">{i + 1}.</span>
                     <span className="truncate flex-1 text-gray-800">{node.name}</span>
                     <span className="shrink-0 text-gray-500">
