@@ -38,11 +38,6 @@ export interface EdgeResult {
     properties: Record<string, unknown>
 }
 
-export interface GraphResponse {
-    nodes: NodeResult[]
-    edges: EdgeResult[]
-}
-
 export interface UploadedFile {
     id: string;
     fileName: string;

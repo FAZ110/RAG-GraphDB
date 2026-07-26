@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 
 from db.database import (
-    fetch_graph,
     fetch_node_expansion,
     fetch_seed_graph,
     reset_graph,
@@ -12,11 +11,6 @@ from services.embedding_service import get_embedding_service
 router = APIRouter()
 
 _MAX_PAGE = 500
-
-
-@router.get("/graph")
-async def get_graph():
-    return await fetch_graph()
 
 
 @router.delete("/graph")

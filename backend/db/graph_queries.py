@@ -6,7 +6,7 @@ _LABEL_EXPR = "[l IN labels({var}) WHERE l <> 'Entity'][0]"
 SEED_NODES_CYPHER = f"""
 MATCH (n:Entity)
 WITH n, COUNT {{ (n)--() }} AS degree
-ORDER BY degree DESC
+ORDER BY degree DESC, elementId(n)
 LIMIT $limit
 RETURN elementId(n) AS id,
        {_LABEL_EXPR.format(var="n")} AS label,
@@ -35,7 +35,7 @@ NEIGHBOURS_CYPHER = f"""
 MATCH (n) WHERE elementId(n) = $node_id
 MATCH (n)-[r]-(m)
 WITH m, r, COUNT {{ (m)--() }} AS degree
-ORDER BY degree DESC
+ORDER BY degree DESC, elementId(r)
 LIMIT $limit
 RETURN elementId(m) AS id,
        {_LABEL_EXPR.format(var="m")} AS label,
