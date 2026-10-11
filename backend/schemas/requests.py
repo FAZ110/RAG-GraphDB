@@ -2,6 +2,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from db.postgres.models import ArticleStatus
+
 
 class ArticleRequest(BaseModel):
     url: str = ""
@@ -24,7 +26,7 @@ class EdgeResult(BaseModel):
 
 class ExtractResponse(BaseModel):
     title: str | None = None
-    status: str
+    status: ArticleStatus
     nodes: list[NodeResult] = []
     edges: list[EdgeResult] = []
     nodes_count: int = 0

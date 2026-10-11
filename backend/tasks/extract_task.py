@@ -1,4 +1,3 @@
-import json
 import logging
 import uuid
 
@@ -13,7 +12,9 @@ from core.config import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER, REDIS_URL
 from db.graph_builder import build_statements
 from db.json_validator import validate_graph_json
 from db.postgres.articles import set_article_status
+from db.postgres.mentions import save_mentions
 from db.postgres.models import ArticleStatus
+from schemas.requests import EdgeResult, ExtractResponse, NodeResult
 from services.embedding_service import get_embedding_service
 from services.llm_service import LLMService
 
@@ -37,17 +38,9 @@ def extract_article_task(
 ) -> None:
     _record_status(article_id, ArticleStatus.PROCESSING)
     try:
-        result = _run_extraction(title, content, provider)
+        result = _run_extraction(title, content, provider, article_id)
     except SoftTimeLimitExceeded:
-        result = {
-            "title": title,
-            "status": "error",
-            "nodes": [],
-            "edges": [],
-            "nodes_count": 0,
-            "edges_count": 0,
-            "error": "Task timed out (120s) — article may be too long",
-        }
+        result = _error_result(title, "Task timed out (120s) — article may be too long")
     except RateLimitError as exc:
         retry_after = 60
         if exc.response is not None:
@@ -55,20 +48,12 @@ def extract_article_task(
         try:
             raise self.retry(exc=exc, countdown=retry_after) from exc
         except MaxRetriesExceededError:
-            result = {
-                "title": title,
-                "status": "error",
-                "nodes": [],
-                "edges": [],
-                "nodes_count": 0,
-                "edges_count": 0,
-                "error": "Rate limit exceeded - too much retries",
-            }
+            result = _error_result(title, "Rate limit exceeded - too much retries")
 
-    _record_status(article_id, ArticleStatus(result["status"]), result["error"])
+    _record_status(article_id, result.status, result.error)
 
     r = redis.from_url(REDIS_URL)
-    r.rpush(f"job:{job_id}:results", json.dumps(result))
+    r.rpush(f"job:{job_id}:results", result.model_dump_json())
     r.expire(f"job:{job_id}:results", 86400)
     r.rpush(f"job:{job_id}:notify", "1")
     r.expire(f"job:{job_id}:notify", 86400)
@@ -87,7 +72,9 @@ def _record_status(article_id: str | None, status: ArticleStatus, error: str | N
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
 
-def _run_extraction(title: str, content: str, provider: str) -> dict:
+def _run_extraction(
+    title: str, content: str, provider: str, article_id: str | None
+) -> ExtractResponse:
     llm = LLMService(provider=provider)
     try:
         raw_json = llm.generate_graph_json(title, content)
@@ -96,9 +83,12 @@ def _run_extraction(title: str, content: str, provider: str) -> dict:
         edges_dicts = [e.model_dump() for e in graph.edges]
 
         embedder = get_embedding_service()
-        texts = [f"{n['label']}: {n['properties'].get('name', '')}" for n in nodes_dicts]
+        texts = [f"{n.label}: {n.properties.get('name', '')}" for n in graph.nodes]
         vectors = embedder.embed_batch(texts)
-        embeddings_map = {n["id"]: v for n, v in zip(nodes_dicts, vectors, strict=True)}
+        embeddings_map = {n.id: v for n, v in zip(graph.nodes, vectors, strict=True)}
+
+        if article_id is not None:
+            save_mentions(uuid.UUID(article_id), graph.nodes, graph.edges, vectors)
 
         statements = build_statements(nodes_dicts, edges_dicts, embeddings=embeddings_map)
         try:
@@ -110,24 +100,19 @@ def _run_extraction(title: str, content: str, provider: str) -> dict:
         except Neo4jError as e:
             raise RuntimeError(f"Neo4j error: {e.message}") from e
 
-        return {
-            "title": title,
-            "status": "ok",
-            "nodes": nodes_dicts,
-            "edges": edges_dicts,
-            "nodes_count": len(graph.nodes),
-            "edges_count": len(graph.edges),
-            "error": None,
-        }
+        return ExtractResponse(
+            title=title,
+            status=ArticleStatus.OK,
+            nodes=[NodeResult.model_validate(n) for n in nodes_dicts],
+            edges=[EdgeResult.model_validate(e) for e in edges_dicts],
+            nodes_count=len(graph.nodes),
+            edges_count=len(graph.edges),
+        )
     except RateLimitError:
         raise
     except Exception as e:
-        return {
-            "title": title,
-            "status": "error",
-            "nodes": [],
-            "edges": [],
-            "nodes_count": 0,
-            "edges_count": 0,
-            "error": str(e),
-        }
+        return _error_result(title, str(e))
+
+
+def _error_result(title: str, error: str) -> ExtractResponse:
+    return ExtractResponse(title=title, status=ArticleStatus.ERROR, error=error)

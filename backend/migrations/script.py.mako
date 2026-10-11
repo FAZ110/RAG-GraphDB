@@ -8,6 +8,7 @@ Create Date: ${create_date}
 
 from collections.abc import Sequence
 
+import pgvector.sqlalchemy
 import sqlalchemy as sa
 from alembic import op
 ${imports if imports else ""}
