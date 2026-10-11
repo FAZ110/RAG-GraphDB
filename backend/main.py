@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -8,14 +9,17 @@ from api.extract import router as extract_router
 from api.graph import router as graph_router
 from db.database import close_driver, ensure_vector_index, get_driver
 from db.errors import GraphDatabaseError
+from db.postgres.session import async_engine, run_migrations
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await run_in_threadpool(run_migrations)
     get_driver()
     await ensure_vector_index()
     yield
     await close_driver()
+    await async_engine.dispose()
 
 
 app = FastAPI(title="Graph-LLM-JS API", lifespan=lifespan)

@@ -29,6 +29,11 @@ EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY", LLM_API_KEY)
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672//")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
+POSTGRES_URL = os.getenv(
+    "POSTGRES_URL",
+    "postgresql+psycopg://graphdb_app:graphdb_dev_password@localhost:5432/article_library",
+)
+
 
 if not all([NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD]):
     raise RuntimeError("Environmental variables missing: NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD")

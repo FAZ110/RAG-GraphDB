@@ -7,6 +7,8 @@ from fastapi.responses import StreamingResponse
 from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from core.config import REDIS_URL
+from db.postgres.articles import create_articles
+from db.postgres.session import SessionDep
 from schemas.requests import BulkExtractRequest, JobSubmitResponse
 from tasks.extract_task import extract_article_task
 
@@ -24,16 +26,18 @@ def _get_redis_stream() -> aioredis.Redis:
 
 
 @router.post("/extract", response_model=JobSubmitResponse)
-async def submit_extract_job(request: BulkExtractRequest) -> JobSubmitResponse:
+async def submit_extract_job(request: BulkExtractRequest, session: SessionDep) -> JobSubmitResponse:
+    article_ids = await create_articles(session, request.articles)
     job_id = str(uuid.uuid4())
     r = _get_redis()
     try:
         await r.set(f"job:{job_id}:total", len(request.articles), ex=86400)
     finally:
         await r.aclose()
-    for article in request.articles:
+    for article, article_id in zip(request.articles, article_ids, strict=True):
         extract_article_task.delay(
             job_id=job_id,
+            article_id=str(article_id),
             title=article.title,
             content=article.content,
             provider=request.provider,

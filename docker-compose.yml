@@ -27,6 +27,22 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+
+  postgres:
+    image: pgvector/pgvector:pg18
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=graphdb_app
+      - POSTGRES_PASSWORD=graphdb_dev_password
+      - POSTGRES_DB=article_library
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "graphdb_app", "-d", "article_library"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
   
   worker:
     build: ./backend
@@ -39,6 +55,8 @@ services:
       redis:
         condition: service_started
       neo4j:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
   backend:
     build: ./backend
@@ -53,6 +71,8 @@ services:
         condition: service_started
       neo4j:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
 
   frontend:
     build:
@@ -66,3 +86,4 @@ services:
 
 volumes:
   neo4j_data:
+  postgres_data:
