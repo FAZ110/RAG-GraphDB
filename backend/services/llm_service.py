@@ -13,6 +13,8 @@ from core.config import (
     OPENAI_MODEL,
 )
 
+_GROQ_MAX_COMPLETION_TOKENS = 8000
+
 _GRAPH_JSON_PROMPT = """\
 Poniżej wyśle ci tekst, twoim zadaniem jest wyekstrahować encje i relacje semantyczne między nimi.
 Zwróć odpowiedź WYŁĄCZNIE jako poprawny JSON (bez żadnych znaczników markdown, bez ```json).
@@ -40,6 +42,8 @@ Treść: {content}\
 
 class LLMService:
     def __init__(self, provider: str = "local") -> None:
+        self._extra: dict = {}
+
         if provider == "groq":
             if not GROQ_API_KEY:
                 raise ValueError("No GROQ_API_KEY in environmental variables")
@@ -49,11 +53,17 @@ class LLMService:
                 max_retries=0,
             )
             self._model = GROQ_MODEL
+            self._extra = {
+                "max_completion_tokens": _GROQ_MAX_COMPLETION_TOKENS,
+                "reasoning_effort": "low",
+                "response_format": {"type": "json_object"},
+            }
         elif provider == "openai":
             if not OPENAI_API_KEY:
                 raise ValueError("No OPENAI_API_KEY in environmental variables")
             self._client = OpenAI(api_key=OPENAI_API_KEY, max_retries=0)
             self._model = OPENAI_MODEL
+            self._extra = {"response_format": {"type": "json_object"}}
         else:
             self._client = OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY, max_retries=0)
             self._model = LLM_MODEL
@@ -66,10 +76,18 @@ class LLMService:
             model=self._model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
+            **self._extra,
         )
         if not response.choices:
             raise ValueError("Missing response from LLM")
-        raw = response.choices[0].message.content
+        choice = response.choices[0]
+        raw = choice.message.content
+
+        if choice.finish_reason == "length":
+            raise ValueError(
+                "LLM response was truncated (finish_reason=length) — "
+                "article too long or token limit too low"
+            )
 
         if not raw:
             raise ValueError("Empty response from LLM")
