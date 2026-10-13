@@ -26,6 +26,10 @@ EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "1536"))
 EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", LLM_BASE_URL)
 EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY", LLM_API_KEY)
 
+DEDUP_ENABLED = os.getenv("DEDUP_ENABLED", "true").lower() == "true"
+DEDUP_THRESHOLD = float(os.getenv("DEDUP_THRESHOLD", "0.92"))
+DEDUP_TOP_K = int(os.getenv("DEDUP_TOP_K", "5"))
+
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672//")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 

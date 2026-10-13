@@ -12,6 +12,7 @@ from db.graph_queries import (
     ROOT_NODE_CYPHER,
     SEED_EDGES_CYPHER,
     SEED_NODES_CYPHER,
+    SIMILAR_NODES_CYPHER,
     edge_from_row,
     node_from_row,
     split_neighbour_rows,
@@ -112,16 +113,8 @@ async def ensure_vector_index() -> None:
 
 @translates_neo4j_errors
 async def similar_nodes(vec: list[float], top_k: int) -> list[dict]:
-    cypher = (
-        "CALL db.index.vector.queryNodes('entity_embeddings', $top_k, $vec) "
-        "YIELD node, score "
-        "RETURN elementId(node) AS id, "
-        "node.name AS name, "
-        "[l IN labels(node) WHERE l <> 'Entity'][0] AS label, "
-        "score"
-    )
     async with get_driver().session() as session:
-        res = await session.run(cypher, {"top_k": top_k, "vec": vec})
+        res = await session.run(SIMILAR_NODES_CYPHER, {"top_k": top_k, "vec": vec})
         return [
             {"id": r["id"], "name": r["name"], "label": r["label"], "score": r["score"]}
             async for r in res

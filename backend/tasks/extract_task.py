@@ -7,9 +7,19 @@ from neo4j.exceptions import Neo4jError
 from openai import RateLimitError
 
 from celery_app import celery_app
-from core.config import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER, REDIS_URL
+from core.config import (
+    DEDUP_ENABLED,
+    DEDUP_THRESHOLD,
+    DEDUP_TOP_K,
+    NEO4J_PASSWORD,
+    NEO4J_URI,
+    NEO4J_USER,
+    REDIS_URL,
+)
 from db.graph_builder import build_statements
+from db.graph_queries import SIMILAR_NODES_CYPHER
 from db.json_validator import validate_graph_json
+from services.dedup import match_existing, merge_same_key, resolve_batch
 from services.embedding_service import get_embedding_service
 from services.llm_service import LLMService
 
@@ -62,6 +72,15 @@ def extract_article_task(
 
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
+_GRAPH_WRITE_LOCK = "lock:graph-write"
+_LOCK_TIMEOUT = 60
+_LOCK_WAIT = 90
+
+
+def _find_candidates(session, vec: list[float]) -> list[dict]:
+    res = session.run(SIMILAR_NODES_CYPHER, {"top_k": DEDUP_TOP_K, "vec": vec})
+    return [{"name": r["name"], "label": r["label"], "score": r["score"]} for r in res]
+
 
 def _run_extraction(title: str, content: str, provider: str) -> dict:
     llm = LLMService(provider=provider)
@@ -76,9 +95,28 @@ def _run_extraction(title: str, content: str, provider: str) -> dict:
         vectors = embedder.embed_batch(texts)
         embeddings_map = {n["id"]: v for n, v in zip(nodes_dicts, vectors, strict=True)}
 
-        statements = build_statements(nodes_dicts, edges_dicts, embeddings=embeddings_map)
+        if DEDUP_ENABLED:
+            nodes_dicts, edges_dicts = resolve_batch(
+                nodes_dicts, edges_dicts, embeddings_map, DEDUP_THRESHOLD
+            )
+
+        # Wyszukiwanie kandydatów i zapis pod jedną blokadą, żeby równoległe workery
+        # nie utworzyły tego samego bytu dwa razy.
+        lock = redis.from_url(REDIS_URL).lock(
+            _GRAPH_WRITE_LOCK, timeout=_LOCK_TIMEOUT, blocking_timeout=_LOCK_WAIT
+        )
         try:
-            with driver.session() as session:
+            with lock, driver.session() as session:
+                if DEDUP_ENABLED:
+                    match_existing(
+                        nodes_dicts,
+                        embeddings_map,
+                        lambda vec: _find_candidates(session, vec),
+                        DEDUP_THRESHOLD,
+                    )
+                    nodes_dicts, edges_dicts = merge_same_key(nodes_dicts, edges_dicts)
+
+                statements = build_statements(nodes_dicts, edges_dicts, embeddings=embeddings_map)
                 with session.begin_transaction() as tx:
                     for cypher, params in statements:
                         tx.run(cypher, params)
@@ -91,8 +129,8 @@ def _run_extraction(title: str, content: str, provider: str) -> dict:
             "status": "ok",
             "nodes": nodes_dicts,
             "edges": edges_dicts,
-            "nodes_count": len(graph.nodes),
-            "edges_count": len(graph.edges),
+            "nodes_count": len(nodes_dicts),
+            "edges_count": len(edges_dicts),
             "error": None,
         }
     except RateLimitError:
