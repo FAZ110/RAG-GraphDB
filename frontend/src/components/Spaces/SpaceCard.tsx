@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { FormEvent } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import { MoreHorizontalIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 import {
   AlertDialog,
@@ -144,12 +144,21 @@ export function SpaceCard({ space, active, highlighted }: Props) {
                     <MoreHorizontalIcon />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem onSelect={startRename}>
+                {/* A square slip like the deck, its hover in the space's paper colour. */}
+                <DropdownMenuContent
+                  align="end"
+                  className="deck w-48 rounded-none border border-slate-200 p-1 shadow-none ring-0"
+                  style={{ '--accent': ink.field } as CSSProperties}
+                >
+                  <DropdownMenuItem onSelect={startRename} className="rounded-none px-2.5 py-2">
                     <PencilIcon />
                     Zmień nazwę
                   </DropdownMenuItem>
-                  <DropdownMenuItem variant="destructive" onSelect={() => setConfirmDelete(true)}>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => setConfirmDelete(true)}
+                    className="rounded-none px-2.5 py-2"
+                  >
                     <Trash2Icon />
                     Usuń przestrzeń
                   </DropdownMenuItem>
@@ -169,23 +178,41 @@ export function SpaceCard({ space, active, highlighted }: Props) {
           if (!open) remove.reset()
         }}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Usunąć przestrzeń „{space.name}”?</AlertDialogTitle>
-            <AlertDialogDescription>
+        {/* The question comes on a sheet of the space's own map paper, with its neatline. */}
+        <AlertDialogContent
+          className="max-w-md gap-5 rounded-none p-8 ring-0 data-[size=default]:max-w-md data-[size=default]:sm:max-w-md"
+          style={{
+            backgroundColor: ink.field,
+            outline: `2px dashed color-mix(in oklch, ${ink.color} 40%, transparent)`,
+            outlineOffset: -8,
+            boxShadow: `0 1px 2px rgb(15 23 42 / 0.12), 0 24px 48px -16px rgb(15 23 42 / 0.35), 0 40px 80px -40px ${ink.color}`,
+          }}
+        >
+          <AlertDialogHeader className="gap-2 text-left sm:text-left">
+            <AlertDialogTitle className="text-2xl leading-tight font-bold tracking-[-0.015em] text-balance text-slate-900">
+              Usunąć przestrzeń „{space.name}”?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base text-slate-600">
               Razem z nią znikną wszystkie jej artykuły i graf. Tego nie da się cofnąć.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {remove.error && <p className="text-sm text-red-700">{remove.error.message}</p>}
-          <AlertDialogFooter>
-            <AlertDialogCancel>Anuluj</AlertDialogCancel>
-            <Button
-              variant="destructive"
+          {remove.error && (
+            <p className="border-l-4 border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800">
+              {remove.error.message}
+            </p>
+          )}
+          <AlertDialogFooter className="mx-0 mb-0 flex-row justify-end gap-3 rounded-none border-0 bg-transparent p-0 pt-1 sm:justify-end">
+            <AlertDialogCancel className="h-10 rounded-none border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-none hover:border-slate-900 hover:bg-white hover:text-slate-900">
+              Anuluj
+            </AlertDialogCancel>
+            <button
+              type="button"
               disabled={remove.isPending}
               onClick={() => remove.mutate(space.id, { onSuccess: () => setConfirmDelete(false) })}
+              className="deck-button h-10 border border-red-700 bg-red-700 px-4 text-sm font-semibold text-white [box-shadow:4px_4px_0_#7f1d1d] hover:bg-red-800 focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2 focus-visible:outline-none active:[box-shadow:1px_1px_0_#7f1d1d] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {remove.isPending ? 'Usuwam...' : 'Usuń przestrzeń'}
-            </Button>
+            </button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
