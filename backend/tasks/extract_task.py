@@ -9,6 +9,8 @@ from openai import RateLimitError
 from celery_app import celery_app
 from core.config import (
     DEDUP_ENABLED,
+    DEDUP_LEXICAL_MIN,
+    DEDUP_NAME_MIN_SCORE,
     DEDUP_THRESHOLD,
     DEDUP_TOP_K,
     NEO4J_PASSWORD,
@@ -19,7 +21,14 @@ from core.config import (
 from db.graph_builder import build_statements
 from db.graph_queries import SIMILAR_NODES_CYPHER
 from db.json_validator import validate_graph_json
-from services.dedup import match_existing, merge_same_key, resolve_batch
+from services.dedup import (
+    DEDUP_LOG_KEY,
+    DEDUP_LOG_MAX,
+    MatchConfig,
+    match_existing,
+    merge_same_key,
+    resolve_batch,
+)
 from services.embedding_service import get_embedding_service
 from services.llm_service import LLMService
 
@@ -35,7 +44,7 @@ def extract_article_task(
     self, job_id: str, title: str, content: str, provider: str = "local"
 ) -> None:
     try:
-        result = _run_extraction(title, content, provider)
+        result = _run_extraction(job_id, title, content, provider)
     except SoftTimeLimitExceeded:
         result = {
             "title": title,
@@ -76,13 +85,30 @@ _GRAPH_WRITE_LOCK = "lock:graph-write"
 _LOCK_TIMEOUT = 60
 _LOCK_WAIT = 90
 
+_MATCH_CONFIG = MatchConfig(
+    threshold=DEDUP_THRESHOLD,
+    name_min_score=DEDUP_NAME_MIN_SCORE,
+    lexical_min=DEDUP_LEXICAL_MIN,
+)
+
 
 def _find_candidates(session, vec: list[float]) -> list[dict]:
     res = session.run(SIMILAR_NODES_CYPHER, {"top_k": DEDUP_TOP_K, "vec": vec})
     return [{"name": r["name"], "label": r["label"], "score": r["score"]} for r in res]
 
 
-def _run_extraction(title: str, content: str, provider: str) -> dict:
+def _record_dedup_log(r: redis.Redis, job_id: str, title: str, entries: list[dict]) -> None:
+    # TEMP: do celów testowych, odczyt przez GET /debug/dedup
+    if not entries:
+        return
+    r.rpush(
+        DEDUP_LOG_KEY,
+        *(json.dumps({**e, "job_id": job_id, "title": title}) for e in entries),
+    )
+    r.ltrim(DEDUP_LOG_KEY, -DEDUP_LOG_MAX, -1)
+
+
+def _run_extraction(job_id: str, title: str, content: str, provider: str) -> dict:
     llm = LLMService(provider=provider)
     try:
         raw_json = llm.generate_graph_json(title, content)
@@ -95,16 +121,20 @@ def _run_extraction(title: str, content: str, provider: str) -> dict:
         vectors = embedder.embed_batch(texts)
         embeddings_map = {n["id"]: v for n, v in zip(nodes_dicts, vectors, strict=True)}
 
+        dedup_log: list[dict] = []
         if DEDUP_ENABLED:
             nodes_dicts, edges_dicts = resolve_batch(
-                nodes_dicts, edges_dicts, embeddings_map, DEDUP_THRESHOLD
+                nodes_dicts,
+                edges_dicts,
+                embeddings_map,
+                _MATCH_CONFIG,
+                dedup_log,
             )
 
         # Wyszukiwanie kandydatów i zapis pod jedną blokadą, żeby równoległe workery
         # nie utworzyły tego samego bytu dwa razy.
-        lock = redis.from_url(REDIS_URL).lock(
-            _GRAPH_WRITE_LOCK, timeout=_LOCK_TIMEOUT, blocking_timeout=_LOCK_WAIT
-        )
+        r = redis.from_url(REDIS_URL)
+        lock = r.lock(_GRAPH_WRITE_LOCK, timeout=_LOCK_TIMEOUT, blocking_timeout=_LOCK_WAIT)
         try:
             with lock, driver.session() as session:
                 if DEDUP_ENABLED:
@@ -112,7 +142,8 @@ def _run_extraction(title: str, content: str, provider: str) -> dict:
                         nodes_dicts,
                         embeddings_map,
                         lambda vec: _find_candidates(session, vec),
-                        DEDUP_THRESHOLD,
+                        _MATCH_CONFIG,
+                        dedup_log,
                     )
                     nodes_dicts, edges_dicts = merge_same_key(nodes_dicts, edges_dicts)
 
@@ -123,6 +154,8 @@ def _run_extraction(title: str, content: str, provider: str) -> dict:
                     tx.commit()
         except Neo4jError as e:
             raise RuntimeError(f"Neo4j error: {e.message}") from e
+
+        _record_dedup_log(r, job_id, title, dedup_log)
 
         return {
             "title": title,

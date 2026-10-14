@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from api.debug import router as debug_router
 from api.extract import router as extract_router
 from api.graph import router as graph_router
 from db.database import close_driver, ensure_vector_index, get_driver
@@ -36,6 +37,7 @@ async def graph_database_error_handler(_: Request, exc: GraphDatabaseError) -> J
 
 app.include_router(extract_router)
 app.include_router(graph_router)
+app.include_router(debug_router)  # TEMP
 
 
 @app.get("/")
