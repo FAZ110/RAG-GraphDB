@@ -1,4 +1,4 @@
-import type { BulkExtractRequest, ExpansionResponse, JobSubmitResponse, SeedResponse, SimilarNode } from '../types';
+import type { BulkExtractRequest, ExpansionResponse, JobSubmitResponse, SeedResponse, SimilarNode, Space } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
 
@@ -58,4 +58,37 @@ export const fetchNodeExpansion = async (
   );
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
+}
+
+export const fetchSpaces = async (): Promise<Space[]> => {
+  const response = await fetch(`${API_URL}/spaces`);
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
+export const createSpace = async (name: string): Promise<Space> => {
+  const response = await fetch(`${API_URL}/spaces`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
+export const renameSpace = async (id: string, name: string): Promise<Space> => {
+  const response = await fetch(`${API_URL}/spaces/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
+export const deleteSpace = async (id: string): Promise<void> => {
+  const response = await fetch(`${API_URL}/spaces/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new Error(await readError(response));
 }

@@ -82,3 +82,11 @@ export interface SeedResponse extends GraphChunk {
 export interface ExpansionResponse extends GraphChunk {
     root: LoadedNode;
 }
+
+export interface Space {
+    id: string;
+    name: string;
+    created_at: string;
+    article_count: number;
+    entity_count: number;
+}

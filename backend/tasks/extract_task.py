@@ -2,7 +2,6 @@ import json
 
 import redis
 from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
-from neo4j import GraphDatabase
 from neo4j.exceptions import Neo4jError
 from openai import RateLimitError
 
@@ -13,11 +12,9 @@ from core.config import (
     DEDUP_NAME_MIN_SCORE,
     DEDUP_THRESHOLD,
     DEDUP_TOP_K,
-    NEO4J_PASSWORD,
-    NEO4J_URI,
-    NEO4J_USER,
     REDIS_URL,
 )
+from db.driver import get_sync_driver
 from db.graph_builder import build_statements
 from db.graph_queries import SIMILAR_NODES_CYPHER
 from db.json_validator import validate_graph_json
@@ -79,8 +76,6 @@ def extract_article_task(
     r.expire(f"job:{job_id}:notify", 86400)
 
 
-driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
-
 _GRAPH_WRITE_LOCK = "lock:graph-write"
 _LOCK_TIMEOUT = 60
 _LOCK_WAIT = 90
@@ -136,7 +131,7 @@ def _run_extraction(job_id: str, title: str, content: str, provider: str) -> dic
         r = redis.from_url(REDIS_URL)
         lock = r.lock(_GRAPH_WRITE_LOCK, timeout=_LOCK_TIMEOUT, blocking_timeout=_LOCK_WAIT)
         try:
-            with lock, driver.session() as session:
+            with lock, get_sync_driver().session() as session:
                 if DEDUP_ENABLED:
                     match_existing(
                         nodes_dicts,
