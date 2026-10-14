@@ -17,3 +17,79 @@
   background-image: radial-gradient(circle, rgba(59, 130, 246, 0.18) 1px, transparent 1px);
   background-size: 18px 18px;
 }
+
+/* Space carousel stage: a map table tinted with the centred space's ink. Both
+   colours are registered so switching spaces fades the stage instead of snapping. */
+@property --stage-ink {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #64748b;
+}
+
+@property --stage-field {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f8fafc;
+}
+
+.stage {
+  position: relative;
+  transition:
+    --stage-ink 600ms ease,
+    --stage-field 600ms ease;
+}
+
+.stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+        circle,
+        color-mix(in oklch, var(--stage-ink) 32%, transparent) 1.2px,
+        transparent 1.7px
+      )
+      0 0 / 22px 22px,
+    var(--stage-field);
+  /* Two linear fades intersected, so every edge reaches full transparency. */
+  mask-image:
+    linear-gradient(to bottom, transparent, #000 22%, #000 70%, transparent),
+    linear-gradient(to right, transparent, #000 18%, #000 82%, transparent);
+  mask-composite: intersect;
+}
+
+.stage > * {
+  position: relative;
+}
+
+/* The carousel controls stand slightly off the page on a shallow, flat edge. */
+.deck {
+  box-shadow: 4px 4px 0 #cbd5e1;
+}
+
+.deck-button {
+  box-shadow: 4px 4px 0 #64748b;
+  transition:
+    transform 120ms ease-out,
+    box-shadow 120ms ease-out,
+    background-color 150ms;
+}
+
+.deck-button:active {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 #64748b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage,
+  .deck-button {
+    transition: none;
+  }
+}
+
+/* Faint fibre in the map paper, from SVG turbulence so no image file is needed. */
+.paper-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.1 0 0 0 0 0.15 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
