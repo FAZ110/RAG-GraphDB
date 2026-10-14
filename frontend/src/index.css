@@ -1,4 +1,8 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "./styles/shadcn.css";
+
+@custom-variant dark (&:is(.dark *));
 
 @keyframes float-slow {
   0%, 100% { transform: translateY(0); }
