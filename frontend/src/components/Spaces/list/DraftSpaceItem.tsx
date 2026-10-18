@@ -2,11 +2,9 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { motion } from 'motion/react'
 import { Button, ErrorNote, TextInput } from '@/components/deck'
-import { PENCIL } from '@/design/inks'
 import { unfold } from '@/design/motion'
 import { useCreateSpace } from '@/hooks/useSpaces'
 import type { Space } from '@/types'
-import { SpaceThumbnail } from '../map/SpaceThumbnail'
 import { SPACE_NAME_MAX_LENGTH } from '../spaceText'
 
 interface Props {
@@ -30,9 +28,8 @@ export function DraftSpaceItem({ initialName, onCreated, onCancel }: Props) {
       <form
         onSubmit={submit}
         onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-        className="flex items-start gap-3 py-3 pr-3 pl-4"
+        className="flex items-start gap-3 py-3 pr-3 pl-5"
       >
-        <SpaceThumbnail spaceId="draft" ink={PENCIL} sketch />
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <TextInput
             autoFocus

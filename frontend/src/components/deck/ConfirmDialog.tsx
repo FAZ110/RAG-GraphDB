@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { AlertDialog as AlertDialogPrimitive } from 'radix-ui'
 import {
   AlertDialog,
@@ -18,7 +18,6 @@ interface Props {
   confirmLabel: string
   pending?: boolean
   onConfirm: () => void
-  accent?: string
 }
 
 export function ConfirmDialog({
@@ -30,14 +29,10 @@ export function ConfirmDialog({
   confirmLabel,
   pending = false,
   onConfirm,
-  accent,
 }: Props) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent
-        className="deck-lg max-w-md gap-5 rounded-none border border-line bg-surface p-7 ring-0 data-[size=default]:max-w-md data-[size=default]:sm:max-w-md"
-        style={accent ? ({ '--deck-shadow': accent } as CSSProperties) : undefined}
-      >
+      <AlertDialogContent className="deck-lg max-w-md gap-5 rounded-none border border-line bg-surface p-7 ring-0 data-[size=default]:max-w-md data-[size=default]:sm:max-w-md">
         <AlertDialogHeader className="gap-2 text-left sm:text-left">
           {/* shadcn's own cn doesn't know the custom text sizes and would drop them */}
           <AlertDialogPrimitive.Title className="text-title text-balance text-fg">

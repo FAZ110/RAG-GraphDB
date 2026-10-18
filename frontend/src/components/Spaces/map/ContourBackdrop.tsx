@@ -13,14 +13,14 @@ const WIDTH = 1600
 const HEIGHT = 900
 const RING_STEP = 34
 
-export function ContourBackdrop() {
+export function ContourBackdrop({ color }: { color: string }) {
   return (
     <svg
       aria-hidden="true"
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       preserveAspectRatio="xMidYMid slice"
-      className="pointer-events-none fixed inset-0 h-full w-full"
-      style={{ color: 'var(--stage-ink)' }}
+      className="pointer-events-none fixed inset-0 h-full w-full transition-colors duration-700 motion-reduce:transition-none"
+      style={{ color }}
     >
       <g fill="none" stroke="currentColor" strokeOpacity={0.16} strokeWidth={1}>
         {HILLS.flatMap((hill, h) =>

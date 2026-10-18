@@ -5,6 +5,9 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Screens with room for the map beside a space's header. */
+@custom-variant beside-map (@media (min-width: 88rem) and (min-height: 50rem));
+
 @keyframes float-slow {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
@@ -51,28 +54,6 @@
   }
 }
 
-/* Registered so the page tint fades between spaces instead of snapping. */
-@property --stage-ink {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #64748b;
-}
-
-@property --stage-field {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #f8fafc;
-}
-
 .stage {
   position: relative;
-  transition:
-    --stage-ink 600ms ease,
-    --stage-field 600ms ease;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .stage {
-    transition: none;
-  }
 }

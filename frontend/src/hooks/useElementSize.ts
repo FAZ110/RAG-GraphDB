@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { flushSync } from 'react-dom'
 
 interface Size {
   width: number
@@ -14,12 +15,17 @@ export function useElementSize<T extends Element>(): [(el: T | null) => void, Si
       setSize((prev) =>
         prev?.width === width && prev.height === height ? prev : { width, height }
       )
-    // Measured before paint: the observer reports a frame late, and sized content visibly grew.
+    // Measured now and rendered synchronously on every resize, so sized content never shows a
+    // frame at the old size.
     const { width, height } = el.getBoundingClientRect()
     update(width, height)
     const observer = new ResizeObserver(([entry]) => {
-      const [{ inlineSize, blockSize }] = entry.borderBoxSize
-      update(inlineSize, blockSize)
+      // Older Safari has no border box sizes; the content rect is the next best thing there.
+      const box = entry.borderBoxSize?.[0]
+      flushSync(() => {
+        if (box) update(box.inlineSize, box.blockSize)
+        else update(entry.contentRect.width, entry.contentRect.height)
+      })
     })
     observer.observe(el)
     return () => observer.disconnect()

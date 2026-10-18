@@ -1,9 +1,14 @@
+import type { ReactNode } from 'react'
 import { UploadIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { Button } from '@/components/deck'
+import { IconButton } from '@/components/deck'
+import { cn } from '@/lib/utils'
 import { ArticleSearch } from './ArticleSearch'
 
 interface Props {
+  spaceId: string
+  /** The heading, or the tabs that stand in for it. */
+  title: ReactNode
   hasArticles: boolean
   query: string
   onQueryChange: (query: string) => void
@@ -12,8 +17,10 @@ interface Props {
   status: string
 }
 
-// `min-h-10` keeps the heading in place when the buttons are hidden.
+// The actions drop to a row of their own only when even their minimum width doesn't fit.
 export function ArticlesToolbar({
+  spaceId,
+  title,
   hasArticles,
   query,
   onQueryChange,
@@ -22,10 +29,15 @@ export function ArticlesToolbar({
   status,
 }: Props) {
   return (
-    <div className="flex min-h-10 items-center gap-2">
-      <h2 className="mr-auto text-heading text-fg">Artykuły</h2>
+    <div className="flex min-h-10 flex-wrap items-center gap-x-4 gap-y-3">
+      <div className="max-w-full min-w-0">{title}</div>
       {hasArticles && (
-        <>
+        <div
+          className={cn(
+            'flex grow basis-0 items-center justify-end gap-2',
+            searching ? 'min-w-68' : 'min-w-34'
+          )}
+        >
           <ArticleSearch
             query={query}
             onQueryChange={onQueryChange}
@@ -33,13 +45,12 @@ export function ArticlesToolbar({
             onOpenChange={onSearchingChange}
             status={status}
           />
-          <Button asChild>
-            <Link to="/extract">
+          <IconButton asChild size="icon-lg" label="Dodaj artykuły">
+            <Link to={`/extract?space=${spaceId}`}>
               <UploadIcon />
-              Dodaj artykuły
             </Link>
-          </Button>
-        </>
+          </IconButton>
+        </div>
       )}
     </div>
   )

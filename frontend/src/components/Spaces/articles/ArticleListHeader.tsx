@@ -51,8 +51,8 @@ export function ArticleListHeader({ selected, selectable, onToggleAll, onDeleteS
           >
             <span>Artykuł</span>
             <span className="hidden @3xl:block">Status</span>
-            <span className="hidden text-right @3xl:block">Encje</span>
-            <span className="hidden text-right @md:block">Data</span>
+            <span className="hidden @3xl:block">Encje</span>
+            <span className="hidden @md:block">Data</span>
           </motion.div>
         )}
       </AnimatePresence>

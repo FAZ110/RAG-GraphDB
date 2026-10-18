@@ -26,9 +26,6 @@ interface Props {
   draft: string | null
   onDraftChange: (draft: string | null) => void
   onCreated: (space: Space) => void
-  expanded?: boolean
-  /** Omitted where the list can't spread, which hides the toggle. */
-  onExpandedChange?: (expanded: boolean) => void
   onPicked?: () => void
 }
 
@@ -41,8 +38,6 @@ export function SpaceList({
   draft,
   onDraftChange,
   onCreated,
-  expanded = false,
-  onExpandedChange,
   onPicked,
 }: Props) {
   const [listRef, list] = useElementSize<HTMLUListElement>()
@@ -54,7 +49,7 @@ export function SpaceList({
 
   // The 1px is the list's top border.
   const room = list && list.height - 1
-  const { itemHeight, rowHeight, spare } = layoutSpaceList(shown.length, room, expanded)
+  const { itemHeight, rowHeight, spare } = layoutSpaceList(shown.length, room)
   const noMatch = needle !== '' && shown.length === 0
   const showTile = !loading && draft === null && spare !== null && (noMatch || spare >= itemHeight)
 
@@ -81,8 +76,6 @@ export function SpaceList({
         onQueryChange={onQueryChange}
         status={status}
         onNewSpace={() => startDraft()}
-        expanded={expanded}
-        onExpandedChange={onExpandedChange}
       />
 
       {/* Room for the offset shadow, matching the panel's so both end on one line. */}
@@ -123,15 +116,11 @@ export function SpaceList({
                 space={space}
                 selected={space.id === selectedId}
                 needle={needle}
-                wide={expanded}
                 draggable={reorderable}
                 layoutKey={order.layoutKey}
                 onDragStart={order.onDragStart}
                 onDrop={order.onDrop}
-                onSelect={() => {
-                  onExpandedChange?.(false)
-                  onPicked?.()
-                }}
+                onSelect={() => onPicked?.()}
               />
             ))}
           </LayoutGroup>

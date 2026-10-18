@@ -1,6 +1,5 @@
 import { PlusIcon } from 'lucide-react'
-import { Button, EmptyState, dashedFrame, focusRing } from '@/components/deck'
-import { cn } from '@/lib/utils'
+import { AddTile, AddTileIcon, Button, EmptyState } from '@/components/deck'
 
 interface Props {
   height: number
@@ -13,18 +12,10 @@ export function NewSpaceTile({ height, name, onCreate }: Props) {
   return (
     <li className="p-3" style={{ height }}>
       {name === undefined ? (
-        <button
-          type="button"
-          onClick={onCreate}
-          className={cn(
-            dashedFrame,
-            'flex size-full items-center justify-center gap-2 px-4 text-sm font-semibold text-fg-subtle hover:border-fg hover:text-fg',
-            focusRing
-          )}
-        >
-          <PlusIcon className="size-5" aria-hidden="true" />
+        <AddTile onClick={onCreate}>
+          <AddTileIcon />
           Nowa przestrzeń
-        </button>
+        </AddTile>
       ) : (
         <EmptyState
           title="Nic nie znaleziono"

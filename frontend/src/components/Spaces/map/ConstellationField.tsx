@@ -2,19 +2,13 @@ import { useMemo } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import type { Ink } from '@/design/inks'
 import { inkTint } from '@/design/inks'
-import { useElementSize } from '@/hooks/useElementSize'
-import { FIELD_HEIGHT, FIELD_WIDTH, constellationFor, stretchToHeight } from './constellation'
+import { FIELD_WIDTH, constellationFor, stretchToHeight } from './constellation'
 import { seedFrom } from './contours'
-import { ContourRings, Graticule, Neatline, NorthMark } from './MapMarks'
+import { ContourRings, Neatline } from './MapMarks'
 
 interface Props {
   spaceId: string
   ink: Ink
-  sketch?: boolean
-  map?: boolean
-  /** Cover its positioned box edge to edge; the box's border stands in for the neatline. */
-  fill?: boolean
-  animated?: boolean
 }
 
 function gridBackground(ink: Ink) {
@@ -26,94 +20,62 @@ function gridBackground(ink: Ink) {
   }
 }
 
+// Square and cropped to the positioned box it covers, so it never waits for a measured size.
 // Drawn in `currentColor`: SVG presentation attributes can't take the ink's CSS variable.
-export function ConstellationField({
-  spaceId,
-  ink,
-  sketch = false,
-  map = false,
-  fill = false,
-  animated = false,
-}: Props) {
-  const reducedMotion = useReducedMotion()
-  const draw = animated && !reducedMotion
-  const [svgRef, size] = useElementSize<SVGSVGElement>()
-  const aspect = size && size.width > 0 && size.height > 0 ? size.width / size.height : null
-  const height = fill && aspect ? Math.max(FIELD_HEIGHT, FIELD_WIDTH / aspect) : FIELD_HEIGHT
+export function ConstellationField({ spaceId, ink }: Props) {
+  const draw = !useReducedMotion()
   const { nodes, edges } = useMemo(
-    () => stretchToHeight(constellationFor(spaceId), height),
-    [spaceId, height]
+    () => stretchToHeight(constellationFor(spaceId), FIELD_WIDTH),
+    [spaceId]
   )
-  // Waits for its size, or the drawing would start at the default proportions and jump.
-  const showGraph = !fill || aspect !== null
-
   return (
     <svg
-      ref={svgRef}
-      viewBox={`0 0 ${FIELD_WIDTH} ${height}`}
-      className={fill ? 'absolute inset-0 size-full' : 'block h-auto w-full'}
-      style={{
-        color: ink.color,
-        backgroundColor: ink.field,
-        ...(fill ? gridBackground(ink) : {}),
-      }}
+      viewBox={`0 0 ${FIELD_WIDTH} ${FIELD_WIDTH}`}
+      preserveAspectRatio="xMidYMid slice"
+      className="absolute inset-0 size-full"
+      style={{ color: ink.color, backgroundColor: ink.field, ...gridBackground(ink) }}
       aria-hidden="true"
     >
-      {map && (
-        <g fill="none" stroke="currentColor">
-          {!fill && <Graticule />}
-          {showGraph && <ContourRings nodes={nodes.slice(0, 3)} seed={seedFrom(spaceId)} />}
-          {!fill && <Neatline />}
-          <NorthMark />
-        </g>
-      )}
-      {showGraph &&
-        edges.map(([a, b], i) => (
-          <motion.line
-            key={`${a}-${b}`}
-            x1={nodes[a].x}
-            y1={nodes[a].y}
-            x2={nodes[b].x}
-            y2={nodes[b].y}
-            stroke="currentColor"
-            strokeOpacity={0.4}
-            strokeWidth={1.25}
-            strokeDasharray={sketch ? '3 4' : undefined}
-            initial={draw ? { pathLength: 0 } : false}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: 0.45, delay: 0.1 + i * 0.07, ease: 'easeInOut' }}
-          />
-        ))}
-      {showGraph &&
-        nodes.map((node, i) => (
-          <motion.g
-            key={i}
-            style={{ transformOrigin: `${node.x}px ${node.y}px`, transformBox: 'view-box' }}
-            initial={draw ? { scale: 0, opacity: 0 } : false}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 18, delay: 0.05 + i * 0.06 }}
-          >
-            {i === 0 && (
-              <circle
-                cx={node.x}
-                cy={node.y}
-                r={node.r + 4}
-                fill="none"
-                stroke="currentColor"
-                strokeOpacity={0.3}
-              />
-            )}
+      <g fill="none" stroke="currentColor">
+        <ContourRings nodes={nodes.slice(0, 3)} seed={seedFrom(spaceId)} />
+        <Neatline height={FIELD_WIDTH} />
+      </g>
+      {edges.map(([a, b], i) => (
+        <motion.line
+          key={`${a}-${b}`}
+          x1={nodes[a].x}
+          y1={nodes[a].y}
+          x2={nodes[b].x}
+          y2={nodes[b].y}
+          stroke="currentColor"
+          strokeOpacity={0.4}
+          strokeWidth={1.25}
+          initial={draw ? { pathLength: 0 } : false}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.45, delay: 0.1 + i * 0.07, ease: 'easeInOut' }}
+        />
+      ))}
+      {nodes.map((node, i) => (
+        <motion.g
+          key={i}
+          style={{ transformOrigin: `${node.x}px ${node.y}px`, transformBox: 'view-box' }}
+          initial={draw ? { scale: 0, opacity: 0 } : false}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 420, damping: 18, delay: 0.05 + i * 0.06 }}
+        >
+          {i === 0 && (
             <circle
               cx={node.x}
               cy={node.y}
-              r={node.r}
-              fill={sketch ? undefined : 'currentColor'}
-              stroke={sketch ? 'currentColor' : undefined}
-              strokeWidth={sketch ? 1.25 : undefined}
-              style={sketch ? { fill: ink.field } : undefined}
+              r={node.r + 4}
+              fill="none"
+              stroke="currentColor"
+              strokeOpacity={0.3}
             />
-          </motion.g>
-        ))}
+          )}
+          <circle cx={node.x} cy={node.y} r={node.r} fill="currentColor" />
+        </motion.g>
+      ))}
     </svg>
   )
 }

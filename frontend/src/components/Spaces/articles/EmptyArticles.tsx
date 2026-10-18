@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Button, EmptyState } from '@/components/deck'
 import type { Ink } from '@/design/inks'
 
-export function EmptyArticles({ ink }: { ink: Ink }) {
+export function EmptyArticles({ spaceId, ink }: { spaceId: string; ink: Ink }) {
   return (
     <EmptyState
       title="Zacznij od artykułów"
@@ -11,7 +11,7 @@ export function EmptyArticles({ ink }: { ink: Ink }) {
       className="flex-1"
       action={
         <Button asChild>
-          <Link to="/extract">
+          <Link to={`/extract?space=${spaceId}`}>
             <PlusIcon style={{ color: ink.color }} aria-hidden="true" />
             Dodaj artykuły
           </Link>

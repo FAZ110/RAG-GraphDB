@@ -1,9 +1,10 @@
 import type { CSSProperties } from 'react'
-import { surface } from '@/components/deck'
+import { Link } from 'react-router-dom'
+import { AddTile, AddTileIcon, surface } from '@/components/deck'
 import { useElementSize } from '@/hooks/useElementSize'
 import { cn } from '@/lib/utils'
 import type { Article } from '@/types'
-import { fitRowHeight } from '../fitRows'
+import { layoutRows } from '../fitRows'
 import { ARTICLE_HEADER_HEIGHT, ARTICLE_ROW_HEIGHT } from './articleGrid'
 import { ArticleListHeader } from './ArticleListHeader'
 import { ArticleRow } from './ArticleRow'
@@ -30,7 +31,7 @@ export function ArticleTable({
 }: Props) {
   const [tableRef, table] = useElementSize<HTMLUListElement>()
   const rowRoom = table && table.height - 1 - ARTICLE_HEADER_HEIGHT
-  const rowHeight = fitRowHeight(articles.length, rowRoom, ARTICLE_ROW_HEIGHT)
+  const { rowHeight, spare } = layoutRows(articles.length, rowRoom, ARTICLE_ROW_HEIGHT)
 
   return (
     <ul
@@ -61,6 +62,16 @@ export function ArticleTable({
       {articles.length === 0 && (
         <li className="px-4 py-5 text-sm text-fg-muted">
           Żaden artykuł nie pasuje do „{query.trim()}”.
+        </li>
+      )}
+      {articles.length > 0 && spare !== null && spare >= ARTICLE_ROW_HEIGHT && (
+        <li className="p-3" style={{ height: spare }}>
+          <AddTile asChild>
+            <Link to={`/extract?space=${spaceId}`}>
+              <AddTileIcon />
+              Dodaj artykuły
+            </Link>
+          </AddTile>
         </li>
       )}
     </ul>

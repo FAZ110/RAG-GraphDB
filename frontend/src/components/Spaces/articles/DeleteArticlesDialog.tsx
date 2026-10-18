@@ -1,12 +1,10 @@
 import { ConfirmDialog } from '@/components/deck'
-import type { Ink } from '@/design/inks'
 import { useDeleteArticles } from '@/hooks/useSpaces'
 import { ARTICLE_FORMS, pluralForm } from '../spaceText'
 
 interface Props {
   spaceId: string
   articleIds: string[]
-  ink: Ink
   open: boolean
   onOpenChange: (open: boolean) => void
   onDeleted: () => void
@@ -15,7 +13,6 @@ interface Props {
 export function DeleteArticlesDialog({
   spaceId,
   articleIds,
-  ink,
   open,
   onOpenChange,
   onDeleted,
@@ -33,7 +30,9 @@ export function DeleteArticlesDialog({
       title={`Usunąć ${count} ${pluralForm(count, ARTICLE_FORMS)}?`}
       description="Z grafu znikną też encje i powiązania, o których nie mówi żaden inny artykuł. Tego nie da się cofnąć."
       error={remove.error?.message}
-      confirmLabel={`Usuń ${pluralForm(count, ARTICLE_FORMS)}`}
+      confirmLabel={
+        count === 1 ? 'Usuń artykuł' : `Usuń ${count} ${pluralForm(count, ARTICLE_FORMS)}`
+      }
       pending={remove.isPending}
       onConfirm={() =>
         remove.mutate(articleIds, {
@@ -43,7 +42,6 @@ export function DeleteArticlesDialog({
           },
         })
       }
-      accent={ink.color}
     />
   )
 }

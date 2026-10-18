@@ -5,6 +5,7 @@ import { useSpaceArticles } from '@/hooks/useSpaces'
 import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
 import { ArticlePreview } from '../preview/ArticlePreview'
+import { useArticlePreview } from '../preview/useArticlePreview'
 import { filterArticles } from '../spaceSearch'
 import { ArticlesToolbar } from './ArticlesToolbar'
 import { ArticleTable } from './ArticleTable'
@@ -22,8 +23,7 @@ export function SpaceArticles({ spaceId, ink }: Props) {
   const [query, setQuery] = useState('')
   const [searching, setSearching] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [previewId, setPreviewId] = useState<string | null>(null)
-  const [previewOpen, setPreviewOpen] = useState(false)
+  const preview = useArticlePreview()
 
   const all = articles.data ?? []
   const needle = normalize(query.trim())
@@ -33,6 +33,8 @@ export function SpaceArticles({ spaceId, ink }: Props) {
   return (
     <section className="flex min-h-56 flex-1 flex-col gap-3">
       <ArticlesToolbar
+        spaceId={spaceId}
+        title={<h2 className="flex h-10 items-center text-heading text-fg">Artykuły</h2>}
         hasArticles={all.length > 0}
         query={query}
         onQueryChange={setQuery}
@@ -41,7 +43,7 @@ export function SpaceArticles({ spaceId, ink }: Props) {
         status={`${shown.length} z ${all.length}`}
       />
       {articles.data?.length === 0 ? (
-        <EmptyArticles ink={ink} />
+        <EmptyArticles spaceId={spaceId} ink={ink} />
       ) : (
         // Padding leaves room for the table's offset shadow.
         <div className="min-h-0 flex-1 pb-2">
@@ -52,10 +54,7 @@ export function SpaceArticles({ spaceId, ink }: Props) {
               needle={needle}
               query={query}
               selection={selection}
-              onOpen={(id) => {
-                setPreviewId(id)
-                setPreviewOpen(true)
-              }}
+              onOpen={preview.show}
               onDeleteSelected={() => setConfirmDelete(true)}
             />
           ) : (
@@ -65,14 +64,13 @@ export function SpaceArticles({ spaceId, ink }: Props) {
       )}
       <ArticlePreview
         spaceId={spaceId}
-        articleId={previewId}
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
+        articleId={preview.id}
+        open={preview.open}
+        onOpenChange={preview.onOpenChange}
       />
       <DeleteArticlesDialog
         spaceId={spaceId}
         articleIds={selection.selected}
-        ink={ink}
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         onDeleted={selection.clear}

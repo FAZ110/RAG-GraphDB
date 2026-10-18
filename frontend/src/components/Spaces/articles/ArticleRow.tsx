@@ -4,7 +4,7 @@ import { Checkbox, ErrorNote, HighlightedText, Swatch } from '@/components/deck'
 import { unfold } from '@/design/motion'
 import { cn } from '@/lib/utils'
 import type { Article } from '@/types'
-import { ENTITY_FORMS, formatDate, pluralForm } from '../spaceText'
+import { formatDate } from '../spaceText'
 import { ArticleDeleteControl } from './ArticleDeleteControl'
 import { ARTICLE_GRID } from './articleGrid'
 import { sourceHost } from './articleSource'
@@ -27,14 +27,10 @@ export function ArticleRow({ spaceId, article, selected, onToggle, onOpen, needl
 
   return (
     <li className={cn('snap-start border-b border-line-soft', selected && 'bg-surface-sunken')}>
-      {/* The whole row opens the article; its own controls keep their clicks. */}
       <div
-        onClick={(e) => {
-          if (!(e.target as Element).closest('button, input, a')) onOpen()
-        }}
         className={cn(
           ARTICLE_GRID,
-          'relative h-[calc(var(--article-row)-1px)] cursor-pointer hover:bg-surface-sunken'
+          'group relative h-[calc(var(--article-row)-1px)] hover:bg-surface-sunken'
         )}
       >
         <Checkbox
@@ -65,12 +61,10 @@ export function ArticleRow({ spaceId, article, selected, onToggle, onOpen, needl
           showError={showError}
           onShowErrorChange={setShowError}
         />
-        <span className="hidden text-right text-sm text-fg-muted tabular-nums @3xl:block">
-          {article.nodes_count != null
-            ? `${article.nodes_count} ${pluralForm(article.nodes_count, ENTITY_FORMS)}`
-            : '–'}
+        <span className="hidden text-sm text-fg-muted tabular-nums @3xl:block">
+          {article.nodes_count ?? '–'}
         </span>
-        <span className="hidden text-right text-sm text-fg-subtle @md:block">
+        <span className="hidden text-sm text-fg-subtle transition-opacity pointer-fine:group-focus-within:opacity-0 pointer-fine:group-hover:opacity-0 @md:block">
           {formatDate(article.processed_at ?? article.created_at)}
         </span>
         <ArticleDeleteControl spaceId={spaceId} article={article} />

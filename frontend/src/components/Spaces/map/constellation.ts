@@ -68,7 +68,16 @@ export function constellationFor(spaceId: string): Constellation {
   missing.sort((p, q) => distance(...p) - distance(...q))
   edges.push(...missing.slice(0, 2))
 
-  return { nodes, edges }
+  return { nodes: centered(nodes), edges }
+}
+
+// Random points rarely balance out, so the drawing is moved to sit in the middle of the field.
+function centered(nodes: ConstellationNode[]): ConstellationNode[] {
+  const xs = nodes.map((n) => n.x)
+  const ys = nodes.map((n) => n.y)
+  const dx = FIELD_WIDTH / 2 - (Math.min(...xs) + Math.max(...xs)) / 2
+  const dy = FIELD_HEIGHT / 2 - (Math.min(...ys) + Math.max(...ys)) / 2
+  return nodes.map((n) => ({ ...n, x: n.x + dx, y: n.y + dy }))
 }
 
 export function stretchToHeight(constellation: Constellation, height: number): Constellation {

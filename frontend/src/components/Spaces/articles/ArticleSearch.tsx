@@ -21,17 +21,18 @@ export function ArticleSearch({ query, onQueryChange, open, onOpenChange, status
     <AnimatePresence mode="popLayout" initial={false}>
       {open ? (
         // popLayout measures its child through a ref, which SearchField hands to the input.
-        <motion.div key="field" className="flex">
+        <motion.div key="field" className="flex min-w-0">
           <SearchField
             size="md"
+            // A fixed width rather than `auto`: the field is a size container, which has no
+            // width of its own content, so it unfolds by its max width instead.
             frame={{
-              initial: { width: 40, opacity: 0 },
-              animate: { width: 'auto', opacity: 1 },
-              exit: { width: 40, opacity: 0 },
+              initial: { maxWidth: 40, opacity: 0 },
+              animate: { maxWidth: 400, opacity: 1 },
+              exit: { maxWidth: 40, opacity: 0 },
               transition: { duration: 0.2, ease: EASE_DECK },
             }}
-            className="overflow-hidden border-fg"
-            inputClassName="w-40 flex-none sm:w-52"
+            className="w-80 overflow-hidden border-fg"
             autoFocus
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
