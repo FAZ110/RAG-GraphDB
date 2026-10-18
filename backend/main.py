@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from api.debug import router as debug_router
 from api.extract import router as extract_router
 from api.graph import router as graph_router
+from api.spaces import router as spaces_router
 from db.driver import close_driver, get_driver
 from db.errors import GraphDatabaseError
 from db.schema import ensure_schema
@@ -38,6 +39,7 @@ async def graph_database_error_handler(_: Request, exc: GraphDatabaseError) -> J
 
 app.include_router(extract_router)
 app.include_router(graph_router)
+app.include_router(spaces_router)
 app.include_router(debug_router)  # TEMP
 
 
