@@ -20,12 +20,13 @@ export interface GraphSnapshot {
 }
 
 interface Props {
+  spaceId: string;
   highlightedIds?: string[];
   focusedId?: string | null;
   onGraphChange?: (snapshot: GraphSnapshot) => void;
 }
 
-export function GraphVisualizer({ highlightedIds = [], focusedId = null, onGraphChange }: Props) {
+export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null, onGraphChange }: Props) {
   const graphRef = useRef<GraphCanvasRef | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const focusRequestRef = useRef(0);
@@ -40,7 +41,7 @@ export function GraphVisualizer({ highlightedIds = [], focusedId = null, onGraph
     focusNode,
     prunePins,
     toggleNode,
-  } = useProgressiveGraph();
+  } = useProgressiveGraph(spaceId);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);

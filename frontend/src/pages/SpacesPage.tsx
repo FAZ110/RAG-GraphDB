@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence } from 'motion/react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { EmptyState, ErrorNote } from '@/components/deck'
@@ -6,6 +6,7 @@ import { SpaceList } from '@/components/Spaces/list/SpaceList'
 import { SpaceSwitcher } from '@/components/Spaces/list/SpaceSwitcher'
 import { ContourBackdrop } from '@/components/Spaces/map/ContourBackdrop'
 import { SpacePanel } from '@/components/Spaces/SpacePanel'
+import { rememberSpace } from '@/components/Spaces/choice/spaceChoice'
 import { inkFor } from '@/design/inks'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSpaces } from '@/hooks/useSpaces'
@@ -34,6 +35,11 @@ export function SpacesPage() {
   // Shown while the redirect catches up, so the page isn't torn down and rebuilt.
   const addressed = ordered.find((s) => s.id === spaceId)
   const selected = addressed ?? ordered[0]
+
+  // So other pages open on the space last looked at.
+  useEffect(() => {
+    if (selected) rememberSpace(selected.id)
+  }, [selected])
 
   return (
     // Navbar (4rem + 1px border) and the page's vertical padding.

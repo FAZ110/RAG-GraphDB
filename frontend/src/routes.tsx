@@ -24,6 +24,12 @@ export const appRoutes: AppRoute[] = [
     showInNavbar: false,
   },
   { path: '/graph', element: page(<GraphPage />), label: 'Graf', showInNavbar: true },
+  {
+    path: '/graph/:spaceId',
+    element: page(<GraphPage />),
+    label: 'Graf przestrzeni',
+    showInNavbar: false,
+  },
   // Adding articles moved into the spaces; old links land there.
   {
     path: '/extract',

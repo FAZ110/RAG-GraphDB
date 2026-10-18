@@ -28,33 +28,37 @@ export const submitExtract = async (
   return responseData as JobSubmitResponse;
 }
 
-export const deleteGraph = async (): Promise<void> => {
-  const response = await fetch(`${API_URL}/graph`, {
-    method: 'DELETE'
-  })
+// The graph is built from the space's articles, so it can only be cleared together with them.
+export const clearSpace = async (spaceId: string): Promise<void> => {
+  const response = await fetch(`${spaceUrl(spaceId)}/articles`, { method: 'DELETE' });
   if (!response.ok) throw new Error(await readError(response));
 }
 
-export const fetchSimilarNodes = async (q: string, topK = 10): Promise<SimilarNode[]> => {
+export const fetchSimilarNodes = async (
+  spaceId: string,
+  q: string,
+  topK = 10,
+): Promise<SimilarNode[]> => {
   const response = await fetch(
-    `${API_URL}/graph/similar?q=${encodeURIComponent(q)}&top_k=${topK}`
+    `${spaceUrl(spaceId)}/graph/search?q=${encodeURIComponent(q)}&top_k=${topK}`
   );
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
 
-export const fetchGraphSeed = async (limit = 25): Promise<SeedResponse> => {
-  const response = await fetch(`${API_URL}/graph/seed?limit=${limit}`);
+export const fetchGraphSeed = async (spaceId: string, limit = 25): Promise<SeedResponse> => {
+  const response = await fetch(`${spaceUrl(spaceId)}/graph?limit=${limit}`);
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
 
 export const fetchNodeExpansion = async (
+  spaceId: string,
   nodeId: string,
   limit = 25,
 ): Promise<ExpansionResponse> => {
   const response = await fetch(
-    `${API_URL}/graph/expand/${encodeURIComponent(nodeId)}?limit=${limit}`
+    `${spaceUrl(spaceId)}/graph/nodes/${encodeURIComponent(nodeId)}/neighbours?limit=${limit}`
   );
   if (!response.ok) throw new Error(await readError(response));
   return response.json();

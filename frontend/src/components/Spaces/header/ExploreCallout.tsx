@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/deck'
 import { LastExploration } from './LastExploration'
 
-export function ExploreCallout() {
+export function ExploreCallout({ spaceId }: { spaceId: string }) {
   return (
     // Beside the map it keeps to one row of the same height, so the header doesn't change
     // height with its width; the description shows only where it fits.
@@ -23,13 +23,13 @@ export function ExploreCallout() {
           size="xl"
           className="px-4 max-sm:w-11 max-sm:px-0"
         >
-          <Link to="/graph" title="Cały graf">
+          <Link to={`/graph/${spaceId}`} title="Cały graf">
             <NetworkIcon />
             <span className="max-sm:sr-only">Cały graf</span>
           </Link>
         </Button>
         <Button asChild variant="inverse" size="xl">
-          <Link to="/graph">
+          <Link to={`/graph/${spaceId}`} state={{ explore: true }}>
             <ScanSearchIcon />
             Nowa analiza
           </Link>

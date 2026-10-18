@@ -22,7 +22,7 @@ function rememberChunk(known: Set<string>, chunk: ExpansionResponse): void {
   for (const node of chunk.nodes) known.add(node.id);
 }
 
-export function useProgressiveGraph() {
+export function useProgressiveGraph(spaceId: string) {
   const [state, setState] = useState<GraphState>(createGraphState);
   const [totalNodes, setTotalNodes] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,7 +35,7 @@ export function useProgressiveGraph() {
   const knownIds = useRef<Set<string>>(new Set());
 
   const loadSeed = useCallback(async (epoch: number) => {
-    const seed = await fetchGraphSeed(SEED_LIMIT);
+    const seed = await fetchGraphSeed(spaceId, SEED_LIMIT);
     if (epoch !== epochRef.current) return;
     fetchedIds.current = new Set();
     knownIds.current = new Set(seed.nodes.map((n) => n.id));
@@ -43,7 +43,7 @@ export function useProgressiveGraph() {
     setTotalNodes(seed.total_nodes);
     setError(null);
     setIsLoading(false);
-  }, []);
+  }, [spaceId]);
 
   const handleSeedError = useCallback((epoch: number, err: unknown) => {
     if (epoch !== epochRef.current) return;
@@ -62,7 +62,7 @@ export function useProgressiveGraph() {
 
   const runExpansion = useCallback(async (id: string) => {
     try {
-      const chunk = await fetchNodeExpansion(id, EXPAND_LIMIT);
+      const chunk = await fetchNodeExpansion(spaceId, id, EXPAND_LIMIT);
       fetchedIds.current.add(id);
       rememberChunk(knownIds.current, chunk);
       setState((prev) =>
@@ -78,7 +78,7 @@ export function useProgressiveGraph() {
 
       setPendingId((current) => (current === id ? null : current));
     }
-  }, []);
+  }, [spaceId]);
 
   const expandNode = useCallback(
     async (id: string) => {
@@ -107,7 +107,7 @@ export function useProgressiveGraph() {
     }
     setError(null);
     try {
-      const chunk = await fetchNodeExpansion(id, EXPAND_LIMIT);
+      const chunk = await fetchNodeExpansion(spaceId, id, EXPAND_LIMIT);
       fetchedIds.current.add(id);
       rememberChunk(knownIds.current, chunk);
       setState((prev) =>
@@ -116,7 +116,7 @@ export function useProgressiveGraph() {
     } catch (err) {
       setError((err as Error).message);
     }
-  }, []);
+  }, [spaceId]);
 
   const prunePins = useCallback((keep: ReadonlySet<string>) => {
     setState((prev) => retainPins(prev, keep));
