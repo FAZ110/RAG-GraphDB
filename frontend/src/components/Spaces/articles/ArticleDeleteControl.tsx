@@ -7,7 +7,6 @@ interface Props {
   article: Article
 }
 
-// From the title on, or from the status column once the row is wide enough to show it.
 export function ArticleDeleteControl({ spaceId, article }: Props) {
   const remove = useDeleteArticles(spaceId)
   return (
@@ -19,6 +18,7 @@ export function ArticleDeleteControl({ spaceId, article }: Props) {
       error={remove.error?.message ?? null}
       onOpen={remove.reset}
       onConfirm={(done) => remove.mutate([article.id], { onSuccess: done })}
+      // The question covers the row from the title on, or from the status column once it shows.
       confirmClassName="inset-y-0 -right-2 left-0 col-start-3 -col-end-1 @3xl:col-start-4"
     />
   )

@@ -114,9 +114,18 @@ export interface MentionedEntity {
     label: string;
 }
 
+export interface ArticleRelationship {
+    source: string;
+    source_label: string;
+    type: string;
+    target: string;
+    target_label: string;
+}
+
 export interface ArticleDetail extends Article {
     content: string;
     entities: MentionedEntity[];
+    relationships: ArticleRelationship[];
 }
 
 export interface ArticlesDeleted {

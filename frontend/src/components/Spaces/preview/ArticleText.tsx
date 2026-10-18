@@ -1,51 +1,70 @@
-import { Fragment } from 'react'
 import type { ReactNode } from 'react'
-import type { MentionedEntity } from '@/types'
 import { inkFor, inkTint } from '@/design/inks'
 import { typeName } from '../spaceText'
+import { matchedEntity } from './entityMatch'
+import type { EntityMatcher } from './entityMatch'
 
 interface Props {
   content: string
-  entities: MentionedEntity[]
+  /** null leaves the text plain. */
+  matcher: EntityMatcher | null
+  highlighted: ReadonlySet<string>
+  onHover: (name: string | null) => void
 }
 
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-// Longest names first, so a name inside a longer one doesn't split it.
-function markEntities(paragraph: string, entities: MentionedEntity[]): ReactNode[] {
-  if (entities.length === 0) return [paragraph]
-  const byName = new Map(entities.map((e) => [e.name, e]))
-  const names = [...byName.keys()].sort((a, b) => b.length - a.length).map(escapeRegExp)
-  return paragraph.split(new RegExp(`(${names.join('|')})`, 'g')).map((part, i) => {
-    const entity = byName.get(part)
-    if (!entity) return <Fragment key={i}>{part}</Fragment>
+function markEntities(
+  paragraph: string,
+  matcher: EntityMatcher,
+  highlighted: ReadonlySet<string>,
+  onHover: (name: string | null) => void
+): ReactNode[] {
+  const parts: ReactNode[] = []
+  let last = 0
+  for (const match of paragraph.matchAll(matcher.pattern)) {
+    const entity = matchedEntity(matcher, match)
+    const at = match.index
+    if (at > last) parts.push(paragraph.slice(last, at))
     const ink = inkFor(entity.label)
-    return (
+    const lit = highlighted.has(entity.name)
+    const tint = lit ? 28 : highlighted.size > 0 ? 0 : 8
+    parts.push(
       <mark
-        key={i}
-        title={typeName(entity.label)}
-        className="bg-transparent text-inherit underline decoration-2 underline-offset-4"
-        style={{ textDecorationColor: ink.color, backgroundColor: inkTint(ink, 8) }}
+        key={at}
+        data-entity={entity.name}
+        title={`${entity.name} (${typeName(entity.label)})`}
+        onMouseEnter={() => onHover(entity.name)}
+        onMouseLeave={() => onHover(null)}
+        className="bg-transparent text-inherit underline underline-offset-4 transition-colors"
+        style={{
+          textDecorationColor: ink.color,
+          textDecorationThickness: lit ? 3 : 2,
+          backgroundColor: tint ? inkTint(ink, tint) : 'transparent',
+        }}
       >
-        {part}
+        {match[0]}
       </mark>
     )
-  })
+    last = at + match[0].length
+  }
+  parts.push(paragraph.slice(last))
+  return parts
 }
 
-export function ArticleText({ content, entities }: Props) {
+export function ArticleText({ content, matcher, highlighted, onHover }: Props) {
   const paragraphs = content
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter(Boolean)
 
   return (
-    <div className="max-w-[65ch] space-y-5 font-serif text-[1.0625rem] leading-[1.75] text-fg-soft">
+    // Justified like print; hyphenation (Polish rules, hence `lang`) keeps the gaps even.
+    <div
+      lang="pl"
+      className="max-w-[65ch] space-y-5 text-justify font-serif text-[1.0625rem] leading-[1.75] hyphens-auto text-fg-soft"
+    >
       {paragraphs.map((paragraph, i) => (
         <p key={i} className={i === 0 ? 'text-lg leading-[1.7] text-fg' : undefined}>
-          {markEntities(paragraph, entities)}
+          {matcher ? markEntities(paragraph, matcher, highlighted, onHover) : paragraph}
         </p>
       ))}
     </div>
