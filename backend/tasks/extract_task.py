@@ -108,7 +108,7 @@ def _find_candidates(session, space_id: str, vec: list[float]) -> list[dict]:
 
 
 def _record_dedup_log(r: redis.Redis, job_id: str, title: str, entries: list[dict]) -> None:
-    # TEMP: do celów testowych, odczyt przez GET /debug/dedup
+    # TEMP: for testing, read through GET /debug/dedup
     if not entries:
         return
     r.rpush(
@@ -154,9 +154,8 @@ def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
                 dedup_log,
             )
 
-        # Wyszukiwanie kandydatów i zapis pod jedną blokadą, żeby równoległe workery
-        # nie utworzyły tego samego bytu dwa razy. Przestrzenie nie dzielą encji,
-        # więc każda ma własną blokadę.
+        # Candidate lookup and writing share one lock, so parallel workers can't create the
+        # same entity twice. Spaces don't share entities, so each has its own lock.
         r = redis.from_url(REDIS_URL)
         lock = r.lock(
             f"lock:graph-write:{space_id}", timeout=_LOCK_TIMEOUT, blocking_timeout=_LOCK_WAIT
