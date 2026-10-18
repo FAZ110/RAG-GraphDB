@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { GraphVisualizer } from "../components/GraphVisualizer/GraphVisualizer";
 import { GraphStatsPanel } from "../components/GraphVisualizer/components/GraphStatsPanel";
 import { SemanticSearch } from "../components/SemanticSearch/SemanticSearch";
@@ -14,6 +14,8 @@ const PANEL_HEIGHT =
 
 export function GraphPage() {
   const { spaceId } = useParams();
+  // An entity to open on, e.g. picked in the global search.
+  const focus = useSearchParams()[0].get("focus");
   const spaces = useSpaces();
   const space = spaces.data && pickSpace(spaces.data, spaceId ?? null);
 
@@ -44,18 +46,18 @@ export function GraphPage() {
       {/* Shown while the address catches up, so the page isn't torn down and rebuilt. */}
       {space.id !== spaceId && <Navigate to={`/graph/${space.id}`} replace />}
       {/* Keyed, so search results and the explored graph don't carry over between spaces. */}
-      <SpaceGraph key={space.id} space={space} spaces={spaces.data} />
+      <SpaceGraph key={`${space.id}:${focus ?? ""}`} space={space} spaces={spaces.data} focus={focus} />
     </>
   );
 }
 
-function SpaceGraph({ space, spaces }: { space: Space; spaces: Space[] }) {
+function SpaceGraph({ space, spaces, focus }: { space: Space; spaces: Space[]; focus: string | null }) {
   const navigate = useNavigate();
   // Coming from the space's "Nowa analiza", the user wants to search right away.
   const exploring = (useLocation().state as { explore?: boolean } | null)?.explore === true;
   const { mutate: clearSpace, isPending: isDeleting } = useClearSpace(space.id);
-  const [highlightedIds, setHighlightedIds] = useState<string[]>([]);
-  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [highlightedIds, setHighlightedIds] = useState<string[]>(focus ? [focus] : []);
+  const [focusedId, setFocusedId] = useState<string | null>(focus);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [visible, setVisible] = useState<GraphSnapshot>({
     nodes: [],
