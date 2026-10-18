@@ -1,12 +1,12 @@
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, StringConstraints
 
 
 class ArticleRequest(BaseModel):
     url: str = ""
     title: str = ""
-    content: str
+    content: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class NodeResult(BaseModel):
@@ -23,8 +23,10 @@ class EdgeResult(BaseModel):
 
 
 class ExtractResponse(BaseModel):
+    article_id: str | None = None
     title: str | None = None
     status: str
+    unchanged: bool = False
     nodes: list[NodeResult] = []
     edges: list[EdgeResult] = []
     nodes_count: int = 0
@@ -33,8 +35,11 @@ class ExtractResponse(BaseModel):
 
 
 class BulkExtractRequest(BaseModel):
+    space_id: str
     articles: list[ArticleRequest]
     provider: str = "local"
+    # Re-extract articles even when their text is unchanged since the last run.
+    force: bool = False
 
 
 class BulkExtractResponse(BaseModel):

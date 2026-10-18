@@ -2,12 +2,15 @@ import json
 import uuid
 
 import redis.asyncio as aioredis
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from core.config import REDIS_URL
-from schemas.requests import BulkExtractRequest, JobSubmitResponse
+from db.spaces.articles import upsert_articles
+from db.spaces.spaces import get_space
+from schemas.extraction import BulkExtractRequest, JobSubmitResponse
+from services.jobs.results import push_result, unchanged_result
 from tasks.extract_task import extract_article_task
 
 router = APIRouter()
@@ -25,19 +28,33 @@ def _get_redis_stream() -> aioredis.Redis:
 
 @router.post("/extract", response_model=JobSubmitResponse)
 async def submit_extract_job(request: BulkExtractRequest) -> JobSubmitResponse:
+    if await get_space(request.space_id) is None:
+        raise HTTPException(status_code=404, detail="Space not found")
+
+    stored = await upsert_articles(
+        request.space_id, [a.model_dump() for a in request.articles], request.force
+    )
+
     job_id = str(uuid.uuid4())
     r = _get_redis()
     try:
-        await r.set(f"job:{job_id}:total", len(request.articles), ex=86400)
+        await r.set(f"job:{job_id}:total", len(stored), ex=86400)
     finally:
         await r.aclose()
-    for article in request.articles:
-        extract_article_task.delay(
-            job_id=job_id,
-            title=article.title,
-            content=article.content,
-            provider=request.provider,
-        )
+
+    for article, row in zip(request.articles, stored, strict=True):
+        title = article.title or None
+        if row["unchanged"]:
+            push_result(
+                job_id,
+                unchanged_result(
+                    row["id"], title, row["nodes_count"] or 0, row["edges_count"] or 0
+                ),
+            )
+        else:
+            extract_article_task.delay(
+                job_id=job_id, article_id=row["id"], title=title, provider=request.provider
+            )
     return JobSubmitResponse(job_id=job_id)
 
 
