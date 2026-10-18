@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 import { UploadIcon } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { IconButton } from '@/components/deck'
 import { cn } from '@/lib/utils'
+import { useAddArticlesClick } from '../add/addArticlesContext'
 import { ArticleSearch } from './ArticleSearch'
 
 interface Props {
@@ -28,6 +28,8 @@ export function ArticlesToolbar({
   onSearchingChange,
   status,
 }: Props) {
+  const addArticles = useAddArticlesClick(spaceId)
+
   return (
     <div className="flex min-h-10 flex-wrap items-center gap-x-4 gap-y-3">
       <div className="max-w-full min-w-0">{title}</div>
@@ -45,10 +47,8 @@ export function ArticlesToolbar({
             onOpenChange={onSearchingChange}
             status={status}
           />
-          <IconButton asChild size="icon-lg" label="Dodaj artykuły">
-            <Link to={`/extract?space=${spaceId}`}>
-              <UploadIcon />
-            </Link>
+          <IconButton size="icon-lg" label="Dodaj artykuły" onClick={addArticles}>
+            <UploadIcon />
           </IconButton>
         </div>
       )}

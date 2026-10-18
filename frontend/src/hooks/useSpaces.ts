@@ -29,6 +29,8 @@ export function useSpaceArticles(spaceId: string) {
   return useQuery({
     queryKey: [...SPACES_QUERY_KEY, spaceId, 'articles'],
     queryFn: () => fetchSpaceArticles(spaceId),
+    // An empty id means no space is picked yet.
+    enabled: spaceId !== '',
   })
 }
 

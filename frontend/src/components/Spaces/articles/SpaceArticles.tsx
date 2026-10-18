@@ -4,9 +4,12 @@ import type { Ink } from '@/design/inks'
 import { useSpaceArticles } from '@/hooks/useSpaces'
 import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
+import { BatchSummary } from '../batches/BatchSummary'
+import { useRecentBatch } from '../batches/useRecentBatch'
 import { ArticlePreview } from '../preview/ArticlePreview'
 import { useArticlePreview } from '../preview/useArticlePreview'
 import { filterArticles } from '../spaceSearch'
+import { ArticlesTabs } from './ArticlesTabs'
 import { ArticlesToolbar } from './ArticlesToolbar'
 import { ArticleTable } from './ArticleTable'
 import { DeleteArticlesDialog } from './DeleteArticlesDialog'
@@ -24,42 +27,61 @@ export function SpaceArticles({ spaceId, ink }: Props) {
   const [searching, setSearching] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const preview = useArticlePreview()
+  const recent = useRecentBatch(spaceId)
 
   const all = articles.data ?? []
+  const inTab = recent.tab === 'recent' ? all.filter((a) => a.batch_id === recent.batch?.id) : all
   const needle = normalize(query.trim())
-  const shown = filterArticles(all, needle)
+  const shown = filterArticles(inTab, needle)
   const selection = useArticleSelection(shown)
 
   return (
     <section className="flex min-h-56 flex-1 flex-col gap-3">
       <ArticlesToolbar
         spaceId={spaceId}
-        title={<h2 className="flex h-10 items-center text-heading text-fg">Artykuły</h2>}
+        title={
+          <ArticlesTabs
+            total={all.length}
+            recent={recent.batch}
+            tab={recent.tab}
+            onTabChange={recent.setTab}
+            onCloseRecent={recent.close}
+          />
+        }
         hasArticles={all.length > 0}
         query={query}
         onQueryChange={setQuery}
         searching={searching}
         onSearchingChange={setSearching}
-        status={`${shown.length} z ${all.length}`}
+        status={`${shown.length} z ${inTab.length}`}
       />
       {articles.data?.length === 0 ? (
         <EmptyArticles spaceId={spaceId} ink={ink} />
       ) : (
         // Padding leaves room for the table's offset shadow.
-        <div className="min-h-0 flex-1 pb-2">
-          {articles.data ? (
-            <ArticleTable
-              spaceId={spaceId}
-              articles={shown}
-              needle={needle}
-              query={query}
-              selection={selection}
-              onOpen={preview.show}
-              onDeleteSelected={() => setConfirmDelete(true)}
-            />
-          ) : (
-            <div className={cn(surface, 'h-full animate-pulse')} />
+        <div className="flex min-h-0 flex-1 flex-col pb-2">
+          {recent.tab === 'recent' && recent.batch && (
+            <div className={cn(surface, 'border-b-0')}>
+              <BatchSummary batch={recent.batch} />
+            </div>
           )}
+          <div className="min-h-0 flex-1">
+            {articles.data ? (
+              <ArticleTable
+                // Keyed, so each tab fits its own rows and keeps its own open errors.
+                key={recent.tab}
+                spaceId={spaceId}
+                articles={shown}
+                needle={needle}
+                query={query}
+                selection={selection}
+                onOpen={preview.show}
+                onDeleteSelected={() => setConfirmDelete(true)}
+              />
+            ) : (
+              <div className={cn(surface, 'h-full animate-pulse')} />
+            )}
+          </div>
         </div>
       )}
       <ArticlePreview

@@ -4,26 +4,10 @@ export interface ArticleRequest {
     content: string;
 }
 
-
-export interface ArticleResult {
-    title?: string;
-    status: string;
-    nodes?: NodeResult[];
-    edges?: EdgeResult[];
-    nodes_count?: number;
-    edges_count?: number;
-    error?: string;
-}
-
-export interface BulkExtractResponse {
-    results: ArticleResult[];
-}
-
 export interface BulkExtractRequest {
     articles: ArticleRequest[];
     provider: string
 }
-
 
 export interface NodeResult {
     id: string;
@@ -36,12 +20,6 @@ export interface EdgeResult {
     target: string;
     type: string;
     properties: Record<string, unknown>
-}
-
-export interface UploadedFile {
-    id: string;
-    fileName: string;
-    articles: ArticleRequest[];
 }
 
 export interface JobSubmitResponse {
@@ -107,6 +85,7 @@ export interface Article {
     edges_count: number | null;
     created_at: string;
     processed_at: string | null;
+    batch_id: string | null;
 }
 
 export interface MentionedEntity {
@@ -133,9 +112,17 @@ export interface ArticlesDeleted {
     processing: string[];
 }
 
-export interface FailedArticle {
+/** One upload of articles into a space; counts reflect the articles' current status. */
+export interface Batch {
     id: string;
-    title: string;
-    error: string | null;
-    started_at: string | null;
+    space_id: string;
+    space_name: string;
+    created_at: string;
+    total: number;
+    ok: number;
+    pending: number;
+    processing: number;
+    error: number;
+    nodes_count: number;
+    edges_count: number;
 }

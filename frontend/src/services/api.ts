@@ -1,8 +1,6 @@
-import type { BulkExtractRequest, ExpansionResponse, FailedArticle, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted } from '../types';
+import type { BulkExtractRequest, ExpansionResponse, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
-
-export const DEFAULT_SPACE = 'default';
 
 const readError = async (response: Response): Promise<string> => {
   const body: unknown = await response.json().catch(() => null);
@@ -10,25 +8,25 @@ const readError = async (response: Response): Promise<string> => {
   return typeof detail === 'string' ? detail : `Server error: ${response.status}`;
 }
 
-export const submitExtract = async (data: BulkExtractRequest): Promise<JobSubmitResponse> => {
-  const response = await fetch (`${API_URL}/extract`, {
+const spaceUrl = (spaceId: string) => `${API_URL}/spaces/${encodeURIComponent(spaceId)}`;
+
+export const submitExtract = async (
+  spaceId: string,
+  data: BulkExtractRequest,
+): Promise<JobSubmitResponse> => {
+  const response = await fetch(`${spaceUrl(spaceId)}/articles`, {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
-  })
+  });
 
   const responseData = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        const backendMessage = responseData.detail?.[0]?.msg || responseData.detail || responseData.error;
-        throw new Error(backendMessage || `Server error: ${response.status}`);
-    }
-    return responseData as JobSubmitResponse;
-  
+  if (!response.ok) {
+    const backendMessage = responseData.detail?.[0]?.msg || responseData.detail || responseData.error;
+    throw new Error(backendMessage || `Server error: ${response.status}`);
+  }
+  return responseData as JobSubmitResponse;
 }
-
-export const createExtractStream = (jobId: string): EventSource => 
-  new EventSource(`${API_URL}/extract/stream/${jobId}`);
-
 
 export const deleteGraph = async (): Promise<void> => {
   const response = await fetch(`${API_URL}/graph`, {
@@ -134,18 +132,18 @@ export const deleteArticles = async (spaceId: string, articleIds: string[]): Pro
   return response.json();
 }
 
-export const fetchFailedArticles = async (spaceId: string): Promise<FailedArticle[]> => {
-  const response = await fetch(`${API_URL}/spaces/${encodeURIComponent(spaceId)}/articles/failed`);
+export const fetchLatestBatch = async (spaceId: string): Promise<Batch | null> => {
+  const response = await fetch(`${spaceUrl(spaceId)}/batches/latest`);
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
 
-export const retryArticles = async (spaceId: string, articleIds?: string[]): Promise<JobSubmitResponse> => {
-  const response = await fetch(`${API_URL}/spaces/${encodeURIComponent(spaceId)}/articles/retry`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ article_ids: articleIds ?? null }),
-  });
+export const fetchRunningBatches = async (): Promise<Batch[]> => {
+  const response = await fetch(`${API_URL}/batches/running`);
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
+
+// The upload's id is also its extraction job's, whose events the server streams.
+export const openBatchEvents = (batchId: string): EventSource =>
+  new EventSource(`${API_URL}/jobs/${encodeURIComponent(batchId)}/events`);

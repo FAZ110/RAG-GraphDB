@@ -1,9 +1,9 @@
 import type { CSSProperties } from 'react'
-import { Link } from 'react-router-dom'
 import { AddTile, AddTileIcon, surface } from '@/components/deck'
 import { useElementSize } from '@/hooks/useElementSize'
 import { cn } from '@/lib/utils'
 import type { Article } from '@/types'
+import { useAddArticlesClick } from '../add/addArticlesContext'
 import { layoutRows } from '../fitRows'
 import { ARTICLE_HEADER_HEIGHT, ARTICLE_ROW_HEIGHT } from './articleGrid'
 import { ArticleListHeader } from './ArticleListHeader'
@@ -29,6 +29,7 @@ export function ArticleTable({
   onOpen,
   onDeleteSelected,
 }: Props) {
+  const addArticles = useAddArticlesClick(spaceId)
   const [tableRef, table] = useElementSize<HTMLUListElement>()
   const rowRoom = table && table.height - 1 - ARTICLE_HEADER_HEIGHT
   const { rowHeight, spare } = layoutRows(articles.length, rowRoom, ARTICLE_ROW_HEIGHT)
@@ -66,11 +67,9 @@ export function ArticleTable({
       )}
       {articles.length > 0 && spare !== null && spare >= ARTICLE_ROW_HEIGHT && (
         <li className="p-3" style={{ height: spare }}>
-          <AddTile asChild>
-            <Link to={`/extract?space=${spaceId}`}>
-              <AddTileIcon />
-              Dodaj artykuły
-            </Link>
+          <AddTile onClick={addArticles}>
+            <AddTileIcon />
+            Dodaj artykuły
           </AddTile>
         </li>
       )}

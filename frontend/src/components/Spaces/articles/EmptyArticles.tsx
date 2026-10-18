@@ -1,20 +1,19 @@
 import { PlusIcon } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { Button, EmptyState } from '@/components/deck'
 import type { Ink } from '@/design/inks'
+import { useAddArticlesClick } from '../add/addArticlesContext'
 
 export function EmptyArticles({ spaceId, ink }: { spaceId: string; ink: Ink }) {
+  const addArticles = useAddArticlesClick(spaceId)
   return (
     <EmptyState
       title="Zacznij od artykułów"
       accent={ink.color}
       className="flex-1"
       action={
-        <Button asChild>
-          <Link to={`/extract?space=${spaceId}`}>
-            <PlusIcon style={{ color: ink.color }} aria-hidden="true" />
-            Dodaj artykuły
-          </Link>
+        <Button onClick={addArticles}>
+          <PlusIcon style={{ color: ink.color }} aria-hidden="true" />
+          Dodaj artykuły
         </Button>
       }
     >
