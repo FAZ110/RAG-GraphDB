@@ -7,14 +7,15 @@ from fastapi.responses import JSONResponse
 from api.debug import router as debug_router
 from api.extract import router as extract_router
 from api.graph import router as graph_router
-from db.database import close_driver, ensure_vector_index, get_driver
+from db.driver import close_driver, get_driver
 from db.errors import GraphDatabaseError
+from db.schema import ensure_schema
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     get_driver()
-    await ensure_vector_index()
+    await ensure_schema()
     yield
     await close_driver()
 
