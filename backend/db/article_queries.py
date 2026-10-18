@@ -1,9 +1,11 @@
-# Długie 'processing' = worker padł lub zabił go time_limit, więc wynik nigdy nie zostanie zapisany.
+# Za długo w 'queued'/'processing' = zadanie zginęło (broker/Redis padł, worker padł lub time_limit),
+# więc wynik nigdy nie zostanie zapisany. Każdy status ma własny znacznik czasu.
 _FAILED_WHERE = """
 a.space_id = $space_id AND (
     a.status = 'error'
-    OR (a.status = 'processing'
-        AND a.started_at < datetime() - duration({minutes: $stale_min}))
+    OR (a.status IN ['queued', 'processing']
+        AND CASE a.status WHEN 'queued' THEN a.queued_at ELSE a.started_at END
+            < datetime() - duration({minutes: $stale_min}))
 )
 """
 
@@ -16,7 +18,7 @@ CREATE_ARTICLES_CYPHER = """
 UNWIND $articles AS art
 CREATE (:Article {
     id: art.id, space_id: $space_id, title: art.title, content: art.content,
-    provider: $provider, status: 'queued'
+    provider: $provider, status: 'queued', queued_at: datetime()
 })
 """
 
@@ -26,6 +28,7 @@ WHERE {_FAILED_WHERE}
 RETURN a.id AS id,
        a.title AS title,
        CASE a.status
+           WHEN 'queued' THEN 'Article was never picked up by a worker'
            WHEN 'processing' THEN 'Processing took too long, the worker probably died'
            ELSE a.error
        END AS error,
@@ -41,7 +44,7 @@ SET a._lock = true
 REMOVE a._lock
 WITH a
 WHERE {_FAILED_WHERE}
-SET a.status = 'queued', a.error = null
+SET a.status = 'queued', a.error = null, a.queued_at = datetime()
 RETURN a.id AS id, a.provider AS provider
 """
 

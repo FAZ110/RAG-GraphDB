@@ -42,11 +42,15 @@ from services.llm_service import LLMService
     time_limit=130,
 )
 def extract_article_task(self, job_id: str, article_id: str, provider: str = "local") -> None:
-    with driver.session() as session:
-        article = session.run(MARK_PROCESSING_CYPHER, {"id": article_id}).single()
+    try:
+        with driver.session() as session:
+            article = session.run(MARK_PROCESSING_CYPHER, {"id": article_id}).single()
+        load_error = "Article not found, the graph was probably reset"
+    except Exception as e:
+        article, load_error = None, f"Could not load article: {e}"
 
     if article is None:
-        result = _error_result("", "Article not found, the graph was probably reset")
+        result = _error_result("", load_error)
     else:
         title = article["title"]
         try:
