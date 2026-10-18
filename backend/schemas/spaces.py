@@ -20,3 +20,25 @@ class Space(BaseModel):
     created_at: datetime
     article_count: int
     entity_count: int
+
+
+class ArticleStats(BaseModel):
+    total: int
+    # Counts per status: ok, pending, processing, error.
+    by_status: dict[str, int]
+
+
+class LabelCount(BaseModel):
+    label: str
+    count: int
+
+
+class EntityStats(BaseModel):
+    total: int
+    by_label: list[LabelCount]
+
+
+class SpaceStats(BaseModel):
+    articles: ArticleStats
+    entities: EntityStats
+    relationships: int

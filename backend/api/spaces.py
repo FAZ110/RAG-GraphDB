@@ -3,7 +3,8 @@ from fastapi import APIRouter, HTTPException, Response, status
 from api.dependencies import ExistingSpace
 from db.errors import SpaceNameTakenError
 from db.spaces.spaces import create_space, delete_space, list_spaces, rename_space
-from schemas.spaces import Space, SpaceCreate, SpaceUpdate
+from db.spaces.stats import space_stats
+from schemas.spaces import Space, SpaceCreate, SpaceStats, SpaceUpdate
 
 router = APIRouter(prefix="/spaces", tags=["spaces"])
 
@@ -32,6 +33,11 @@ async def post_space(body: SpaceCreate):
 @router.get("/{space_id}", response_model=Space)
 async def get_space_by_id(space: ExistingSpace):
     return space
+
+
+@router.get("/{space_id}/stats", response_model=SpaceStats)
+async def get_space_stats(space: ExistingSpace):
+    return await space_stats(space["id"])
 
 
 @router.patch("/{space_id}", response_model=Space)
