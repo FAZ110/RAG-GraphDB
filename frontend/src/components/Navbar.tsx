@@ -10,6 +10,12 @@ const navIcons: Record<string, ReactNode> = {
             <path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />
         </svg>
     ),
+    "/spaces": (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3l9 5-9 5-9-5 9-5z" />
+            <path d="M3 13l9 5 9-5" />
+        </svg>
+    ),
     "/extract": (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 3v12" />
@@ -38,7 +44,7 @@ export function Navbar() {
 
     return (
         <nav className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-stretch h-16 gap-8">
                     <Link
                         to="/"
@@ -79,7 +85,10 @@ export function Navbar() {
 
                     <div className="flex items-stretch gap-2">
                         {navRoutes.map((route) => {
-                            const isActive = route.path === location.pathname;
+                            const isActive =
+                                route.path === "/"
+                                    ? location.pathname === "/"
+                                    : location.pathname.startsWith(route.path);
 
                             return (
                                 <Link
@@ -100,7 +109,7 @@ export function Navbar() {
                                     >
                                         {navIcons[route.path]}
                                     </span>
-                                    <span className="hidden sm:inline">{route.label}</span>
+                                    <span className="hidden lg:inline">{route.label}</span>
 
                                     {isActive && (
                                         <motion.span
