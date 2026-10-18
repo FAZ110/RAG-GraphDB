@@ -80,3 +80,10 @@ async def search_nodes(space_id: str, vec: list[float], top_k: int) -> list[dict
             {"id": r["id"], "name": r["name"], "label": r["label"], "score": r["score"]}
             async for r in res
         ]
+
+
+@translates_neo4j_errors
+async def search_all_spaces(vec: list[float], top_k: int) -> list[dict]:
+    async with get_driver().session() as session:
+        res = await session.run(_QUERIES["search_all"], {"vec": vec, "top_k": top_k})
+        return [dict(r) async for r in res]

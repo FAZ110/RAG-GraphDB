@@ -131,3 +131,10 @@ def finish_article(
             "edges_count": edges_count,
         },
     ).consume()
+
+
+@translates_neo4j_errors
+async def search_articles(q: str, limit: int) -> list[dict]:
+    async with get_driver().session() as session:
+        res = await session.run(_QUERIES["search_articles"], {"q": q, "limit": limit})
+        return [dict(r) async for r in res]
