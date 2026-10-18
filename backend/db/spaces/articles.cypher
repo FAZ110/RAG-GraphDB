@@ -53,3 +53,16 @@ DELETE m
 WITH DISTINCT e
 WHERE NOT (:Article)-[:MENTIONS]->(e)
 DETACH DELETE e
+
+// name: list_articles
+MATCH (a:Article {space_id: $space_id})
+RETURN a.id AS id,
+       a.url AS url,
+       a.title AS title,
+       a.status AS status,
+       a.error AS error,
+       a.nodes_count AS nodes_count,
+       a.edges_count AS edges_count,
+       a.created_at AS created_at,
+       a.processed_at AS processed_at
+ORDER BY a.created_at DESC

@@ -31,6 +31,20 @@ async def upsert_articles(space_id: str, articles: list[dict], force: bool) -> l
     return results
 
 
+@translates_neo4j_errors
+async def list_articles(space_id: str) -> list[dict]:
+    async with get_driver().session() as session:
+        res = await session.run(_QUERIES["list_articles"], {"space_id": space_id})
+        return [
+            {
+                **r,
+                "created_at": r["created_at"].to_native(),
+                "processed_at": r["processed_at"].to_native() if r["processed_at"] else None,
+            }
+            async for r in res
+        ]
+
+
 def start_article(article_id: str) -> dict | None:
     with get_sync_driver().session() as session:
         row = session.run(_QUERIES["start_article"], {"article_id": article_id}).single()

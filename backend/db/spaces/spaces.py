@@ -10,8 +10,8 @@ from db.errors import SpaceNameTakenError
 from db.query_loader import load_queries
 
 _QUERIES = load_queries(__file__)
-# Data first, in batches, so removing a large space is not one huge transaction.
-_DELETE_SPACE_STEPS = ("delete_space_articles", "delete_space_entities", "delete_space")
+# Batched, so clearing a large space is not one huge transaction.
+_CLEAR_SPACE_STEPS = ("delete_space_articles", "delete_space_entities")
 
 
 def _space_from_row(row: Mapping[str, Any]) -> dict:
@@ -67,13 +67,25 @@ async def rename_space(space_id: str, name: str) -> dict | None:
         return await _fetch_space(session, space_id) if renamed else None
 
 
+async def _clear(session: AsyncSession, space_id: str) -> None:
+    # CALL { } IN TRANSACTIONS needs an auto-commit transaction, hence session.run.
+    for step in _CLEAR_SPACE_STEPS:
+        await (await session.run(_QUERIES[step], {"space_id": space_id})).consume()
+
+
+@translates_neo4j_errors
+async def clear_space(space_id: str) -> None:
+    """Remove all articles of a space and the graph built from them; the space stays."""
+    async with get_driver().session() as session:
+        await _clear(session, space_id)
+
+
 @translates_neo4j_errors
 async def delete_space(space_id: str) -> bool:
     """Delete a space with all its articles and entities. False if it did not exist."""
     async with get_driver().session() as session:
         if await _fetch_space(session, space_id) is None:
             return False
-        # CALL { } IN TRANSACTIONS needs an auto-commit transaction, hence session.run.
-        for step in _DELETE_SPACE_STEPS:
-            await (await session.run(_QUERIES[step], {"space_id": space_id})).consume()
+        await _clear(session, space_id)
+        await (await session.run(_QUERIES["delete_space"], {"space_id": space_id})).consume()
     return True
