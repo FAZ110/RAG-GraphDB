@@ -66,7 +66,8 @@ RETURN a.id AS id,
        a.nodes_count AS nodes_count,
        a.edges_count AS edges_count,
        a.created_at AS created_at,
-       a.processed_at AS processed_at
+       a.processed_at AS processed_at,
+       a.batch_id AS batch_id
 ORDER BY a.created_at DESC
 
 // name: article_statuses

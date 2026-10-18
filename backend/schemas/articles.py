@@ -27,6 +27,7 @@ class Article(BaseModel):
     edges_count: int | None
     created_at: datetime
     processed_at: datetime | None
+    batch_id: str | None = None
 
 
 class MentionedEntity(BaseModel):
