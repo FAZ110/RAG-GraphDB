@@ -77,10 +77,25 @@ MATCH (a:Article {id: $article_id})
 DETACH DELETE a
 
 // name: get_article
+// Relationships are this article's when it is among the articles backing them.
 MATCH (a:Article {id: $article_id, space_id: $space_id})
-OPTIONAL MATCH (a)-[:MENTIONS]->(e:Entity)
-WITH a, e
-ORDER BY e.label, e.name
+CALL (a) {
+  OPTIONAL MATCH (a)-[:MENTIONS]->(e:Entity)
+  WITH e
+  ORDER BY e.label, e.name
+  RETURN [x IN collect(e) | {name: x.name, label: x.label}] AS entities
+}
+CALL (a) {
+  OPTIONAL MATCH (a)-[:MENTIONS]->(s:Entity)-[r]->(t:Entity)
+  WHERE a.id IN r.article_ids
+  WITH s, r, t
+  ORDER BY s.name, type(r), t.name
+  RETURN collect(CASE WHEN r IS NULL THEN null ELSE {
+           source: s.name, source_label: s.label,
+           type: type(r),
+           target: t.name, target_label: t.label
+         } END) AS relationships
+}
 RETURN a.id AS id,
        a.url AS url,
        a.title AS title,
@@ -91,4 +106,5 @@ RETURN a.id AS id,
        a.created_at AS created_at,
        a.processed_at AS processed_at,
        a.content AS content,
-       [x IN collect(e) | {name: x.name, label: x.label}] AS entities
+       entities,
+       relationships

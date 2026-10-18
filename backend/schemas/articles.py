@@ -34,9 +34,18 @@ class MentionedEntity(BaseModel):
     label: str
 
 
+class ArticleRelationship(BaseModel):
+    source: str
+    source_label: str
+    type: str
+    target: str
+    target_label: str
+
+
 class ArticleDetail(Article):
     content: str
     entities: list[MentionedEntity]
+    relationships: list[ArticleRelationship]
 
 
 class ArticlesDelete(BaseModel):
