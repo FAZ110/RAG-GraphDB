@@ -1,4 +1,4 @@
-from neo4j import ManagedTransaction
+from neo4j import AsyncManagedTransaction, ManagedTransaction
 
 from db.driver import get_driver, get_sync_driver, translates_neo4j_errors
 from db.query_loader import load_queries
@@ -35,14 +35,49 @@ async def upsert_articles(space_id: str, articles: list[dict], force: bool) -> l
 async def list_articles(space_id: str) -> list[dict]:
     async with get_driver().session() as session:
         res = await session.run(_QUERIES["list_articles"], {"space_id": space_id})
-        return [
-            {
-                **r,
-                "created_at": r["created_at"].to_native(),
-                "processed_at": r["processed_at"].to_native() if r["processed_at"] else None,
-            }
-            async for r in res
-        ]
+        return [_with_native_dates(r) async for r in res]
+
+
+@translates_neo4j_errors
+async def get_article(space_id: str, article_id: str) -> dict | None:
+    async with get_driver().session() as session:
+        res = await session.run(
+            _QUERIES["get_article"], {"space_id": space_id, "article_id": article_id}
+        )
+        row = await res.single()
+    return _with_native_dates(row) if row else None
+
+
+def _with_native_dates(record) -> dict:
+    return {
+        **record,
+        "created_at": record["created_at"].to_native(),
+        "processed_at": record["processed_at"].to_native() if record["processed_at"] else None,
+    }
+
+
+@translates_neo4j_errors
+async def delete_articles(space_id: str, article_ids: list[str]) -> dict[str, list[str]]:
+    """Remove articles with their share of the graph in one transaction. Ones being
+    extracted are left alone, as the running task would write their graph back."""
+
+    async def work(tx: AsyncManagedTransaction) -> dict[str, list[str]]:
+        res = await tx.run(
+            _QUERIES["article_statuses"], {"space_id": space_id, "article_ids": article_ids}
+        )
+        statuses = {r["id"]: r["status"] async for r in res}
+        deleted = [i for i, status in statuses.items() if status != "processing"]
+        for article_id in deleted:
+            for name in (
+                "release_article_relationships",
+                "release_article_mentions",
+                "delete_article",
+            ):
+                await (await tx.run(_QUERIES[name], {"article_id": article_id})).consume()
+        return {"deleted": deleted, "processing": [i for i in statuses if i not in deleted]}
+
+    async with get_driver().session() as session:
+        return await session.execute_write(work)
 
 
 def start_article(article_id: str) -> dict | None:

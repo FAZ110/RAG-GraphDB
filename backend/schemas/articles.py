@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints
 
 
 class ArticleIn(BaseModel):
@@ -27,3 +27,23 @@ class Article(BaseModel):
     edges_count: int | None
     created_at: datetime
     processed_at: datetime | None
+
+
+class MentionedEntity(BaseModel):
+    name: str
+    label: str
+
+
+class ArticleDetail(Article):
+    content: str
+    entities: list[MentionedEntity]
+
+
+class ArticlesDelete(BaseModel):
+    article_ids: Annotated[list[str], Field(min_length=1)]
+
+
+class ArticlesDeleted(BaseModel):
+    deleted: list[str]
+    # Articles being extracted are kept; ids not in the space are left out of both lists.
+    processing: list[str]

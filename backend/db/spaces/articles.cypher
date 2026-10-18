@@ -66,3 +66,29 @@ RETURN a.id AS id,
        a.created_at AS created_at,
        a.processed_at AS processed_at
 ORDER BY a.created_at DESC
+
+// name: article_statuses
+MATCH (a:Article {space_id: $space_id})
+WHERE a.id IN $article_ids
+RETURN a.id AS id, a.status AS status
+
+// name: delete_article
+MATCH (a:Article {id: $article_id})
+DETACH DELETE a
+
+// name: get_article
+MATCH (a:Article {id: $article_id, space_id: $space_id})
+OPTIONAL MATCH (a)-[:MENTIONS]->(e:Entity)
+WITH a, e
+ORDER BY e.label, e.name
+RETURN a.id AS id,
+       a.url AS url,
+       a.title AS title,
+       a.status AS status,
+       a.error AS error,
+       a.nodes_count AS nodes_count,
+       a.edges_count AS edges_count,
+       a.created_at AS created_at,
+       a.processed_at AS processed_at,
+       a.content AS content,
+       [x IN collect(e) | {name: x.name, label: x.label}] AS entities

@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from api.dependencies import existing_space
-from db.spaces.articles import list_articles
+from db.spaces.articles import delete_articles, get_article, list_articles
 from db.spaces.spaces import clear_space
-from schemas.articles import Article, ArticlesUpload
+from schemas.articles import Article, ArticleDetail, ArticlesDelete, ArticlesDeleted, ArticlesUpload
 from schemas.jobs import JobStarted
 from services.jobs.extraction import start_extraction
 
@@ -26,7 +26,30 @@ async def get_articles(space_id: str):
     return await list_articles(space_id)
 
 
+@router.get("/{article_id}", response_model=ArticleDetail)
+async def get_one_article(space_id: str, article_id: str):
+    article = await get_article(space_id, article_id)
+    if article is None:
+        raise HTTPException(status_code=404, detail="Article not found")
+    return article
+
+
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_articles(space_id: str):
+async def clear_articles(space_id: str):
     await clear_space(space_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/delete", response_model=ArticlesDeleted)
+async def delete_many_articles(space_id: str, body: ArticlesDelete):
+    return await delete_articles(space_id, body.article_ids)
+
+
+@router.delete("/{article_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_one_article(space_id: str, article_id: str):
+    result = await delete_articles(space_id, [article_id])
+    if result["processing"]:
+        raise HTTPException(status_code=409, detail="Article is being processed")
+    if not result["deleted"]:
+        raise HTTPException(status_code=404, detail="Article not found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
