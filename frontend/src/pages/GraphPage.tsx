@@ -9,7 +9,8 @@ import { useClearSpace, useSpaces } from "../hooks/useSpaces";
 import type { GraphSnapshot } from "../components/GraphVisualizer/GraphVisualizer";
 import type { Space } from "../types";
 
-const PANEL_HEIGHT = "h-[calc(100vh-7rem)]";
+const PANEL_HEIGHT =
+  "h-[calc(100dvh-var(--nav-block)-2rem)] sm:h-[calc(100dvh-3rem)] lg:h-[calc(100dvh-4rem)]";
 
 export function GraphPage() {
   const { spaceId } = useParams();

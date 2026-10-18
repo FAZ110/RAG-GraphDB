@@ -18,7 +18,7 @@ export function HomePlaceholder() {
     };
     apply();
     mql.addEventListener("change", apply);
-    html.style.scrollPaddingTop = "4rem";
+    html.style.scrollPaddingTop = "0";
     html.style.scrollBehavior = "smooth";
     return () => {
       mql.removeEventListener("change", apply);
