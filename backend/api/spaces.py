@@ -2,9 +2,15 @@ from fastapi import APIRouter, HTTPException, Response, status
 
 from api.dependencies import ExistingSpace
 from db.errors import SpaceNameTakenError
-from db.spaces.spaces import create_space, delete_space, list_spaces, rename_space
+from db.spaces.spaces import (
+    create_space,
+    delete_space,
+    list_spaces,
+    rename_space,
+    reorder_spaces,
+)
 from db.spaces.stats import space_stats
-from schemas.spaces import Space, SpaceCreate, SpaceStats, SpaceUpdate
+from schemas.spaces import Space, SpaceCreate, SpaceOrder, SpaceStats, SpaceUpdate
 
 router = APIRouter(prefix="/spaces", tags=["spaces"])
 
@@ -28,6 +34,12 @@ async def post_space(body: SpaceCreate):
         return await create_space(body.name)
     except SpaceNameTakenError as e:
         raise _name_taken(body.name) from e
+
+
+@router.put("/order", status_code=status.HTTP_204_NO_CONTENT)
+async def put_space_order(body: SpaceOrder):
+    await reorder_spaces(body.space_ids)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{space_id}", response_model=Space)

@@ -14,6 +14,10 @@ class SpaceUpdate(BaseModel):
     name: SpaceName
 
 
+class SpaceOrder(BaseModel):
+    space_ids: list[str]
+
+
 class Space(BaseModel):
     id: str
     name: str

@@ -5,7 +5,8 @@ RETURN s.id AS id,
        s.created_at AS created_at,
        COUNT { MATCH (a:Article {space_id: s.id}) } AS article_count,
        COUNT { MATCH (e:Entity {space_id: s.id}) } AS entity_count
-ORDER BY s.created_at
+// Spaces never placed by hand (new ones) come first, newest on top, then the arranged ones.
+ORDER BY s.position IS NOT NULL, s.position, s.created_at DESC
 
 // name: get_space
 MATCH (s:Space {id: $space_id})
@@ -22,6 +23,11 @@ CREATE (:Space {id: $space_id, name: $name, created_at: datetime()})
 MATCH (s:Space {id: $space_id})
 SET s.name = $name
 RETURN s.id AS id
+
+// name: reorder_spaces
+UNWIND range(0, size($space_ids) - 1) AS position
+MATCH (s:Space {id: $space_ids[position]})
+SET s.position = position
 
 // name: delete_space_articles
 MATCH (n:Article {space_id: $space_id})

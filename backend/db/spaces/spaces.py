@@ -67,6 +67,13 @@ async def rename_space(space_id: str, name: str) -> dict | None:
         return await _fetch_space(session, space_id) if renamed else None
 
 
+@translates_neo4j_errors
+async def reorder_spaces(space_ids: list[str]) -> None:
+    """Unknown ids are skipped."""
+    async with get_driver().session() as session:
+        await (await session.run(_QUERIES["reorder_spaces"], {"space_ids": space_ids})).consume()
+
+
 async def _clear(session: AsyncSession, space_id: str) -> None:
     # CALL { } IN TRANSACTIONS needs an auto-commit transaction, hence session.run.
     for step in _CLEAR_SPACE_STEPS:
