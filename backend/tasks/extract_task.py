@@ -18,6 +18,7 @@ from core.config import (
     NEO4J_USER,
     REDIS_URL,
 )
+from db.article_queries import MARK_PROCESSING_CYPHER, MARK_RESULT_CYPHER
 from db.graph_builder import build_statements
 from db.graph_queries import SIMILAR_NODES_CYPHER
 from db.json_validator import validate_graph_json
@@ -40,43 +41,52 @@ from services.llm_service import LLMService
     soft_time_limit=120,
     time_limit=130,
 )
-def extract_article_task(
-    self, job_id: str, title: str, content: str, provider: str = "local"
-) -> None:
-    try:
-        result = _run_extraction(job_id, title, content, provider)
-    except SoftTimeLimitExceeded:
-        result = {
-            "title": title,
-            "status": "error",
-            "nodes": [],
-            "edges": [],
-            "nodes_count": 0,
-            "edges_count": 0,
-            "error": "Task timed out (120s) — article may be too long",
-        }
-    except RateLimitError as exc:
-        retry_after = 60
-        if exc.response is not None:
-            retry_after = int(float(exc.response.headers.get("retry-after", 60)))
+def extract_article_task(self, job_id: str, article_id: str, provider: str = "local") -> None:
+    with driver.session() as session:
+        article = session.run(MARK_PROCESSING_CYPHER, {"id": article_id}).single()
+
+    if article is None:
+        result = _error_result("", "Article not found, the graph was probably reset")
+    else:
+        title = article["title"]
         try:
-            raise self.retry(exc=exc, countdown=retry_after) from exc
-        except MaxRetriesExceededError:
-            result = {
-                "title": title,
-                "status": "error",
-                "nodes": [],
-                "edges": [],
-                "nodes_count": 0,
-                "edges_count": 0,
-                "error": "Rate limit exceeded - too much retries",
-            }
+            result = _run_extraction(job_id, title, article["content"], provider)
+        except SoftTimeLimitExceeded:
+            result = _error_result(title, "Task timed out (120s) — article may be too long")
+        except RateLimitError as exc:
+            retry_after = 60
+            if exc.response is not None:
+                retry_after = int(float(exc.response.headers.get("retry-after", 60)))
+            try:
+                raise self.retry(exc=exc, countdown=retry_after) from exc
+            except MaxRetriesExceededError:
+                result = _error_result(title, "Rate limit exceeded - too much retries")
 
     r = redis.from_url(REDIS_URL)
-    r.rpush(f"job:{job_id}:results", json.dumps(result))
-    r.expire(f"job:{job_id}:results", 86400)
-    r.rpush(f"job:{job_id}:notify", "1")
-    r.expire(f"job:{job_id}:notify", 86400)
+    try:
+        if article is not None:
+            with driver.session() as session:
+                session.run(
+                    MARK_RESULT_CYPHER,
+                    {"id": article_id, "status": result["status"], "error": result["error"]},
+                ).consume()
+    finally:
+        r.rpush(f"job:{job_id}:results", json.dumps(result))
+        r.expire(f"job:{job_id}:results", 86400)
+        r.rpush(f"job:{job_id}:notify", "1")
+        r.expire(f"job:{job_id}:notify", 86400)
+
+
+def _error_result(title: str, error: str) -> dict:
+    return {
+        "title": title,
+        "status": "error",
+        "nodes": [],
+        "edges": [],
+        "nodes_count": 0,
+        "edges_count": 0,
+        "error": error,
+    }
 
 
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
@@ -98,7 +108,6 @@ def _find_candidates(session, vec: list[float]) -> list[dict]:
 
 
 def _record_dedup_log(r: redis.Redis, job_id: str, title: str, entries: list[dict]) -> None:
-    # TEMP: do celów testowych, odczyt przez GET /debug/dedup
     if not entries:
         return
     r.rpush(
@@ -169,12 +178,4 @@ def _run_extraction(job_id: str, title: str, content: str, provider: str) -> dic
     except RateLimitError:
         raise
     except Exception as e:
-        return {
-            "title": title,
-            "status": "error",
-            "nodes": [],
-            "edges": [],
-            "nodes_count": 0,
-            "edges_count": 0,
-            "error": str(e),
-        }
+        return _error_result(title, str(e))

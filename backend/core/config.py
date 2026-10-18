@@ -32,6 +32,10 @@ DEDUP_NAME_MIN_SCORE = float(os.getenv("DEDUP_NAME_MIN_SCORE", "0.8"))
 DEDUP_LEXICAL_MIN = float(os.getenv("DEDUP_LEXICAL_MIN", "0.85"))
 DEDUP_TOP_K = int(os.getenv("DEDUP_TOP_K", "5"))
 
+DEFAULT_SPACE = "default"
+# Musi przekraczać time_limit zadania (130 s) razem z odliczaniem ponowień po rate limicie.
+STALE_PROCESSING_MINUTES = int(os.getenv("STALE_PROCESSING_MINUTES", "15"))
+
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672//")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 

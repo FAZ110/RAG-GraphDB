@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { submitExtract, createExtractStream } from "../services/api";
-import type { ArticleRequest, ArticleResult } from "../types";
+import { submitExtract, createExtractStream, retryArticles } from "../services/api";
+import type { ArticleRequest, ArticleResult, JobSubmitResponse } from "../types";
 
 type ExtractionStatus = 'idle' | 'running' | 'paused' | 'done' | 'error';
 
@@ -29,7 +29,7 @@ export function useExtractGraph() {
   const [state, setState] = useState<ExtractionState>(initialState);
 
   const statusRef = useRef<ExtractionStatus>('idle');
-  const queueRef = useRef<{ articles: ArticleRequest[]; provider: string; index: number } | null>(null);
+  const queueRef = useRef<{ count: number; submit: (i: number) => Promise<JobSubmitResponse>; index: number } | null>(null);
   const esRef = useRef<EventSource | null>(null);
   const inFlightRef = useRef(false);
 
@@ -48,17 +48,16 @@ export function useExtractGraph() {
     const q = queueRef.current;
     if (!q) return;
 
-    if (q.index >= q.articles.length) {
+    if (q.index >= q.count) {
       setStatus('done');
       return;
     }
 
-    const article = q.articles[q.index];
     inFlightRef.current = true;
 
     let jobId: string;
     try {
-      const response = await submitExtract({ articles: [article], provider: q.provider });
+      const response = await q.submit(q.index);
       jobId = response.job_id;
     } catch (err) {
       inFlightRef.current = false;
@@ -116,23 +115,35 @@ export function useExtractGraph() {
     };
   }, [closeStream, setStatus]);
 
-  const start = useCallback(
-    (data: ExtractionRequest) => {
-      if (data.articles.length === 0) return;
+  const run = useCallback(
+    (count: number, submit: (i: number) => Promise<JobSubmitResponse>) => {
+      if (count === 0) return;
       closeStream();
-      queueRef.current = { articles: data.articles, provider: data.provider, index: 0 };
+      queueRef.current = { count, submit, index: 0 };
       inFlightRef.current = false;
       statusRef.current = 'running';
       setState({
         status: 'running',
         results: [],
-        total: data.articles.length,
+        total: count,
         processedCount: 0,
         error: null,
       });
       processNext();
     },
     [closeStream, processNext],
+  );
+
+  const start = useCallback(
+    (data: ExtractionRequest) =>
+      run(data.articles.length, (i) => submitExtract({ articles: [data.articles[i]], provider: data.provider })),
+    [run],
+  );
+
+  const retry = useCallback(
+    (spaceId: string, articleIds: string[]) =>
+      run(articleIds.length, (i) => retryArticles(spaceId, [articleIds[i]])),
+    [run],
   );
 
   const pause = useCallback(() => {
@@ -179,6 +190,7 @@ export function useExtractGraph() {
     isDone: state.status === 'done',
     isError: state.status === 'error',
     start,
+    retry,
     pause,
     resume,
     stop,

@@ -1,6 +1,8 @@
-import type { BulkExtractRequest, ExpansionResponse, JobSubmitResponse, SeedResponse, SimilarNode } from '../types';
+import type { BulkExtractRequest, ExpansionResponse, FailedArticle, JobSubmitResponse, SeedResponse, SimilarNode } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
+
+export const DEFAULT_SPACE = 'default';
 
 const readError = async (response: Response): Promise<string> => {
   const body: unknown = await response.json().catch(() => null);
@@ -56,6 +58,22 @@ export const fetchNodeExpansion = async (
   const response = await fetch(
     `${API_URL}/graph/expand/${encodeURIComponent(nodeId)}?limit=${limit}`
   );
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
+export const fetchFailedArticles = async (spaceId: string): Promise<FailedArticle[]> => {
+  const response = await fetch(`${API_URL}/spaces/${encodeURIComponent(spaceId)}/articles/failed`);
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
+export const retryArticles = async (spaceId: string, articleIds?: string[]): Promise<JobSubmitResponse> => {
+  const response = await fetch(`${API_URL}/spaces/${encodeURIComponent(spaceId)}/articles/retry`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ article_ids: articleIds ?? null }),
+  });
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }

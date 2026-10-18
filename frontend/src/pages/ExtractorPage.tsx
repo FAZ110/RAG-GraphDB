@@ -6,6 +6,8 @@ import { FileUploadForm } from "../components/FileUploadForm";
 import { ErrorMessage } from "../components/ErrorMessage";
 import { ResultCarousel } from "../components/ResultCarousel";
 import { ExtractionControls } from "../components/ExtractionControls";
+import { FailedArticles } from "../components/FailedArticles";
+import { DEFAULT_SPACE } from "../services/api";
 import { useExtraction } from "../contexts/ExtractionContext";
 import { useFiles } from "../contexts/FileContext";
 
@@ -197,7 +199,7 @@ export function ExtractorPage() {
 
   const { files } = useFiles();
   const extraction = useExtraction();
-  const { results, total, processedCount, status, error, isActive, start, pause, resume, stop, reset } = extraction;
+  const { results, total, processedCount, status, error, isActive, start, retry, pause, resume, stop, reset } = extraction;
 
   const hasContent = files.length > 0 || status !== 'idle' || results.length > 0;
 
@@ -216,6 +218,12 @@ export function ExtractorPage() {
     setCarouselIndex(0);
     prevResultsLenRef.current = 0;
     start({ articles: data.articles, provider });
+  };
+
+  const handleRetry = (articleIds: string[]) => {
+    setCarouselIndex(0);
+    prevResultsLenRef.current = 0;
+    retry(DEFAULT_SPACE, articleIds);
   };
 
   return (
@@ -287,7 +295,7 @@ export function ExtractorPage() {
             className="w-full lg:w-96 lg:flex-shrink-0"
             style={{ transformOrigin: 'left center' }}
           >
-            <div className={`bg-white p-5 shadow-xl rounded-2xl border border-gray-100 flex flex-col ${PANEL_HEIGHT}`}>
+            <div className={`relative bg-white p-5 shadow-xl rounded-2xl border border-gray-100 flex flex-col ${PANEL_HEIGHT}`}>
               <div className="space-y-3 flex-shrink-0">
                 <div>
                   <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Ekstrakcja artykułów</h1>
@@ -303,7 +311,7 @@ export function ExtractorPage() {
                 />
               </div>
 
-              <div className="mt-4 flex-1 min-h-0 flex flex-col">
+              <div className="mt-4 flex-1 min-h-0 flex flex-col overflow-y-auto">
                 {mode === 'json' && (
                   <ArticleForm onSubmit={handleSubmit} disabled={isActive} submitLabel="Rozpocznij budowę grafu wiedzy" />
                 )}
@@ -331,6 +339,15 @@ export function ExtractorPage() {
                   <ErrorMessage message={error} />
                 </div>
               )}
+
+              <div className="mt-3 flex-shrink-0 empty:hidden">
+                <FailedArticles
+                  spaceId={DEFAULT_SPACE}
+                  refreshKey={processedCount}
+                  onRetry={handleRetry}
+                  disabled={isActive}
+                />
+              </div>
             </div>
           </motion.aside>
 

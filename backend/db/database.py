@@ -4,7 +4,19 @@ from collections.abc import Awaitable, Callable
 from neo4j import AsyncGraphDatabase
 from neo4j.exceptions import DriverError, Neo4jError, TransientError
 
-from core.config import EMBEDDING_DIM, NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
+from core.config import (
+    EMBEDDING_DIM,
+    NEO4J_PASSWORD,
+    NEO4J_URI,
+    NEO4J_USER,
+    STALE_PROCESSING_MINUTES,
+)
+from db.article_queries import (
+    ARTICLE_SCHEMA_CYPHER,
+    CLAIM_FOR_RETRY_CYPHER,
+    CREATE_ARTICLES_CYPHER,
+    FAILED_ARTICLES_CYPHER,
+)
 from db.errors import GraphDatabaseError
 from db.graph_builder import build_statements
 from db.graph_queries import (
@@ -109,6 +121,44 @@ async def ensure_vector_index() -> None:
     )
     async with get_driver().session() as session:
         await session.run(cypher, {"dim": EMBEDDING_DIM})
+
+
+@translates_neo4j_errors
+async def ensure_article_schema() -> None:
+    async with get_driver().session() as session:
+        for cypher in ARTICLE_SCHEMA_CYPHER:
+            await session.run(cypher)
+
+
+@translates_neo4j_errors
+async def create_articles(space_id: str, provider: str, articles: list[dict]) -> None:
+    async with get_driver().session() as session:
+        res = await session.run(
+            CREATE_ARTICLES_CYPHER,
+            {"space_id": space_id, "provider": provider, "articles": articles},
+        )
+        await res.consume()
+
+
+@translates_neo4j_errors
+async def failed_articles(space_id: str) -> list[dict]:
+    async with get_driver().session() as session:
+        res = await session.run(
+            FAILED_ARTICLES_CYPHER,
+            {"space_id": space_id, "stale_min": STALE_PROCESSING_MINUTES},
+        )
+        return [r.data() async for r in res]
+
+
+@translates_neo4j_errors
+async def claim_for_retry(space_id: str, ids: list[str] | None) -> list[dict]:
+    """Switch the failed articles among `ids` (all failed ones when None) to queued."""
+    async with get_driver().session() as session:
+        res = await session.run(
+            CLAIM_FOR_RETRY_CYPHER,
+            {"space_id": space_id, "ids": ids, "stale_min": STALE_PROCESSING_MINUTES},
+        )
+        return [r.data() async for r in res]
 
 
 @translates_neo4j_errors
