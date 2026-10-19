@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
-import { fetchLatestBatch, fetchRunningBatches, submitExtract } from '../services/api'
+import {
+  fetchLatestBatch,
+  fetchRunningBatches,
+  retryArticles,
+  submitExtract,
+} from '../services/api'
 import type { ArticleRequest, Batch } from '../types'
 import { SPACES_QUERY_KEY } from './useSpaces'
 
@@ -40,6 +45,15 @@ export function useAddArticles() {
   return useMutation({
     mutationFn: ({ spaceId, articles, provider }: Upload) =>
       submitExtract(spaceId, { articles, provider }).then((r) => r.job_id),
+    onSuccess: () => refreshAfterUpload(queryClient),
+  })
+}
+
+/** Queues failed articles again as a new upload. */
+export function useRetryArticles(spaceId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (articleIds: string[]) => retryArticles(spaceId, articleIds),
     onSuccess: () => refreshAfterUpload(queryClient),
   })
 }

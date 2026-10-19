@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import type { Article } from '@/types'
 import { formatDate } from '../spaceText'
 import { ArticleDeleteControl } from './ArticleDeleteControl'
+import { ArticleRetryControl } from './ArticleRetryControl'
 import { ARTICLE_GRID } from './articleGrid'
 import { sourceHost } from './articleSource'
 import { ARTICLE_STATUS } from './articleStatus'
@@ -67,7 +68,15 @@ export function ArticleRow({ spaceId, article, selected, onToggle, onOpen, needl
         <span className="hidden text-sm text-fg-subtle transition-opacity pointer-fine:group-focus-within:opacity-0 pointer-fine:group-hover:opacity-0 @md:block">
           {formatDate(article.processed_at ?? article.created_at)}
         </span>
-        <ArticleDeleteControl spaceId={spaceId} article={article} />
+        <ArticleDeleteControl
+          spaceId={spaceId}
+          article={article}
+          leading={
+            article.status === 'error' && (
+              <ArticleRetryControl spaceId={spaceId} articleId={article.id} />
+            )
+          }
+        />
       </div>
       <AnimatePresence initial={false}>
         {article.status === 'error' && showError && (

@@ -9,6 +9,7 @@ interface Props {
   spaceId: string
   /** The heading, or the tabs that stand in for it. */
   title: ReactNode
+  extraActions?: ReactNode
   hasArticles: boolean
   query: string
   onQueryChange: (query: string) => void
@@ -21,6 +22,7 @@ interface Props {
 export function ArticlesToolbar({
   spaceId,
   title,
+  extraActions,
   hasArticles,
   query,
   onQueryChange,
@@ -50,6 +52,7 @@ export function ArticlesToolbar({
           <IconButton size="icon-lg" label="Dodaj artykuły" onClick={addArticles}>
             <UploadIcon />
           </IconButton>
+          {extraActions}
         </div>
       )}
     </div>

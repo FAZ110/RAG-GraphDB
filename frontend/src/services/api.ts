@@ -136,6 +136,16 @@ export const deleteArticles = async (spaceId: string, articleIds: string[]): Pro
   return response.json();
 }
 
+export const retryArticles = async (spaceId: string, articleIds: string[]): Promise<JobSubmitResponse> => {
+  const response = await fetch(`${spaceUrl(spaceId)}/articles/retry`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ article_ids: articleIds }),
+  });
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
 export const fetchLatestBatch = async (spaceId: string): Promise<Batch | null> => {
   const response = await fetch(`${spaceUrl(spaceId)}/batches/latest`);
   if (!response.ok) throw new Error(await readError(response));

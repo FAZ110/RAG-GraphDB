@@ -5,6 +5,7 @@ import { useSpaceArticles } from '@/hooks/useSpaces'
 import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
 import { BatchSummary } from '../batches/BatchSummary'
+import { RetryFailedButton } from '../batches/RetryFailedButton'
 import { useRecentBatch } from '../batches/useRecentBatch'
 import { ArticlePreview } from '../preview/ArticlePreview'
 import { useArticlePreview } from '../preview/useArticlePreview'
@@ -46,6 +47,12 @@ export function SpaceArticles({ spaceId, ink }: Props) {
             tab={recent.tab}
             onTabChange={recent.setTab}
             onCloseRecent={recent.close}
+          />
+        }
+        extraActions={
+          <RetryFailedButton
+            spaceId={spaceId}
+            articleIds={inTab.filter((a) => a.status === 'error').map((a) => a.id)}
           />
         }
         hasArticles={all.length > 0}
