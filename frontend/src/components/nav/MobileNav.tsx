@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { MenuIcon } from 'lucide-react'
+import { MenuIcon, SearchIcon } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { Drawer, DrawerTrigger, focusRing } from '@/components/deck'
+import { useOpenGlobalSearch } from '@/components/search/globalSearchContext'
 import { cn } from '@/lib/utils'
 import type { Space } from '@/types'
 import { AtlasMark } from './AtlasMark'
@@ -11,6 +12,7 @@ import { isActive, navItems, pressable } from './navItems'
 export function MobileNav({ space, spaces }: { space?: Space; spaces: Space[] }) {
   const [open, setOpen] = useState(false)
   const { pathname } = useLocation()
+  const openSearch = useOpenGlobalSearch()
   const current = navItems.find((item) => isActive(item.path, pathname))
 
   return (
@@ -31,6 +33,15 @@ export function MobileNav({ space, spaces }: { space?: Space; spaces: Space[] })
           Atlas
         </Link>
         {current && <span className="truncate text-sm text-fg-subtle">{current.label}</span>}
+
+        <button
+          type="button"
+          onClick={openSearch}
+          aria-label="Szukaj"
+          className={pressable(false, 'icon', 'ml-auto')}
+        >
+          <SearchIcon />
+        </button>
       </div>
     </header>
   )

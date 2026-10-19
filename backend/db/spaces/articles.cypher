@@ -137,3 +137,12 @@ WITH a
 WHERE a.status = 'error'
 SET a.status = 'pending', a.error = null, a.queued_at = datetime()
 RETURN a.id AS id, a.title AS title, a.provider AS provider
+
+// name: search_articles
+MATCH (a:Article)
+WHERE toLower(coalesce(a.title, '')) CONTAINS toLower($q)
+   OR toLower(coalesce(a.url, '')) CONTAINS toLower($q)
+MATCH (s:Space {id: a.space_id})
+RETURN a.id AS id, a.title AS title, a.url AS url, a.space_id AS space_id, s.name AS space_name
+ORDER BY a.created_at DESC
+LIMIT $limit

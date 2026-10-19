@@ -42,3 +42,16 @@ WHERE node.space_id = $space_id
 RETURN node.id AS id, node.name AS name, node.label AS label, score
 ORDER BY score DESC
 LIMIT $top_k
+
+// name: search_all
+// Across every space, so no hits are dropped and the index is asked for exactly top_k.
+CALL db.index.vector.queryNodes('entity_embeddings', $top_k, $vec)
+YIELD node, score
+MATCH (s:Space {id: node.space_id})
+RETURN node.id AS id,
+       node.name AS name,
+       node.label AS label,
+       node.space_id AS space_id,
+       s.name AS space_name,
+       score
+ORDER BY score DESC

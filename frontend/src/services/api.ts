@@ -1,4 +1,4 @@
-import type { BulkExtractRequest, ExpansionResponse, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch } from '../types';
+import type { BulkExtractRequest, ExpansionResponse, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
 
@@ -161,3 +161,9 @@ export const fetchRunningBatches = async (): Promise<Batch[]> => {
 // The upload's id is also its extraction job's, whose events the server streams.
 export const openBatchEvents = (batchId: string): EventSource =>
   new EventSource(`${API_URL}/jobs/${encodeURIComponent(batchId)}/events`);
+
+export const searchEverywhere = async (q: string): Promise<SearchResults> => {
+  const response = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`);
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}

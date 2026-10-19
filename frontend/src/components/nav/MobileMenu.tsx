@@ -1,6 +1,7 @@
-import { SettingsIcon } from 'lucide-react'
+import { SearchIcon, SettingsIcon } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { DrawerContent, DrawerTitle } from '@/components/deck'
+import { useOpenGlobalSearch } from '@/components/search/globalSearchContext'
 import type { Space } from '@/types'
 import { AtlasMark } from './AtlasMark'
 import { isActive, navItems, pressable } from './navItems'
@@ -14,6 +15,7 @@ interface Props {
 
 export function MobileMenu({ space, spaces, onClose }: Props) {
   const { pathname } = useLocation()
+  const openSearch = useOpenGlobalSearch()
   const link = (path: string) => {
     const active = isActive(path, pathname)
     return { to: path, onClick: onClose, 'aria-current': active ? ('page' as const) : undefined }
@@ -41,6 +43,17 @@ export function MobileMenu({ space, spaces, onClose }: Props) {
       )}
 
       <nav className="flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => {
+            onClose()
+            openSearch()
+          }}
+          className={pressable(false, 'row')}
+        >
+          <SearchIcon />
+          Szukaj
+        </button>
         {navItems.map((item) => (
           <Link
             key={item.path}

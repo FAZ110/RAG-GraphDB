@@ -1,19 +1,21 @@
-import { SettingsIcon } from 'lucide-react'
+import { SearchIcon, SettingsIcon } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { focusRing } from '@/components/deck'
+import { useOpenGlobalSearch } from '@/components/search/globalSearchContext'
 import { useSpaceListHidden } from '@/components/Spaces/list/spaceListHidden'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import type { Space } from '@/types'
 import { AtlasMark } from './AtlasMark'
 import { Flyout } from './Flyout'
-import { isActive, navItems } from './navItems'
+import { isActive, navItems, pressable } from './navItems'
 import { PullTab } from './PullTab'
 import { RailLink } from './RailLink'
 import { SpaceTile } from './SpaceTile'
 
 export function Rail({ space, spaces }: { space?: Space; spaces: Space[] }) {
   const { pathname } = useLocation()
+  const openSearch = useOpenGlobalSearch()
   // Where the spaces page shows its list beside the space, its item puts the list away into
   // the rail and brings it back.
   const listBeside = useMediaQuery('(min-width: 64rem)') && pathname.startsWith('/spaces')
@@ -32,6 +34,19 @@ export function Rail({ space, spaces }: { space?: Space; spaces: Space[] }) {
         </Link>
         {space && <SpaceTile space={space} spaces={spaces} side="right" />}
         <span className="h-px w-8 bg-line" />
+
+        <button
+          type="button"
+          onClick={openSearch}
+          aria-label="Szukaj"
+          aria-keyshortcuts="Meta+K Control+K"
+          className={pressable(false)}
+        >
+          <SearchIcon />
+          <Flyout>
+            Szukaj <span className="font-normal text-fg-inverse-muted">⌘K</span>
+          </Flyout>
+        </button>
 
         {navItems.map((item) =>
           listBeside && item.path === '/spaces' ? (

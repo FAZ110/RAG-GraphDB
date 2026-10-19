@@ -126,3 +126,25 @@ export interface Batch {
     nodes_count: number;
     edges_count: number;
 }
+
+export interface EntityHit {
+    id: string;
+    name: string;
+    label: string;
+    space_id: string;
+    space_name: string;
+    score: number;
+}
+
+export interface ArticleHit {
+    id: string;
+    title: string | null;
+    url: string | null;
+    space_id: string;
+    space_name: string;
+}
+
+export interface SearchResults {
+    entities: EntityHit[];
+    articles: ArticleHit[];
+}

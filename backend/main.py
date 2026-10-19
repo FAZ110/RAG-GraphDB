@@ -9,6 +9,7 @@ from api.batches import router as batches_router
 from api.debug import router as debug_router
 from api.graph import router as graph_router
 from api.jobs import router as jobs_router
+from api.search import router as search_router
 from api.spaces import router as spaces_router
 from db.driver import close_driver, get_driver
 from db.errors import GraphDatabaseError
@@ -44,6 +45,7 @@ app.include_router(articles_router)
 app.include_router(graph_router)
 app.include_router(jobs_router)
 app.include_router(batches_router)
+app.include_router(search_router)
 app.include_router(debug_router)  # TEMP
 
 
