@@ -82,3 +82,10 @@ export interface SeedResponse extends GraphChunk {
 export interface ExpansionResponse extends GraphChunk {
     root: LoadedNode;
 }
+
+export interface FailedArticle {
+    id: string;
+    title: string;
+    error: string | null;
+    started_at: string | null;
+}
