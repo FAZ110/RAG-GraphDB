@@ -26,6 +26,7 @@ interface Props {
   draft: string | null
   onDraftChange: (draft: string | null) => void
   onCreated: (space: Space) => void
+  onHide?: () => void
   onPicked?: () => void
 }
 
@@ -38,6 +39,7 @@ export function SpaceList({
   draft,
   onDraftChange,
   onCreated,
+  onHide,
   onPicked,
 }: Props) {
   const [listRef, list] = useElementSize<HTMLUListElement>()
@@ -76,6 +78,7 @@ export function SpaceList({
         onQueryChange={onQueryChange}
         status={status}
         onNewSpace={() => startDraft()}
+        onHide={onHide}
       />
 
       {/* Room for the offset shadow, matching the panel's so both end on one line. */}

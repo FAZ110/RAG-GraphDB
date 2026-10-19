@@ -56,4 +56,13 @@
 
 .stage {
   position: relative;
+  transition:
+    grid-template-columns 500ms var(--ease-deck),
+    column-gap 500ms var(--ease-deck);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage {
+    transition: none;
+  }
 }
