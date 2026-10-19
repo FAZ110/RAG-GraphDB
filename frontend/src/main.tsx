@@ -1,19 +1,21 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { FileProvider } from './contexts/FileContext.tsx'
-import { ExtractionProvider } from './contexts/ExtractionContext.tsx'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AddArticlesProvider } from './components/Spaces/add/AddArticlesProvider.tsx'
 import './index.css'
 import App from './App.tsx'
+
+const queryClient = new QueryClient()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <FileProvider>
-        <ExtractionProvider>
+      <QueryClientProvider client={queryClient}>
+        <AddArticlesProvider>
           <App />
-        </ExtractionProvider>
-      </FileProvider>
+        </AddArticlesProvider>
+      </QueryClientProvider>
     </BrowserRouter>
-  </StrictMode>,
+  </StrictMode>
 )

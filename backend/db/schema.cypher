@@ -14,6 +14,12 @@ FOR (a:Article) REQUIRE (a.space_id, a.source_key) IS UNIQUE
 // name: article_space
 CREATE INDEX article_space IF NOT EXISTS FOR (a:Article) ON (a.space_id)
 
+// name: article_status
+CREATE INDEX article_status IF NOT EXISTS FOR (a:Article) ON (a.status)
+
+// name: article_batch
+CREATE INDEX article_batch IF NOT EXISTS FOR (a:Article) ON (a.batch_id)
+
 // name: entity_id
 CREATE CONSTRAINT entity_id IF NOT EXISTS FOR (e:Entity) REQUIRE e.id IS UNIQUE
 

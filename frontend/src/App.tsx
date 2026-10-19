@@ -1,11 +1,8 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AnimatePresence } from 'motion/react';
 import { Navbar } from './components/Navbar';
 import { PageTransition } from './components/PageTransition';
 import { appRoutes } from './routes';
 import { Route, Routes, useLocation } from 'react-router-dom';
-
-const queryClient = new QueryClient();
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -35,14 +32,12 @@ function AnimatedRoutes() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-page">
-        <Navbar />
-        <main className="p-4 sm:p-6 lg:p-8">
-          <AnimatedRoutes />
-        </main>
-      </div>
-    </QueryClientProvider>
+    <div className="min-h-screen bg-page">
+      <Navbar />
+      <main className="p-4 sm:p-6 lg:p-8">
+        <AnimatedRoutes />
+      </main>
+    </div>
   );
 }
 

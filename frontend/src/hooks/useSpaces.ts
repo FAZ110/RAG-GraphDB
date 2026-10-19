@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  clearSpace,
   createSpace,
   deleteArticles,
   deleteSpace,
@@ -29,6 +30,8 @@ export function useSpaceArticles(spaceId: string) {
   return useQuery({
     queryKey: [...SPACES_QUERY_KEY, spaceId, 'articles'],
     queryFn: () => fetchSpaceArticles(spaceId),
+    // An empty id means no space is picked yet.
+    enabled: spaceId !== '',
   })
 }
 
@@ -80,6 +83,11 @@ export function useReorderSpaces() {
 }
 
 // Stats and the space list depend on the article too, so the whole space is refetched.
+export function useClearSpace(spaceId: string) {
+  const onSuccess = useInvalidateSpaces()
+  return useMutation({ mutationFn: () => clearSpace(spaceId), onSuccess })
+}
+
 export function useDeleteArticles(spaceId: string) {
   const onSuccess = useInvalidateSpaces()
   return useMutation({

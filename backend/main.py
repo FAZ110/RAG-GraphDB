@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.articles import router as articles_router
+from api.batches import router as batches_router
 from api.debug import router as debug_router
 from api.graph import router as graph_router
 from api.jobs import router as jobs_router
@@ -42,6 +43,7 @@ app.include_router(spaces_router)
 app.include_router(articles_router)
 app.include_router(graph_router)
 app.include_router(jobs_router)
+app.include_router(batches_router)
 app.include_router(debug_router)  # TEMP
 
 

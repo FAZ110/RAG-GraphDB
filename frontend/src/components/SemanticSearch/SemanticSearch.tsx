@@ -4,6 +4,9 @@ import { fetchSimilarNodes } from '../../services/api';
 import type { SimilarNode } from '../../types';
 
 interface Props {
+  spaceId: string;
+  /** Put the cursor in the field on mount, e.g. when the user came here to explore. */
+  autoFocus?: boolean;
   onResults: (ids: string[]) => void;
   onFocus: (id: string | null) => void;
   focusedId: string | null;
@@ -12,7 +15,7 @@ interface Props {
 const PAGE_SIZE = 20;
 const MAX_RESULTS = 100;
 
-export function SemanticSearch({ onResults, onFocus, focusedId }: Props) {
+export function SemanticSearch({ spaceId, autoFocus = false, onResults, onFocus, focusedId }: Props) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SimilarNode[]>([]);
   const [lastQuery, setLastQuery] = useState('');
@@ -23,7 +26,7 @@ export function SemanticSearch({ onResults, onFocus, focusedId }: Props) {
   }, [focusedId]);
 
   const mutation = useMutation({
-    mutationFn: ({ q, k }: { q: string; k: number }) => fetchSimilarNodes(q, k),
+    mutationFn: ({ q, k }: { q: string; k: number }) => fetchSimilarNodes(spaceId, q, k),
     onSuccess: (data: SimilarNode[]) => {
       setResults(data);
       onResults(data.map((d) => d.id));
@@ -124,6 +127,7 @@ export function SemanticSearch({ onResults, onFocus, focusedId }: Props) {
     <div className="flex flex-col h-full space-y-2 pt-3 border-t border-gray-100">
       <form onSubmit={handleSubmit} className="space-y-2">
         <input
+          autoFocus={autoFocus}
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}

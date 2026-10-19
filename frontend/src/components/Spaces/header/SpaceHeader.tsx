@@ -37,7 +37,7 @@ export function SpaceHeader({ space, ink }: Props) {
           <SpaceStatsStrip spaceId={space.id} />
         </div>
         <div className="mt-auto">
-          <ExploreCallout />
+          <ExploreCallout spaceId={space.id} />
         </div>
       </div>
     </div>

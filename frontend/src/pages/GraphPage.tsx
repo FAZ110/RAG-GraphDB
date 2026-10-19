@@ -1,14 +1,58 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { GraphVisualizer } from "../components/GraphVisualizer/GraphVisualizer";
 import { GraphStatsPanel } from "../components/GraphVisualizer/components/GraphStatsPanel";
-import { useDeleteGraph } from "../hooks/useDeleteGraph";
 import { SemanticSearch } from "../components/SemanticSearch/SemanticSearch";
+import { SpaceSelect } from "../components/Spaces/choice/SpaceSelect";
+import { pickSpace, rememberSpace } from "../components/Spaces/choice/spaceChoice";
+import { useClearSpace, useSpaces } from "../hooks/useSpaces";
 import type { GraphSnapshot } from "../components/GraphVisualizer/GraphVisualizer";
+import type { Space } from "../types";
 
 const PANEL_HEIGHT = "h-[calc(100vh-7rem)]";
 
 export function GraphPage() {
-  const { mutate: deleteGraph, isPending: isDeleting } = useDeleteGraph();
+  const { spaceId } = useParams();
+  const spaces = useSpaces();
+  const space = spaces.data && pickSpace(spaces.data, spaceId ?? null);
+
+  useEffect(() => {
+    if (space) rememberSpace(space.id);
+  }, [space]);
+
+  if (spaces.error) {
+    return <p className="text-sm text-red-700">{spaces.error.message}</p>;
+  }
+  if (!spaces.data) return null;
+  if (!space) {
+    return (
+      <div className="flex flex-col items-center gap-2 py-24 text-center">
+        <p className="text-lg font-semibold text-gray-900">Nie masz jeszcze żadnej przestrzeni</p>
+        <p className="text-sm text-gray-600">
+          Graf powstaje z artykułów dodanych do przestrzeni.{" "}
+          <Link to="/spaces" className="font-semibold text-blue-700 hover:underline">
+            Utwórz przestrzeń
+          </Link>
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Shown while the address catches up, so the page isn't torn down and rebuilt. */}
+      {space.id !== spaceId && <Navigate to={`/graph/${space.id}`} replace />}
+      {/* Keyed, so search results and the explored graph don't carry over between spaces. */}
+      <SpaceGraph key={space.id} space={space} spaces={spaces.data} />
+    </>
+  );
+}
+
+function SpaceGraph({ space, spaces }: { space: Space; spaces: Space[] }) {
+  const navigate = useNavigate();
+  // Coming from the space's "Nowa analiza", the user wants to search right away.
+  const exploring = (useLocation().state as { explore?: boolean } | null)?.explore === true;
+  const { mutate: clearSpace, isPending: isDeleting } = useClearSpace(space.id);
   const [highlightedIds, setHighlightedIds] = useState<string[]>([]);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
@@ -45,9 +89,16 @@ export function GraphPage() {
                 Graf wiedzy
               </h1>
               <p className="mt-1 text-sm text-gray-600">
-                Encje i powiązania wyekstrahowane z artykułów
+                Encje i powiązania wyekstrahowane z artykułów przestrzeni
               </p>
             </div>
+
+            <SpaceSelect
+              spaces={spaces}
+              value={space.id}
+              onChange={(id) => navigate(`/graph/${id}`)}
+              className="w-full"
+            />
 
             <div className="text-sm text-gray-500">
               {`${visible.nodes.length} z ${visible.totalNodes} węzłów, ${visible.edges.length} krawędzi`}
@@ -56,8 +107,12 @@ export function GraphPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  if (window.confirm('Na pewno? Graf zostanie nieodwracalnie usunięty.')) {
-                    deleteGraph(undefined, { onSuccess: () => setReloadKey((k) => k + 1) });
+                  if (
+                    window.confirm(
+                      `Usunąć wszystkie artykuły i graf przestrzeni „${space.name}”? Tego nie da się cofnąć.`,
+                    )
+                  ) {
+                    clearSpace(undefined, { onSuccess: () => setReloadKey((k) => k + 1) });
                   }
                 }}
                 disabled={isDeleting}
@@ -82,6 +137,8 @@ export function GraphPage() {
 
           <div className="flex-1 min-h-0 mt-3">
             <SemanticSearch
+              spaceId={space.id}
+              autoFocus={exploring}
               onResults={setHighlightedIds}
               onFocus={setFocusedId}
               focusedId={focusedId}
@@ -95,6 +152,7 @@ export function GraphPage() {
           <div className="flex-1 min-h-0">
             <GraphVisualizer
               key={reloadKey}
+              spaceId={space.id}
               highlightedIds={highlightedIds}
               focusedId={focusedId}
               onGraphChange={handleGraphChange}
