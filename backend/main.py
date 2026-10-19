@@ -6,17 +6,18 @@ from fastapi.responses import JSONResponse
 
 from api.articles import router as articles_router
 from api.debug import router as debug_router
-from api.extract import router as extract_router
 from api.graph import router as graph_router
-from db.database import close_driver, ensure_article_schema, ensure_vector_index, get_driver
+from api.jobs import router as jobs_router
+from api.spaces import router as spaces_router
+from db.driver import close_driver, get_driver
 from db.errors import GraphDatabaseError
+from db.schema import ensure_schema
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     get_driver()
-    await ensure_vector_index()
-    await ensure_article_schema()
+    await ensure_schema()
     yield
     await close_driver()
 
@@ -37,9 +38,10 @@ async def graph_database_error_handler(_: Request, exc: GraphDatabaseError) -> J
     return JSONResponse(status_code=exc.status_code, content={"detail": str(exc)})
 
 
-app.include_router(extract_router)
-app.include_router(graph_router)
+app.include_router(spaces_router)
 app.include_router(articles_router)
+app.include_router(graph_router)
+app.include_router(jobs_router)
 app.include_router(debug_router)  # TEMP
 
 

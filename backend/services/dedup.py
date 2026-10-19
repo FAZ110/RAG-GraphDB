@@ -215,7 +215,7 @@ def match_existing(
 ) -> None:
     for node in nodes:
         name = _name(node)
-        for cand in find_candidates(embeddings[node["id"]]):  # posortowane malejąco po score
+        for cand in find_candidates(embeddings[node["id"]]):  # sorted by score, descending
             if not cand["label"]:
                 continue
             reason = _match_reason(name, cand["name"], cand["score"], cfg)

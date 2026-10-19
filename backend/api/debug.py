@@ -1,4 +1,4 @@
-# TEMP: endpointy do testowania deduplikacji — usunąć razem z logowaniem w tasks/extract_task.py
+# TEMP: endpoints for testing deduplication; remove together with the logging in tasks/extract_task.py
 import json
 from collections import Counter
 
