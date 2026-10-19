@@ -9,12 +9,14 @@ SET a.url = $url,
     a.content_hash = $content_hash,
     a.updated_at = datetime(),
     a.status = CASE WHEN unchanged THEN a.status ELSE 'pending' END,
-    a.error = CASE WHEN unchanged THEN a.error ELSE null END
+    a.error = CASE WHEN unchanged THEN a.error ELSE null END,
+    a.provider = CASE WHEN unchanged THEN a.provider ELSE $provider END,
+    a.queued_at = CASE WHEN unchanged THEN a.queued_at ELSE datetime() END
 RETURN a.id AS id, unchanged, a.nodes_count AS nodes_count, a.edges_count AS edges_count
 
 // name: start_article
 MATCH (a:Article {id: $article_id})
-SET a.status = 'processing'
+SET a.status = 'processing', a.started_at = datetime()
 RETURN a.id AS id,
        a.space_id AS space_id,
        a.title AS title,
@@ -108,3 +110,29 @@ RETURN a.id AS id,
        a.content AS content,
        entities,
        relationships
+
+// name: fail_stalled_articles
+// A task that died (worker, broker or Redis down) never reports back, so an article waiting or
+// processing longer than any task takes is marked failed and can be retried.
+MATCH (a:Article)
+WHERE ($space_id IS NULL OR a.space_id = $space_id)
+  AND ((a.status = 'pending' AND a.queued_at < datetime() - duration({minutes: $stale_minutes}))
+    OR (a.status = 'processing'
+      AND a.started_at < datetime() - duration({minutes: $stale_minutes})))
+SET a.error = CASE a.status
+                WHEN 'pending' THEN 'Article was never picked up by a worker'
+                ELSE 'Processing took too long, the worker probably died'
+              END,
+    a.status = 'error'
+
+// name: claim_for_retry
+// Taking the write lock first and checking the status again under it keeps two requests
+// from queueing the same article twice.
+MATCH (a:Article {space_id: $space_id})
+WHERE a.status = 'error' AND ($article_ids IS NULL OR a.id IN $article_ids)
+SET a._lock = true
+REMOVE a._lock
+WITH a
+WHERE a.status = 'error'
+SET a.status = 'pending', a.error = null, a.queued_at = datetime()
+RETURN a.id AS id, a.title AS title, a.provider AS provider

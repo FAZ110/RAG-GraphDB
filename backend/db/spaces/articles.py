@@ -1,5 +1,6 @@
-from neo4j import AsyncManagedTransaction, ManagedTransaction
+from neo4j import AsyncManagedTransaction, AsyncSession, ManagedTransaction
 
+from core.config import STALE_PROCESSING_MINUTES
 from db.driver import get_driver, get_sync_driver, translates_neo4j_errors
 from db.query_loader import load_queries
 from services.articles.identity import content_hash, source_key
@@ -8,7 +9,9 @@ _QUERIES = load_queries(__file__)
 
 
 @translates_neo4j_errors
-async def upsert_articles(space_id: str, articles: list[dict], force: bool) -> list[dict]:
+async def upsert_articles(
+    space_id: str, articles: list[dict], provider: str, force: bool
+) -> list[dict]:
     """Store uploaded articles in a space; `unchanged` marks those already processed
     with the same text."""
     results = []
@@ -24,6 +27,7 @@ async def upsert_articles(space_id: str, articles: list[dict], force: bool) -> l
                     "title": article.get("title") or None,
                     "content": text,
                     "content_hash": content_hash(text),
+                    "provider": provider,
                     "force": force,
                 },
             )
@@ -31,9 +35,26 @@ async def upsert_articles(space_id: str, articles: list[dict], force: bool) -> l
     return results
 
 
+async def fail_stalled_articles(session: AsyncSession, space_id: str | None) -> None:
+    params = {"space_id": space_id, "stale_minutes": STALE_PROCESSING_MINUTES}
+    await (await session.run(_QUERIES["fail_stalled_articles"], params)).consume()
+
+
+@translates_neo4j_errors
+async def claim_for_retry(space_id: str, article_ids: list[str] | None) -> list[dict]:
+    """Queue the space's failed articles again, all of them when `article_ids` is None."""
+    async with get_driver().session() as session:
+        await fail_stalled_articles(session, space_id)
+        res = await session.run(
+            _QUERIES["claim_for_retry"], {"space_id": space_id, "article_ids": article_ids}
+        )
+        return [dict(r) async for r in res]
+
+
 @translates_neo4j_errors
 async def list_articles(space_id: str) -> list[dict]:
     async with get_driver().session() as session:
+        await fail_stalled_articles(session, space_id)
         res = await session.run(_QUERIES["list_articles"], {"space_id": space_id})
         return [_with_native_dates(r) async for r in res]
 

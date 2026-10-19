@@ -48,6 +48,13 @@ class ArticleDetail(Article):
     relationships: list[ArticleRelationship]
 
 
+class ArticlesRetry(BaseModel):
+    # All failed articles of the space when left out.
+    article_ids: list[str] | None = None
+    # The model each article was last sent to when left out.
+    provider: str | None = None
+
+
 class ArticlesDelete(BaseModel):
     article_ids: Annotated[list[str], Field(min_length=1)]
 

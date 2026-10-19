@@ -3,9 +3,16 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from api.dependencies import existing_space
 from db.spaces.articles import delete_articles, get_article, list_articles
 from db.spaces.spaces import clear_space
-from schemas.articles import Article, ArticleDetail, ArticlesDelete, ArticlesDeleted, ArticlesUpload
+from schemas.articles import (
+    Article,
+    ArticleDetail,
+    ArticlesDelete,
+    ArticlesDeleted,
+    ArticlesRetry,
+    ArticlesUpload,
+)
 from schemas.jobs import JobStarted
-from services.jobs.extraction import start_extraction
+from services.jobs.extraction import retry_extraction, start_extraction
 
 router = APIRouter(
     prefix="/spaces/{space_id}/articles",
@@ -18,6 +25,14 @@ router = APIRouter(
 async def upload_articles(space_id: str, body: ArticlesUpload):
     articles = [a.model_dump() for a in body.articles]
     job_id = await start_extraction(space_id, articles, body.provider, body.force)
+    return JobStarted(job_id=job_id)
+
+
+@router.post("/retry", response_model=JobStarted, status_code=status.HTTP_202_ACCEPTED)
+async def retry_articles(space_id: str, body: ArticlesRetry):
+    job_id = await retry_extraction(space_id, body.article_ids, body.provider)
+    if job_id is None:
+        raise HTTPException(status_code=409, detail="No failed articles to retry")
     return JobStarted(job_id=job_id)
 
 

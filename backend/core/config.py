@@ -32,8 +32,7 @@ DEDUP_NAME_MIN_SCORE = float(os.getenv("DEDUP_NAME_MIN_SCORE", "0.8"))
 DEDUP_LEXICAL_MIN = float(os.getenv("DEDUP_LEXICAL_MIN", "0.85"))
 DEDUP_TOP_K = int(os.getenv("DEDUP_TOP_K", "5"))
 
-DEFAULT_SPACE = "default"
-# Musi przekraczać time_limit zadania (130 s) razem z odliczaniem ponowień po rate limicie.
+# Longer than a task can take: its 130 s time limit plus the countdowns of rate-limit retries.
 STALE_PROCESSING_MINUTES = int(os.getenv("STALE_PROCESSING_MINUTES", "15"))
 
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672//")

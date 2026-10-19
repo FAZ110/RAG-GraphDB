@@ -48,16 +48,7 @@ def extract_article_task(
     try:
         result = _run_extraction(job_id, article_id, provider)
     except SoftTimeLimitExceeded:
-        result = {
-            "article_id": article_id,
-            "title": title,
-            "status": "error",
-            "nodes": [],
-            "edges": [],
-            "nodes_count": 0,
-            "edges_count": 0,
-            "error": "Task timed out (120s) — article may be too long",
-        }
+        result = _error_result(article_id, title, "Task timed out (120s) — article may be too long")
     except RateLimitError as exc:
         retry_after = 60
         if exc.response is not None:
@@ -65,20 +56,24 @@ def extract_article_task(
         try:
             raise self.retry(exc=exc, countdown=retry_after) from exc
         except MaxRetriesExceededError:
-            result = {
-                "article_id": article_id,
-                "title": title,
-                "status": "error",
-                "nodes": [],
-                "edges": [],
-                "nodes_count": 0,
-                "edges_count": 0,
-                "error": "Rate limit exceeded - too much retries",
-            }
+            result = _error_result(article_id, title, "Rate limit exceeded - too much retries")
 
     if result["status"] == "error":
         fail_article(article_id, result["error"])
     push_result(job_id, result)
+
+
+def _error_result(article_id: str, title: str | None, error: str) -> dict:
+    return {
+        "article_id": article_id,
+        "title": title,
+        "status": "error",
+        "nodes": [],
+        "edges": [],
+        "nodes_count": 0,
+        "edges_count": 0,
+        "error": error,
+    }
 
 
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
@@ -108,7 +103,6 @@ def _find_candidates(session, space_id: str, vec: list[float]) -> list[dict]:
 
 
 def _record_dedup_log(r: redis.Redis, job_id: str, title: str, entries: list[dict]) -> None:
-    # TEMP: for testing, read through GET /debug/dedup
     if not entries:
         return
     r.rpush(
@@ -121,16 +115,7 @@ def _record_dedup_log(r: redis.Redis, job_id: str, title: str, entries: list[dic
 def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
     article = start_article(article_id)
     if article is None:
-        return {
-            "article_id": article_id,
-            "title": None,
-            "status": "error",
-            "nodes": [],
-            "edges": [],
-            "nodes_count": 0,
-            "edges_count": 0,
-            "error": "Article no longer exists",
-        }
+        return _error_result(article_id, None, "Article no longer exists")
     space_id, title, content = article["space_id"], article["title"] or "", article["content"]
     llm = LLMService(provider=provider)
     try:
@@ -207,13 +192,4 @@ def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
     except RateLimitError:
         raise
     except Exception as e:
-        return {
-            "article_id": article_id,
-            "title": title,
-            "status": "error",
-            "nodes": [],
-            "edges": [],
-            "nodes_count": 0,
-            "edges_count": 0,
-            "error": str(e),
-        }
+        return _error_result(article_id, title, str(e))
