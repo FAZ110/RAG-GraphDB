@@ -47,6 +47,15 @@ RETURN elementId(m) AS id,
        elementId(endNode(r)) AS edge_target
 """
 
+SIMILAR_NODES_CYPHER = f"""
+CALL db.index.vector.queryNodes('entity_embeddings', $top_k, $vec)
+YIELD node, score
+RETURN elementId(node) AS id,
+       node.name AS name,
+       {_LABEL_EXPR.format(var="node")} AS label,
+       score
+"""
+
 _DEFAULT_LABEL = "ENTITY"
 
 

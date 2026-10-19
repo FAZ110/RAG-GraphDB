@@ -4,7 +4,19 @@ from collections.abc import Awaitable, Callable
 from neo4j import AsyncGraphDatabase
 from neo4j.exceptions import DriverError, Neo4jError, TransientError
 
-from core.config import EMBEDDING_DIM, NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
+from core.config import (
+    EMBEDDING_DIM,
+    NEO4J_PASSWORD,
+    NEO4J_URI,
+    NEO4J_USER,
+    STALE_PROCESSING_MINUTES,
+)
+from db.article_queries import (
+    ARTICLE_SCHEMA_CYPHER,
+    CLAIM_FOR_RETRY_CYPHER,
+    CREATE_ARTICLES_CYPHER,
+    FAILED_ARTICLES_CYPHER,
+)
 from db.errors import GraphDatabaseError
 from db.graph_builder import build_statements
 from db.graph_queries import (
@@ -12,6 +24,7 @@ from db.graph_queries import (
     ROOT_NODE_CYPHER,
     SEED_EDGES_CYPHER,
     SEED_NODES_CYPHER,
+    SIMILAR_NODES_CYPHER,
     edge_from_row,
     node_from_row,
     split_neighbour_rows,
@@ -111,17 +124,47 @@ async def ensure_vector_index() -> None:
 
 
 @translates_neo4j_errors
-async def similar_nodes(vec: list[float], top_k: int) -> list[dict]:
-    cypher = (
-        "CALL db.index.vector.queryNodes('entity_embeddings', $top_k, $vec) "
-        "YIELD node, score "
-        "RETURN elementId(node) AS id, "
-        "node.name AS name, "
-        "[l IN labels(node) WHERE l <> 'Entity'][0] AS label, "
-        "score"
-    )
+async def ensure_article_schema() -> None:
     async with get_driver().session() as session:
-        res = await session.run(cypher, {"top_k": top_k, "vec": vec})
+        for cypher in ARTICLE_SCHEMA_CYPHER:
+            await session.run(cypher)
+
+
+@translates_neo4j_errors
+async def create_articles(space_id: str, provider: str, articles: list[dict]) -> None:
+    async with get_driver().session() as session:
+        res = await session.run(
+            CREATE_ARTICLES_CYPHER,
+            {"space_id": space_id, "provider": provider, "articles": articles},
+        )
+        await res.consume()
+
+
+@translates_neo4j_errors
+async def failed_articles(space_id: str) -> list[dict]:
+    async with get_driver().session() as session:
+        res = await session.run(
+            FAILED_ARTICLES_CYPHER,
+            {"space_id": space_id, "stale_min": STALE_PROCESSING_MINUTES},
+        )
+        return [r.data() async for r in res]
+
+
+@translates_neo4j_errors
+async def claim_for_retry(space_id: str, ids: list[str] | None) -> list[dict]:
+    """Switch the failed articles among `ids` (all failed ones when None) to queued."""
+    async with get_driver().session() as session:
+        res = await session.run(
+            CLAIM_FOR_RETRY_CYPHER,
+            {"space_id": space_id, "ids": ids, "stale_min": STALE_PROCESSING_MINUTES},
+        )
+        return [r.data() async for r in res]
+
+
+@translates_neo4j_errors
+async def similar_nodes(vec: list[float], top_k: int) -> list[dict]:
+    async with get_driver().session() as session:
+        res = await session.run(SIMILAR_NODES_CYPHER, {"top_k": top_k, "vec": vec})
         return [
             {"id": r["id"], "name": r["name"], "label": r["label"], "score": r["score"]}
             async for r in res

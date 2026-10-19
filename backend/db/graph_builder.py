@@ -36,22 +36,24 @@ def build_statements(
     for node in nodes:
         _assert_safe_identifier(node["label"], "label")
         embedding = embeddings.get(node["id"]) if embeddings else None
+        set_clause = (
+            "SET n += $props, "
+            "n.aliases = coalesce(n.aliases, []) + "
+            "[a IN $aliases WHERE NOT a IN coalesce(n.aliases, [])]"
+        )
+        params = {
+            "name": node["properties"].get("name", ""),
+            "props": node["properties"],
+            "aliases": node.get("aliases", []),
+        }
         if embedding is not None:
             cypher = (
                 f"MERGE (n:{node['label']}:Entity {{name: $name}}) "
-                "SET n += $props, n.embedding = $embedding"
+                f"ON CREATE SET n.embedding = $embedding {set_clause}"
             )
-            params = {
-                "name": node["properties"].get("name", ""),
-                "props": node["properties"],
-                "embedding": embedding,
-            }
+            params["embedding"] = embedding
         else:
-            cypher = f"MERGE (n:{node['label']}:Entity {{name: $name}}) SET n += $props"
-            params = {
-                "name": node["properties"].get("name", ""),
-                "props": node["properties"],
-            }
+            cypher = f"MERGE (n:{node['label']}:Entity {{name: $name}}) {set_clause}"
         validate_cypher(cypher)
         statements.append((cypher, params))
     for edge in edges:

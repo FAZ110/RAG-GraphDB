@@ -29,9 +29,14 @@ Format krawędzi:
 Bardzo ważne zasady:
 1. Dobierz etykiety (label) odpowiednio do domeny tekstu (np. OSOBA, ORGANIZACJA, MIEJSCE, WYDARZENIE lub inne pasujące).
    Etykiety pisz wielkimi literami, np. OSOBA, FIRMA, PRODUKT.
-2. Każdy węzeł MUSI mieć właściwość "name" z pełną nazwą encji.
+2. Każdy węzeł MUSI mieć właściwość "name" z pełną nazwą encji w mianowniku
+   liczby pojedynczej (np. "Wisła Kraków", nie "Wiśle Kraków"; "Aston Villa",
+   nie "Aston Villę"). Osoby zapisuj jako imię i nazwisko, jeśli tekst je podaje.
+   Ten sam byt w całym tekście musi mieć dokładnie tę samą nazwę.
 3. Pole "id" to wewnętrzny identyfikator do budowania relacji (np. "p1", "org_microsoft").
-4. Typy relacji pisz wielkimi literami z podkreślnikami, np. PRACUJE_W, JEST_CZĘŚCIĄ, POSIADA.
+4. Typy relacji pisz WYŁĄCZNIE po polsku, wielkimi literami z podkreślnikami,
+   np. PRACUJE_W, JEST_CZĘŚCIĄ, POSIADA, GRA_W, CHWALI. Nie używaj angielskich typów
+   (np. PLAYS_FOR, PRAISES, INTERVIEWED_BY) - także gdy tekst zawiera angielskie nazwy.
 5. Pola "source" i "target" MUSZĄ odpowiadać istniejącym "id" węzłów.
 6. Zwróć TYLKO surowy JSON — bez komentarzy, bez tekstu poza JSON.
 

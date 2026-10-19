@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from core.config import REDIS_URL
+from db.database import create_articles
 from schemas.requests import BulkExtractRequest, JobSubmitResponse
 from tasks.extract_task import extract_article_task
 
@@ -23,22 +24,29 @@ def _get_redis_stream() -> aioredis.Redis:
     return aioredis.from_url(REDIS_URL, decode_responses=True, socket_timeout=_BLPOP_TIMEOUT + 5)
 
 
-@router.post("/extract", response_model=JobSubmitResponse)
-async def submit_extract_job(request: BulkExtractRequest) -> JobSubmitResponse:
+async def enqueue_job(articles: list[dict]) -> JobSubmitResponse:
     job_id = str(uuid.uuid4())
     r = _get_redis()
     try:
-        await r.set(f"job:{job_id}:total", len(request.articles), ex=86400)
+        await r.set(f"job:{job_id}:total", len(articles), ex=86400)
     finally:
         await r.aclose()
-    for article in request.articles:
+    for article in articles:
         extract_article_task.delay(
             job_id=job_id,
-            title=article.title,
-            content=article.content,
-            provider=request.provider,
+            article_id=article["id"],
+            provider=article["provider"],
         )
     return JobSubmitResponse(job_id=job_id)
+
+
+@router.post("/extract", response_model=JobSubmitResponse)
+async def submit_extract_job(request: BulkExtractRequest) -> JobSubmitResponse:
+    articles = [
+        {"id": str(uuid.uuid4()), "title": a.title, "content": a.content} for a in request.articles
+    ]
+    await create_articles(request.space_id, request.provider, articles)
+    return await enqueue_job([{"id": a["id"], "provider": request.provider} for a in articles])
 
 
 @router.get("/extract/stream/{job_id}")
