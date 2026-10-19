@@ -9,9 +9,12 @@ const queryClient = new QueryClient();
 
 function AnimatedRoutes() {
   const location = useLocation();
+  // Keyed by the first path segment, so moving between spaces stays on the same page
+  // instead of replaying the page transition.
+  const section = location.pathname.split('/')[1];
   return (
     <AnimatePresence mode="wait" initial={false}>
-      <Routes location={location} key={location.pathname}>
+      <Routes location={location} key={section}>
         {appRoutes.map((route) => (
           <Route key={route.path} path={route.path} element={route.element} />
         ))}
@@ -33,9 +36,9 @@ function AnimatedRoutes() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-page">
         <Navbar />
-        <main className="py-6 px-4 sm:px-6 lg:px-8">
+        <main className="p-4 sm:p-6 lg:p-8">
           <AnimatedRoutes />
         </main>
       </div>

@@ -1,0 +1,134 @@
+/* Raw values on :root so a dark theme only has to redefine them; `@theme inline` keeps the
+   utilities reading the variables. Reference these raw names from CSS and JS, since Tailwind
+   may leave out the --color-* ones. */
+
+:root {
+  --page: #f9fafb;
+  --surface: #ffffff;
+  --surface-sunken: #f8fafc;
+  --surface-inverse: #0f172a;
+
+  --fg: #0f172a;
+  --fg-hover: #1e293b;
+  --fg-soft: #334155;
+  --fg-muted: #475569;
+  --fg-subtle: #64748b;
+  --fg-faint: #94a3b8;
+  --fg-inverse: #ffffff;
+  --fg-inverse-muted: #cbd5e1;
+
+  --line: #cbd5e1;
+  --line-soft: #e2e8f0;
+
+  --danger: #b91c1c;
+  --danger-strong: #991b1b;
+  --danger-fg: #7f1d1d;
+  --danger-surface: #fef2f2;
+  --danger-surface-strong: #fee2e2;
+  --danger-line: #fecaca;
+
+  --status-ok: var(--ink-moss);
+  --status-processing: var(--fg-subtle);
+  --status-pending: var(--line);
+  --status-error: var(--danger);
+
+  --deck-offset: 4px;
+  --deck-offset-lg: 6px;
+  --deck-press: 3px;
+
+  --ink-cherry: #8c3843;
+  --ink-cherry-field: #f8eded;
+  --ink-brick: #9c503e;
+  --ink-brick-field: #f8edeb;
+  --ink-rust: #834b20;
+  --ink-rust-field: #f7eee9;
+  --ink-ochre: #9a6b1f;
+  --ink-ochre-field: #f6f0e6;
+  --ink-olive: #786829;
+  --ink-olive-field: #f2f0e7;
+  --ink-lichen: #56591f;
+  --ink-lichen-field: #f0f1e8;
+  --ink-moss: #4f6b2e;
+  --ink-moss-field: #eef2e8;
+  --ink-fir: #315e3c;
+  --ink-fir-field: #ebf3ec;
+  --ink-malachite: #367762;
+  --ink-malachite-field: #e9f3ef;
+  --ink-teal: #1f5f5b;
+  --ink-teal-field: #eaf2f1;
+  --ink-fjord: #215f6b;
+  --ink-fjord-field: #e8f2f5;
+  --ink-steel: #3f6e8c;
+  --ink-steel-field: #eaf1f5;
+  --ink-cobalt: #315c92;
+  --ink-cobalt-field: #ebf1f8;
+  --ink-indigo: #3a4a8c;
+  --ink-indigo-field: #eceef6;
+  --ink-heather: #635995;
+  --ink-heather-field: #f0eff8;
+  --ink-violet: #5f3f7a;
+  --ink-violet-field: #f2eef7;
+  --ink-raspberry: #864e88;
+  --ink-raspberry-field: #f5edf4;
+  --ink-plum: #7a3e62;
+  --ink-plum-field: #f4ecf1;
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-inverse: var(--surface-inverse);
+
+  --color-fg: var(--fg);
+  --color-fg-hover: var(--fg-hover);
+  --color-fg-soft: var(--fg-soft);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-faint: var(--fg-faint);
+  --color-fg-inverse: var(--fg-inverse);
+  --color-fg-inverse-muted: var(--fg-inverse-muted);
+
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+
+  --color-danger: var(--danger);
+  --color-danger-strong: var(--danger-strong);
+  --color-danger-fg: var(--danger-fg);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-surface-strong: var(--danger-surface-strong);
+  --color-danger-line: var(--danger-line);
+
+  --color-status-ok: var(--status-ok);
+  --color-status-processing: var(--status-processing);
+  --color-status-pending: var(--status-pending);
+  --color-status-error: var(--status-error);
+}
+
+@theme {
+  --text-display: 1.5rem;
+  --text-display--line-height: 1.15;
+  --text-display--letter-spacing: -0.025em;
+  --text-display--font-weight: 800;
+  --text-display-lg: 1.875rem;
+  --text-display-lg--line-height: 1.15;
+  --text-display-lg--letter-spacing: -0.025em;
+  --text-display-lg--font-weight: 800;
+  --text-display-xl: 2.25rem;
+  --text-display-xl--line-height: 1.15;
+  --text-display-xl--letter-spacing: -0.025em;
+  --text-display-xl--font-weight: 800;
+  --text-title: 1.5rem;
+  --text-title--line-height: 1.25;
+  --text-title--letter-spacing: -0.015em;
+  --text-title--font-weight: 700;
+  --text-heading: 1.25rem;
+  --text-heading--line-height: 1.4;
+  --text-heading--font-weight: 700;
+  --text-figure: 1.5rem;
+  --text-figure--line-height: 1;
+  --text-figure--letter-spacing: -0.02em;
+  --text-figure--font-weight: 800;
+
+  --ease-deck: cubic-bezier(0.22, 1, 0.36, 1);
+}

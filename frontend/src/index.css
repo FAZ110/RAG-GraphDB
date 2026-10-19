@@ -1,8 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./styles/shadcn.css";
+@import "./styles/tokens.css";
 
 @custom-variant dark (&:is(.dark *));
+
+/* Screens with room for the map beside a space's header. */
+@custom-variant beside-map (@media (min-width: 88rem) and (min-height: 50rem));
 
 @keyframes float-slow {
   0%, 100% { transform: translateY(0); }
@@ -16,4 +20,40 @@
 .bg-dot-grid {
   background-image: radial-gradient(circle, rgba(59, 130, 246, 0.18) 1px, transparent 1px);
   background-size: 18px 18px;
+}
+
+/* `--deck-shadow` recolours the shadow of all three. */
+@utility deck {
+  box-shadow: var(--deck-offset) var(--deck-offset) 0 var(--deck-shadow, var(--line));
+}
+
+@utility deck-lg {
+  box-shadow: var(--deck-offset-lg) var(--deck-offset-lg) 0 var(--deck-shadow, var(--line));
+}
+
+@utility deck-press {
+  box-shadow: var(--deck-offset) var(--deck-offset) 0 var(--deck-shadow, var(--fg-subtle));
+  transition:
+    transform 120ms ease-out,
+    box-shadow 120ms ease-out,
+    background-color 150ms,
+    border-color 150ms,
+    color 150ms;
+
+  &:active:not(:disabled) {
+    transform: translate(var(--deck-press), var(--deck-press));
+    box-shadow: 1px 1px 0 var(--deck-shadow, var(--fg-subtle));
+  }
+
+  &:disabled {
+    box-shadow: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.stage {
+  position: relative;
 }
