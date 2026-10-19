@@ -99,7 +99,22 @@ def _find_candidates(session, space_id: str, vec: list[float]) -> list[dict]:
         _SIMILAR_IN_SPACE_CYPHER,
         {"space_id": space_id, "search_k": _SEARCH_K, "top_k": DEDUP_TOP_K, "vec": vec},
     )
-    return [{"name": r["name"], "label": r["label"], "score": r["score"]} for r in res]
+    return [
+        {
+            "name": r["name"],
+            "label": r["label"],
+            "description": r["description"],
+            "type": r["type"],
+            "score": r["score"],
+        }
+        for r in res
+    ]
+
+
+def _embedding_text(node: dict) -> str:
+    text = f"{node['label']}: {node['properties'].get('name', '')}"
+    description = str(node["properties"].get("description") or "").strip()
+    return f"{text} — {description}" if description else text
 
 
 def _record_dedup_log(r: redis.Redis, job_id: str, title: str, entries: list[dict]) -> None:
@@ -125,7 +140,7 @@ def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
         edges_dicts = [e.model_dump() for e in graph.edges]
 
         embedder = get_embedding_service()
-        texts = [f"{n['label']}: {n['properties'].get('name', '')}" for n in nodes_dicts]
+        texts = [_embedding_text(n) for n in nodes_dicts]
         vectors = embedder.embed_batch(texts)
         embeddings_map = {n["id"]: v for n, v in zip(nodes_dicts, vectors, strict=True)}
 

@@ -6,7 +6,16 @@ _QUERIES = load_queries(__file__)
 
 _SAFE_IDENTIFIER = re.compile(r"^\w+$", re.UNICODE)
 # The LLM may return properties with these names; they must not overwrite the graph's own.
-_RESERVED_PROPS = {"id", "space_id", "label", "embedding", "aliases", "created_at"}
+_RESERVED_PROPS = {
+    "id",
+    "space_id",
+    "label",
+    "embedding",
+    "aliases",
+    "created_at",
+    "description",
+    "type",
+}
 
 
 def _assert_safe_identifier(value: str, kind: str) -> None:
@@ -53,6 +62,8 @@ def build_statements(
                     "name": node["properties"].get("name", ""),
                     "props": props,
                     "aliases": node.get("aliases", []),
+                    "description": node["properties"].get("description") or None,
+                    "type": node.get("type"),
                     "embedding": embeddings.get(node["id"]) if embeddings else None,
                 },
             )

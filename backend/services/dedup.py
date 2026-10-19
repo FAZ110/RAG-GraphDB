@@ -69,7 +69,20 @@ def name_similarity(a: str, b: str) -> float:
     if not ta or not tb:
         return 0.0
     short, long_ = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
-    return min(max(jaro_winkler(x, y) for y in long_) for x in short)
+    # Fuzzy subset matching would join "Niemcy" with "Puchar Niemiec".
+    sim = jaro_winkler if len(short) == len(long_) else lambda x, y: float(x == y)
+    # One-to-one token pairing, so "tomas" can't match both words of "Thomas Thomasberg".
+    scored = sorted(
+        ((sim(x, y), i, j) for i, x in enumerate(short) for j, y in enumerate(long_)),
+        reverse=True,
+    )
+    best: dict[int, float] = {}
+    used: set[int] = set()
+    for score, i, j in scored:
+        if i not in best and j not in used:
+            best[i] = score
+            used.add(j)
+    return min(best.values())
 
 
 @dataclass(frozen=True)
@@ -79,9 +92,19 @@ class MatchConfig:
     lexical_min: float
 
 
-def _match_reason(a_name: str, b_name: str, score: float, cfg: MatchConfig) -> str | None:
+def _match_reason(
+    a_name: str,
+    b_name: str,
+    score: float,
+    cfg: MatchConfig,
+    a_type: str | None = None,
+    b_type: str | None = None,
+) -> str | None:
     if normalize_name(a_name) == normalize_name(b_name):
         return "name" if score >= cfg.name_min_score else None
+    # Keeps "Udinese" out of "Mecz Juventus – Udinese"; entities without a type don't block.
+    if a_type and b_type and a_type != b_type:
+        return None
     if score >= cfg.threshold and name_similarity(a_name, b_name) >= cfg.lexical_min:
         return "embedding"
     return None
@@ -119,17 +142,19 @@ def _add_alias(node: dict, alias: str) -> None:
         aliases.append(alias)
 
 
-def _log_entry(
-    stage: str, member: dict, into_name: str, into_label: str, score: float, reason: str
-) -> dict:
+def _log_entry(stage: str, member: dict, into: dict, score: float, reason: str) -> dict:
     return {
         "stage": stage,
         "from": _name(member),
         "from_label": member["label"],
-        "into": into_name,
-        "into_label": into_label,
+        "from_type": member.get("type"),
+        "from_description": member["properties"].get("description"),
+        "into": into["name"],
+        "into_label": into["label"],
+        "into_type": into.get("type"),
+        "into_description": into.get("description"),
         "score": score,
-        "lexical": name_similarity(_name(member), into_name),
+        "lexical": name_similarity(_name(member), into["name"]),
         "reason": reason,
     }
 
@@ -184,7 +209,7 @@ def resolve_batch(
     for i, a in enumerate(nodes):
         for b in nodes[i + 1 :]:
             score = cosine(embeddings[a["id"]], embeddings[b["id"]])
-            if _match_reason(_name(a), _name(b), score, cfg):
+            if _match_reason(_name(a), _name(b), score, cfg, a.get("type"), b.get("type")):
                 uf.union(a["id"], b["id"])
 
     def on_merge(member: dict, canonical: dict) -> None:
@@ -196,8 +221,12 @@ def resolve_batch(
             _log_entry(
                 "batch",
                 member,
-                _name(canonical),
-                canonical["label"],
+                {
+                    "name": _name(canonical),
+                    "label": canonical["label"],
+                    "type": canonical.get("type"),
+                    "description": canonical["properties"].get("description"),
+                },
                 score,
                 "name" if same_name else "embedding",
             )
@@ -218,14 +247,12 @@ def match_existing(
         for cand in find_candidates(embeddings[node["id"]]):  # sorted by score, descending
             if not cand["label"]:
                 continue
-            reason = _match_reason(name, cand["name"], cand["score"], cfg)
+            reason = _match_reason(
+                name, cand["name"], cand["score"], cfg, node.get("type"), cand.get("type")
+            )
             if reason:
                 if log is not None and (cand["name"], cand["label"]) != (name, node["label"]):
-                    log.append(
-                        _log_entry(
-                            "existing", node, cand["name"], cand["label"], cand["score"], reason
-                        )
-                    )
+                    log.append(_log_entry("existing", node, cand, cand["score"], reason))
                 node["label"] = cand["label"]
                 node["properties"]["name"] = cand["name"]
                 _add_alias(node, name)
