@@ -21,7 +21,7 @@ Zwróć odpowiedź WYŁĄCZNIE jako poprawny JSON (bez żadnych znaczników mark
 JSON musi zawierać dwa klucze: "nodes" i "edges".
 
 Format węzła:
-{{"id": "unikalny_id", "label": "ETYKIETA", "properties": {{"name": "Pełna nazwa"}}}}
+{{"id": "unikalny_id", "label": "ETYKIETA", "type": "TYP", "aliases":["Inna nazwa z tekstu"], "properties": {{"name": "Pełna nazwa", "description": "Krótki opis"}}}}
 
 Format krawędzi:
 {{"source": "id_węzła", "target": "id_węzła", "type": "TYP_RELACJI", "properties": {{}}}}
@@ -29,16 +29,32 @@ Format krawędzi:
 Bardzo ważne zasady:
 1. Dobierz etykiety (label) odpowiednio do domeny tekstu (np. OSOBA, ORGANIZACJA, MIEJSCE, WYDARZENIE lub inne pasujące).
    Etykiety pisz wielkimi literami, np. OSOBA, FIRMA, PRODUKT.
+   Etykieta to rodzaj bytu (jedno słowo lub słowa połączone podkreślnikiem, np. KLUB,
+   ZAWODNIK, KLUB_PIŁKARSKI), NIGDY jego nazwa: "KLUB", nie "KLUB AC MILAN".
 2. Każdy węzeł MUSI mieć właściwość "name" z pełną nazwą encji w mianowniku
    liczby pojedynczej (np. "Wisła Kraków", nie "Wiśle Kraków"; "Aston Villa",
    nie "Aston Villę"). Osoby zapisuj jako imię i nazwisko, jeśli tekst je podaje.
    Ten sam byt w całym tekście musi mieć dokładnie tę samą nazwę.
+   W "name" podawaj zawsze pełną, oficjalną nazwę, także gdy tekst używa skrótu lub przezwiska
+   (np. "Robert Lewandowski", nie "Lewy"; "Paris Saint-Germain", nie "PSG").
+   Skróty, przezwiska i inne warianty nazwy użyte w tekście wpisz do listy "aliases"
+   (pusta lista, jeśli ich nie ma).
 3. Pole "id" to wewnętrzny identyfikator do budowania relacji (np. "p1", "org_microsoft").
 4. Typy relacji pisz WYŁĄCZNIE po polsku, wielkimi literami z podkreślnikami,
    np. PRACUJE_W, JEST_CZĘŚCIĄ, POSIADA, GRA_W, CHWALI. Nie używaj angielskich typów
    (np. PLAYS_FOR, PRAISES, INTERVIEWED_BY) - także gdy tekst zawiera angielskie nazwy.
 5. Pola "source" i "target" MUSZĄ odpowiadać istniejącym "id" węzłów.
-6. Zwróć TYLKO surowy JSON — bez komentarzy, bez tekstu poza JSON.
+6. Każdy węzeł MUSI mieć właściwość "description": jedno krótkie zdanie (do 15 słów)
+   mówiące, kim lub czym jest ten byt, na podstawie tekstu (np. "klub piłkarski z Poznania
+   grający w Ekstraklasie", "napastnik reprezentacji Polski"). Opisuj sam byt, nie wydarzenia
+   z artykułu.
+7. Każdy węzeł MUSI mieć pole "type" — ogólny rodzaj bytu, DOKŁADNIE jedna z wartości:
+   OSOBA, ORGANIZACJA (firmy, kluby, drużyny, reprezentacje, instytucje),
+   MIEJSCE (kraje, miasta, regiony, obiekty), WYDARZENIE (mecze, turnieje, ligi,
+   rozgrywki, konferencje), PRODUKT (produkty, dzieła, technologie), POJĘCIE (pozostałe).
+   Przykład: {{"label": "KLUB", "type": "ORGANIZACJA", ...}},
+   {{"label": "ZAWODNIK", "type": "OSOBA", ...}}, {{"label": "LIGA", "type": "WYDARZENIE", ...}}.
+8. Zwróć TYLKO surowy JSON — bez komentarzy, bez tekstu poza JSON.
 
 Tytuł: {title}
 Treść: {content}\

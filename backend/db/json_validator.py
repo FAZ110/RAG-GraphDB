@@ -1,10 +1,20 @@
 from pydantic import BaseModel, field_validator, model_validator
 
+ENTITY_TYPES = {"OSOBA", "ORGANIZACJA", "MIEJSCE", "WYDARZENIE", "PRODUKT", "POJĘCIE"}
+
 
 class NodeSchema(BaseModel):
     id: str
     label: str
     properties: dict
+    aliases: list[str] = []
+    type: str | None = None
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def known_type_or_none(cls, v):
+        v = v.strip().upper() if isinstance(v, str) else None
+        return v if v in ENTITY_TYPES else None
 
     @field_validator("label")
     @classmethod
@@ -19,6 +29,21 @@ class NodeSchema(BaseModel):
         if not v.get("name", "").strip():
             raise ValueError("Node must have a non-empty 'name' property")
         return v
+
+    @field_validator("aliases", mode="before")
+    @classmethod
+    def aliases_as_list(cls, v):
+        if isinstance(v, str):
+            return [v]
+        return [a for a in v if isinstance(a, str)] if isinstance(v, list) else []
+
+    @model_validator(mode="after")
+    def drop_blank_and_own_name(self):
+        name = self.properties["name"].strip()
+        self.aliases = list(
+            dict.fromkeys(a.strip() for a in self.aliases if a.strip() not in ("", name))
+        )
+        return self
 
 
 class EdgeSchema(BaseModel):

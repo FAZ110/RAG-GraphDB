@@ -1,8 +1,11 @@
 // name: merge_entity
 MERGE (n:Entity {space_id: $space_id, label: $label, name: $name})
 ON CREATE SET n.id = randomUUID(), n.created_at = datetime(), n.embedding = $embedding
+// Keep the first description and type: the stored embedding was made from them.
 SET n:$($label),
     n += $props,
+    n.description = coalesce(n.description, $description),
+    n.type = coalesce(n.type, $type),
     n.aliases = coalesce(n.aliases, []) + [a IN $aliases WHERE NOT a IN coalesce(n.aliases, [])]
 WITH n
 MATCH (article:Article {id: $article_id})

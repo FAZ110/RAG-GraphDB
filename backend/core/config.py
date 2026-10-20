@@ -27,8 +27,8 @@ EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", LLM_BASE_URL)
 EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY", LLM_API_KEY)
 
 DEDUP_ENABLED = os.getenv("DEDUP_ENABLED", "true").lower() == "true"
-DEDUP_THRESHOLD = float(os.getenv("DEDUP_THRESHOLD", "0.92"))
-DEDUP_NAME_MIN_SCORE = float(os.getenv("DEDUP_NAME_MIN_SCORE", "0.8"))
+DEDUP_THRESHOLD = float(os.getenv("DEDUP_THRESHOLD", "0.75"))
+DEDUP_NAME_MIN_SCORE = float(os.getenv("DEDUP_NAME_MIN_SCORE", "0.75"))
 DEDUP_LEXICAL_MIN = float(os.getenv("DEDUP_LEXICAL_MIN", "0.85"))
 DEDUP_TOP_K = int(os.getenv("DEDUP_TOP_K", "5"))
 
