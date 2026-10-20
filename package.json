@@ -1,0 +1,13 @@
+{
+  "name": "rag-graphdb",
+  "private": true,
+  "scripts": {
+    "start": "docker compose up -d --wait neo4j rabbitmq redis && concurrently -c blue,magenta,green npm:dev:*",
+    "dev:backend": "backend/venv/bin/uvicorn main:app --app-dir backend --port 8000 --reload --reload-dir backend",
+    "dev:worker": "cd backend && venv/bin/watchfiles --filter python --ignore-paths venv 'venv/bin/celery -A celery_app worker --loglevel=info --pool=threads --concurrency=2' .",
+    "dev:frontend": "npm --prefix frontend run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5"
+  }
+}
