@@ -1,4 +1,4 @@
-import type { BulkExtractRequest, ExpansionResponse, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults } from '../types';
+import type { BulkExtractRequest, ExpansionResponse, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
 
@@ -60,6 +60,12 @@ export const fetchNodeExpansion = async (
   const response = await fetch(
     `${spaceUrl(spaceId)}/graph/nodes/${encodeURIComponent(nodeId)}/neighbours?limit=${limit}`
   );
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
+export const fetchNodeSources = async (spaceId: string, nodeId: string): Promise<NodeSource[]> => {
+  const response = await fetch(`${spaceUrl(spaceId)}/graph/nodes/${encodeURIComponent(nodeId)}/sources`);
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }

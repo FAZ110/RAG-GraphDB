@@ -21,10 +21,10 @@ Zwróć odpowiedź WYŁĄCZNIE jako poprawny JSON (bez żadnych znaczników mark
 JSON musi zawierać dwa klucze: "nodes" i "edges".
 
 Format węzła:
-{{"id": "unikalny_id", "label": "ETYKIETA", "type": "TYP", "aliases":["Inna nazwa z tekstu"], "properties": {{"name": "Pełna nazwa", "description": "Krótki opis"}}}}
+{{"id": "unikalny_id", "label": "ETYKIETA", "type": "TYP", "aliases":["Inna nazwa z tekstu"], "evidence": ["S1"], "properties": {{"name": "Pełna nazwa", "description": "Krótki opis"}}}}
 
 Format krawędzi:
-{{"source": "id_węzła", "target": "id_węzła", "type": "TYP_RELACJI", "properties": {{}}}}
+{{"source": "id_węzła", "target": "id_węzła", "type": "TYP_RELACJI", "evidence": ["S2"], "properties": {{}}}}
 
 Bardzo ważne zasady:
 1. Dobierz etykiety (label) odpowiednio do domeny tekstu (np. OSOBA, ORGANIZACJA, MIEJSCE, WYDARZENIE lub inne pasujące).
@@ -54,7 +54,11 @@ Bardzo ważne zasady:
    rozgrywki, konferencje), PRODUKT (produkty, dzieła, technologie), POJĘCIE (pozostałe).
    Przykład: {{"label": "KLUB", "type": "ORGANIZACJA", ...}},
    {{"label": "ZAWODNIK", "type": "OSOBA", ...}}, {{"label": "LIGA", "type": "WYDARZENIE", ...}}.
-8. Zwróć TYLKO surowy JSON — bez komentarzy, bez tekstu poza JSON.
+8. Treść jest podzielona na zdania, każde poprzedzone identyfikatorem w nawiasie, np. [S3].
+   Każdy węzeł i każda krawędź MUSI mieć pole "evidence": lista 1-2 identyfikatorów zdań
+   (np. ["S3"]), które najlepiej uzasadniają ten byt lub tę relację. Podawaj wyłącznie
+   identyfikatory istniejące w treści.
+9. Zwróć TYLKO surowy JSON — bez komentarzy, bez tekstu poza JSON.
 
 Tytuł: {title}
 Treść: {content}\

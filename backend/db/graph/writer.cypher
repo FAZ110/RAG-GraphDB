@@ -9,10 +9,13 @@ SET n:$($label),
     n.aliases = coalesce(n.aliases, []) + [a IN $aliases WHERE NOT a IN coalesce(n.aliases, [])]
 WITH n
 MATCH (article:Article {id: $article_id})
-MERGE (article)-[:MENTIONS]->(n)
+MERGE (article)-[m:MENTIONS]->(n)
+SET m.spans = coalesce(m.spans, []) + [s IN $spans WHERE NOT s IN coalesce(m.spans, [])]
 
 // name: merge_relationship
 MATCH (a:Entity {space_id: $space_id, label: $source_label, name: $source_name})
 MATCH (b:Entity {space_id: $space_id, label: $target_label, name: $target_name})
 MERGE (a)-[r:$($type)]->(b)
-SET r.article_ids = coalesce(r.article_ids, []) + [i IN [$article_id] WHERE NOT i IN coalesce(r.article_ids, [])]
+SET r.article_ids = coalesce(r.article_ids, []) + [i IN [$article_id] WHERE NOT i IN coalesce(r.article_ids, [])],
+    // "article_id:start:end", since a relationship property cannot hold a map per article.
+    r.evidence = coalesce(r.evidence, []) + [s IN $spans WHERE NOT s IN coalesce(r.evidence, [])]

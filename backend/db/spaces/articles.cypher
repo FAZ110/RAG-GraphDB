@@ -44,7 +44,8 @@ SET a.status = 'error', a.error = $error
 MATCH (:Article {id: $article_id})-[:MENTIONS]->(:Entity)-[r]-(:Entity)
 WHERE $article_id IN coalesce(r.article_ids, [])
 WITH DISTINCT r
-SET r.article_ids = [i IN r.article_ids WHERE i <> $article_id]
+SET r.article_ids = [i IN r.article_ids WHERE i <> $article_id],
+    r.evidence = [s IN coalesce(r.evidence, []) WHERE NOT s STARTS WITH $article_id + ':']
 WITH r
 WHERE size(r.article_ids) = 0
 DELETE r
@@ -83,10 +84,13 @@ DETACH DELETE a
 // Relationships are this article's when it is among the articles backing them.
 MATCH (a:Article {id: $article_id, space_id: $space_id})
 CALL (a) {
-  OPTIONAL MATCH (a)-[:MENTIONS]->(e:Entity)
-  WITH e
+  OPTIONAL MATCH (a)-[m:MENTIONS]->(e:Entity)
+  WITH e, m
   ORDER BY e.label, e.name
-  RETURN [x IN collect(e) | {name: x.name, label: x.label}] AS entities
+  RETURN collect(CASE WHEN e IS NULL THEN null ELSE {
+           id: e.id, name: e.name, label: e.label,
+           spans: [s IN coalesce(m.spans, []) | [x IN split(s, ':') | toInteger(x)]]
+         } END) AS entities
 }
 CALL (a) {
   OPTIONAL MATCH (a)-[:MENTIONS]->(s:Entity)-[r]->(t:Entity)
@@ -96,7 +100,9 @@ CALL (a) {
   RETURN collect(CASE WHEN r IS NULL THEN null ELSE {
            source: s.name, source_label: s.label,
            type: type(r),
-           target: t.name, target_label: t.label
+           target: t.name, target_label: t.label,
+           spans: [ev IN coalesce(r.evidence, []) WHERE ev STARTS WITH a.id + ':' |
+                   [x IN split(substring(ev, size(a.id) + 1), ':') | toInteger(x)]]
          } END) AS relationships
 }
 RETURN a.id AS id,

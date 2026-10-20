@@ -184,18 +184,24 @@ def _merge_groups(
                 _add_alias(canonical, alias)
             for key, value in m["properties"].items():
                 canonical["properties"].setdefault(key, value)
+            canonical["evidence"] = _union(canonical.get("evidence", []), m.get("evidence", []))
         merged.append(canonical)
 
-    seen: set[tuple[str, str, str]] = set()
-    new_edges: list[dict] = []
+    kept: dict[tuple[str, str, str], dict] = {}
     for e in edges:
         src, tgt = remap[e["source"]], remap[e["target"]]
         key = (src, tgt, e["type"])
-        if src == tgt or key in seen:
+        if src == tgt:
             continue
-        seen.add(key)
-        new_edges.append({**e, "source": src, "target": tgt})
-    return merged, new_edges
+        if key in kept:
+            kept[key]["evidence"] = _union(kept[key]["evidence"], e.get("evidence", []))
+            continue
+        kept[key] = {**e, "source": src, "target": tgt, "evidence": list(e.get("evidence", []))}
+    return merged, list(kept.values())
+
+
+def _union(a: list[str], b: list[str]) -> list[str]:
+    return list(dict.fromkeys([*a, *b]))
 
 
 def resolve_batch(

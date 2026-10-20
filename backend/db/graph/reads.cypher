@@ -55,3 +55,11 @@ RETURN node.id AS id,
        s.name AS space_name,
        score
 ORDER BY score DESC
+
+// name: node_sources
+MATCH (a:Article)-[m:MENTIONS]->(:Entity {space_id: $space_id, id: $node_id})
+WITH a, [s IN coalesce(m.spans, []) | [x IN split(s, ':') | toInteger(x)]] AS spans
+RETURN a.id AS article_id,
+       a.title AS title,
+       [p IN spans | substring(a.content, p[0], p[1] - p[0])] AS quotes
+ORDER BY a.created_at DESC

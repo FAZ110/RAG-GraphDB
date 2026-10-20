@@ -88,9 +88,13 @@ export interface Article {
     batch_id: string | null;
 }
 
+export type Span = [number, number];
+
 export interface MentionedEntity {
+    id: string;
     name: string;
     label: string;
+    spans: Span[];
 }
 
 export interface ArticleRelationship {
@@ -99,6 +103,13 @@ export interface ArticleRelationship {
     type: string;
     target: string;
     target_label: string;
+    spans: Span[];
+}
+
+export interface NodeSource {
+    article_id: string;
+    title: string | null;
+    quotes: string[];
 }
 
 export interface ArticleDetail extends Article {

@@ -1,3 +1,7 @@
+import { useState } from 'react';
+import { useNodeSources } from '../../../hooks/useSpaces';
+import { ArticlePreview } from '../../Spaces/preview/ArticlePreview';
+
 export interface SelectedNode {
   id: string;
   label: string;
@@ -8,13 +12,14 @@ export interface SelectedNode {
 }
 
 interface DetailsPanelProps {
+  spaceId: string;
   node: SelectedNode;
   isPending: boolean;
   onToggleExpand: () => void;
   onClose: () => void;
 }
 
-export function DetailsPanel({ node, isPending, onToggleExpand, onClose }: DetailsPanelProps) {
+export function DetailsPanel({ spaceId, node, isPending, onToggleExpand, onClose }: DetailsPanelProps) {
   const hidden = Math.max(node.degree - node.visibleDegree, 0);
 
   return (
@@ -61,7 +66,69 @@ export function DetailsPanel({ node, isPending, onToggleExpand, onClose }: Detai
               : `${hidden} ukrytych powiązań`}
           </p>
         )}
+
+        <NodeSources spaceId={spaceId} nodeId={node.id} />
       </div>
+    </div>
+  );
+}
+
+function NodeSources({ spaceId, nodeId }: { spaceId: string; nodeId: string }) {
+  const sources = useNodeSources(spaceId, nodeId);
+  // Kept after closing, so the drawer doesn't empty while it slides out.
+  const [articleId, setArticleId] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  const show = (id: string) => {
+    // A drawer can't appear over an element in native fullscreen.
+    if (document.fullscreenElement) void document.exitFullscreen();
+    setArticleId(id);
+    setOpen(true);
+  };
+
+  return (
+    <div className="mt-3 border-t border-gray-100 pt-3">
+      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Źródła</span>
+      {sources.isPending ? (
+        <p className="mt-1 text-xs text-gray-500">Wczytuję…</p>
+      ) : sources.isError ? (
+        <p className="mt-1 text-xs text-red-600">{sources.error.message}</p>
+      ) : sources.data.length === 0 ? (
+        <p className="mt-1 text-xs text-gray-500">Brak artykułów</p>
+      ) : (
+        <ul className="mt-1 max-h-64 space-y-2 overflow-y-auto">
+          {sources.data.map((s) => (
+            <li key={s.article_id} className="rounded-lg bg-gray-50 px-2 py-1.5">
+              <span className="block text-xs font-medium text-gray-900 wrap-break-word">
+                {s.title || 'Bez tytułu'}
+              </span>
+              {s.quotes.length > 0 ? (
+                s.quotes.map((q, i) => (
+                  <q key={i} className="mt-1 block font-serif text-xs text-gray-600 line-clamp-3">
+                    {q}
+                  </q>
+                ))
+              ) : (
+                <span className="mt-1 block text-xs text-gray-400">Bez wskazanego zdania</span>
+              )}
+              <button
+                type="button"
+                onClick={() => show(s.article_id)}
+                className="mt-1.5 inline-block cursor-pointer text-xs font-medium text-slate-700 underline-offset-2 hover:underline"
+              >
+                Pokaż w artykule →
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <ArticlePreview
+        spaceId={spaceId}
+        articleId={articleId}
+        focusId={nodeId}
+        open={open}
+        onOpenChange={setOpen}
+      />
     </div>
   );
 }

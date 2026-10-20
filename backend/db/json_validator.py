@@ -3,12 +3,22 @@ from pydantic import BaseModel, field_validator, model_validator
 ENTITY_TYPES = {"OSOBA", "ORGANIZACJA", "MIEJSCE", "WYDARZENIE", "PRODUKT", "POJĘCIE"}
 
 
+def _ids_as_list(v) -> list[str]:
+    """Sentence ids the LLM cites; a single id or numbers are accepted, anything else dropped."""
+    if isinstance(v, str | int):
+        v = [v]
+    return [str(i) for i in v if isinstance(i, str | int)] if isinstance(v, list) else []
+
+
 class NodeSchema(BaseModel):
     id: str
     label: str
     properties: dict
     aliases: list[str] = []
     type: str | None = None
+    evidence: list[str] = []
+
+    _evidence_as_list = field_validator("evidence", mode="before")(_ids_as_list)
 
     @field_validator("type", mode="before")
     @classmethod
@@ -51,6 +61,9 @@ class EdgeSchema(BaseModel):
     target: str
     type: str
     properties: dict = {}
+    evidence: list[str] = []
+
+    _evidence_as_list = field_validator("evidence", mode="before")(_ids_as_list)
 
 
 class GraphSchema(BaseModel):

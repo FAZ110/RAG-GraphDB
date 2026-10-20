@@ -206,6 +206,7 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
 
         {selected && (
           <DetailsPanel
+            spaceId={spaceId}
             node={selected}
             isPending={pendingId === selected.id}
             onToggleExpand={() => void toggleNode(selected.id)}
