@@ -30,17 +30,24 @@ class Article(BaseModel):
     batch_id: str | None = None
 
 
+Span = tuple[int, int]
+
+
 class MentionedEntity(BaseModel):
+    id: str
     name: str
     label: str
+    spans: list[Span] = []
 
 
 class ArticleRelationship(BaseModel):
+    id: str
     source: str
     source_label: str
     type: str
     target: str
     target_label: str
+    spans: list[Span] = []
 
 
 class ArticleDetail(Article):

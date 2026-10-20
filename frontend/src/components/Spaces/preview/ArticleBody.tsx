@@ -1,9 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ErrorNote } from '@/components/deck'
 import { EASE_DECK, unfold } from '@/design/motion'
 import { cn } from '@/lib/utils'
-import type { ArticleDetail } from '@/types'
+import type { ArticleDetail, Span } from '@/types'
 import { ArticleGraphOutline } from './ArticleGraphOutline'
 import { ArticleGraphToggle } from './ArticleGraphToggle'
 import { ArticleHeader } from './ArticleHeader'
@@ -13,6 +13,7 @@ import { entityMatcher, namesInText } from './entityMatch'
 
 interface Props {
   article: ArticleDetail
+  focusId: string | null
   wide: boolean
   revealed: boolean
   onRevealedChange: (revealed: boolean) => void
@@ -22,21 +23,64 @@ const NONE: ReadonlySet<string> = new Set()
 
 const markSelector = (name: string) => `mark[data-entity="${CSS.escape(name)}"]`
 
-export function ArticleBody({ article, wide, revealed, onRevealedChange }: Props) {
+// The sentences backing what is pointed at: a relationship (both its ends), else the entities;
+// with nothing pointed at, the node or relationship the article was opened for.
+function evidenceFor(
+  article: ArticleDetail,
+  hovered: ReadonlySet<string>,
+  focusId: string | null
+): Span[] {
+  let spans: Span[] = []
+  if (hovered.size === 2) {
+    const [a, b] = [...hovered]
+    const relationship = article.relationships.find(
+      (r) => (r.source === a && r.target === b) || (r.source === b && r.target === a)
+    )
+    spans = relationship?.spans ?? []
+  }
+  if (hovered.size === 0) {
+    spans = article.relationships.find((r) => r.id === focusId)?.spans ?? []
+  }
+  if (spans.length === 0) {
+    spans = article.entities
+      .filter((e) => (hovered.size > 0 ? hovered.has(e.name) : e.id === focusId))
+      .flatMap((e) => e.spans)
+  }
+  const unique = new Map(spans.map((s) => [s.join(':'), s]))
+  return [...unique.values()].sort((x, y) => x[0] - y[0])
+}
+
+export function ArticleBody({ article, focusId, wide, revealed, onRevealedChange }: Props) {
   const [hovered, setHovered] = useState<ReadonlySet<string>>(NONE)
   const outlineWidth = useOutlineWidth()
   const textRef = useRef<HTMLElement>(null)
   const outlineRef = useRef<HTMLDivElement>(null)
 
   const matcher = useMemo(() => entityMatcher(article.entities), [article.entities])
-  const inText = useMemo(() => namesInText(article.content, matcher), [article.content, matcher])
+  const inText = useMemo(() => {
+    const names = namesInText(article.content, matcher)
+    for (const e of article.entities) if (e.spans.length > 0) names.add(e.name)
+    return names
+  }, [article.content, article.entities, matcher])
+
+  const evidence = useMemo(
+    () => evidenceFor(article, hovered, focusId),
+    [article, hovered, focusId]
+  )
 
   const scrollTo = (mark: Element | null | undefined) =>
     mark?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  const firstEvidence = () => textRef.current?.querySelector('mark[data-evidence]')
 
-  // A relationship is shown where the text names both its ends, likely the sentence it came
-  // from; failing that, where it names the source.
+  useEffect(() => {
+    if (focusId) firstEvidence()?.scrollIntoView({ block: 'center' })
+  }, [article.id, focusId])
+
+  // A relationship is shown at its backing sentence; for articles extracted before sentences
+  // were recorded, where the text names both its ends, failing that, where it names the source.
   const showRelationship = (source: string, target: string) => {
+    const backed = firstEvidence()
+    if (backed) return scrollTo(backed)
     const paragraphs = [...(textRef.current?.querySelectorAll('p') ?? [])]
     const both = paragraphs.find(
       (p) => p.querySelector(markSelector(source)) && p.querySelector(markSelector(target))
@@ -56,7 +100,9 @@ export function ArticleBody({ article, wide, revealed, onRevealedChange }: Props
         inText={inText}
         highlighted={hovered}
         onHover={(names) => setHovered(new Set(names))}
-        onSelect={(name) => scrollTo(textRef.current?.querySelector(markSelector(name)))}
+        onSelect={(name) =>
+          scrollTo(firstEvidence() ?? textRef.current?.querySelector(markSelector(name)))
+        }
         onSelectRelationship={showRelationship}
       />
     </div>
@@ -68,6 +114,7 @@ export function ArticleBody({ article, wide, revealed, onRevealedChange }: Props
         content={article.content}
         matcher={revealed ? matcher : null}
         highlighted={hovered}
+        evidence={evidence}
         onHover={(name) => {
           setHovered(name ? new Set([name]) : NONE)
           // Beside the text the outline can follow; above it, scrolling would lose the text.

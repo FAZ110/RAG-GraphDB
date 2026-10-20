@@ -15,6 +15,7 @@ _RESERVED_PROPS = {
     "created_at",
     "description",
     "type",
+    "evidence",
 }
 
 
@@ -65,6 +66,7 @@ def build_statements(
                     "description": node["properties"].get("description") or None,
                     "type": node.get("type"),
                     "embedding": embeddings.get(node["id"]) if embeddings else None,
+                    "spans": node.get("evidence", []),
                 },
             )
         )
@@ -83,6 +85,7 @@ def build_statements(
                     "source_name": src["properties"]["name"],
                     "target_label": tgt["label"],
                     "target_name": tgt["properties"]["name"],
+                    "spans": [f"{article_id}:{s}" for s in edge.get("evidence", [])],
                 },
             )
         )

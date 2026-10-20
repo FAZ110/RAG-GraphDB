@@ -15,11 +15,12 @@ import { ARTICLE_COLUMN } from './articleLayout'
 interface Props {
   spaceId: string
   articleId: string | null
+  focusId?: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-export function ArticlePreview({ spaceId, articleId, open, onOpenChange }: Props) {
+export function ArticlePreview({ spaceId, articleId, focusId = null, open, onOpenChange }: Props) {
   const article = useArticle(spaceId, articleId)
   const data = article.data
   // Tied to the article, so the next one opens folded again.
@@ -48,6 +49,7 @@ export function ArticlePreview({ spaceId, articleId, open, onOpenChange }: Props
         ) : (
           <ArticleBody
             article={data}
+            focusId={focusId}
             wide={wide}
             revealed={revealed}
             onRevealedChange={(open) => setRevealedFor(open ? data.id : null)}

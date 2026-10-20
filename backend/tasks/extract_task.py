@@ -31,6 +31,7 @@ from services.dedup import (
     resolve_batch,
 )
 from services.embedding_service import get_embedding_service
+from services.evidence import mentioning, numbered, split_sentences, to_spans
 from services.jobs.results import push_result
 from services.llm_service import LLMService
 
@@ -134,10 +135,20 @@ def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
     space_id, title, content = article["space_id"], article["title"] or "", article["content"]
     llm = LLMService(provider=provider)
     try:
-        raw_json = llm.generate_graph_json(title, content)
+        sentences = split_sentences(content)
+        raw_json = llm.generate_graph_json(title, numbered(content, sentences))
         graph = validate_graph_json(raw_json)
         nodes_dicts = [n.model_dump() for n in graph.nodes]
         edges_dicts = [e.model_dump() for e in graph.edges]
+        names = {n["id"]: [n["properties"]["name"], *n["aliases"]] for n in nodes_dicts}
+        for node in nodes_dicts:
+            node["evidence"] = to_spans(node["evidence"], content, sentences) or mentioning(
+                content, sentences, names[node["id"]]
+            )
+        for edge in edges_dicts:
+            edge["evidence"] = to_spans(edge["evidence"], content, sentences) or mentioning(
+                content, sentences, names[edge["source"]], names[edge["target"]]
+            )
 
         embedder = get_embedding_service()
         texts = [_embedding_text(n) for n in nodes_dicts]

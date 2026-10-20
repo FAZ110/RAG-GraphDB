@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { GraphCanvas, lightTheme } from 'reagraph';
-import type { GraphCanvasRef, InternalGraphNode } from 'reagraph';
+import type { GraphCanvasRef, InternalGraphEdge, InternalGraphNode } from 'reagraph';
 import { useProgressiveGraph } from './hooks/useProgressiveGraph';
 import { adjacency, isExpanded, visibleDegree } from './utils/graphExpansion';
 import { toReagraphEdges, toReagraphNodes } from './utils/toReagraph';
 import { buildLabelColorMap } from './utils/buildLabelColorMap';
-import { DetailsPanel } from './components/DetailsPanel';
-import type { SelectedNode } from './components/DetailsPanel';
+import { DetailsPanel, EdgeDetailsPanel } from './components/DetailsPanel';
+import type { SelectedEdge, SelectedNode } from './components/DetailsPanel';
 import { Legend } from './components/Legend';
 import type { LoadedEdge, LoadedNode } from '../../types';
 
@@ -44,6 +44,7 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
   } = useProgressiveGraph(spaceId);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const pendingFocusRef = useRef<string | null>(null);
@@ -91,6 +92,7 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
     void focusNode(focusedId).then(() => {
       if (requestId !== focusRequestRef.current) return;
       setSelectedId(focusedId);
+      setSelectedEdgeId(null);
       pendingFocusRef.current = focusedId;
       setFocusTick((tick) => tick + 1);
     });
@@ -130,6 +132,7 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
       const active = document.activeElement as HTMLElement | null;
       if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
       setSelectedId(null);
+      setSelectedEdgeId(null);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -149,6 +152,13 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
     };
   }, [selectedId, shownIds, state, shownEdges]);
 
+  const selectedEdge: SelectedEdge | null = useMemo(() => {
+    const edge = shownEdges.find((e) => e.id === selectedEdgeId);
+    if (!edge) return null;
+    const name = (id: string) => state.nodes.get(id)?.name || id;
+    return { id: edge.id, type: edge.type, source: name(edge.source), target: name(edge.target) };
+  }, [selectedEdgeId, shownEdges, state]);
+
   // A selection takes over the highlight channel: while a node is selected we surface
   // its neighbourhood, and search hits come back once it is deselected.
   const actives = useMemo(() => {
@@ -156,8 +166,15 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
       const { nodeIds, edgeIds } = adjacency(shownEdges, selected.id);
       return [...nodeIds, ...edgeIds];
     }
+    const edge = shownEdges.find((e) => e.id === selectedEdgeId);
+    if (edge) return [edge.source, edge.target, edge.id];
     return highlightedIds.filter((id) => shownIds.has(id));
-  }, [selected, shownEdges, highlightedIds, shownIds]);
+  }, [selected, selectedEdgeId, shownEdges, highlightedIds, shownIds]);
+
+  const selectNode = (id: string | null) => {
+    setSelectedId(id);
+    setSelectedEdgeId(null);
+  };
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -197,19 +214,32 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
           maxDistance={20000}
           draggable
           animated
-          selections={selected ? [selected.id] : []}
+          selections={selected ? [selected.id] : selectedEdge ? [selectedEdge.id] : []}
           actives={actives}
-          onNodeClick={(node: InternalGraphNode) => setSelectedId(node.id)}
+          onNodeClick={(node: InternalGraphNode) => selectNode(node.id)}
           onNodeDoubleClick={(node: InternalGraphNode) => void toggleNode(node.id)}
-          onCanvasClick={() => setSelectedId(null)}
+          onEdgeClick={(edge: InternalGraphEdge) => {
+            setSelectedId(null);
+            setSelectedEdgeId(edge.id);
+          }}
+          onCanvasClick={() => selectNode(null)}
         />
 
         {selected && (
           <DetailsPanel
+            spaceId={spaceId}
             node={selected}
             isPending={pendingId === selected.id}
             onToggleExpand={() => void toggleNode(selected.id)}
             onClose={() => setSelectedId(null)}
+          />
+        )}
+
+        {selectedEdge && (
+          <EdgeDetailsPanel
+            spaceId={spaceId}
+            edge={selectedEdge}
+            onClose={() => setSelectedEdgeId(null)}
           />
         )}
 

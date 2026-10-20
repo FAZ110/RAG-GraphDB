@@ -1,7 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.dependencies import existing_space
-from db.graph.reads import node_neighbours, search_nodes, top_graph
+from db.graph.reads import (
+    edge_sources,
+    node_neighbours,
+    node_sources,
+    search_nodes,
+    top_graph,
+)
 from services.embedding_service import get_embedding_service
 
 router = APIRouter(
@@ -24,6 +30,16 @@ async def get_neighbours(space_id: str, node_id: str, limit: int = Query(25, ge=
     if result is None:
         raise HTTPException(status_code=404, detail="Node not found")
     return result
+
+
+@router.get("/nodes/{node_id}/sources")
+async def get_sources(space_id: str, node_id: str):
+    return await node_sources(space_id, node_id)
+
+
+@router.get("/edges/{edge_id}/sources")
+async def get_edge_sources(space_id: str, edge_id: str):
+    return await edge_sources(space_id, edge_id)
 
 
 @router.get("/search")
