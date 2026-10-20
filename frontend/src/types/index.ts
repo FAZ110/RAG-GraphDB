@@ -98,6 +98,7 @@ export interface MentionedEntity {
 }
 
 export interface ArticleRelationship {
+    id: string;
     source: string;
     source_label: string;
     type: string;

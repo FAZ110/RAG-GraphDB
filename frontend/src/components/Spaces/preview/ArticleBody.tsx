@@ -24,7 +24,7 @@ const NONE: ReadonlySet<string> = new Set()
 const markSelector = (name: string) => `mark[data-entity="${CSS.escape(name)}"]`
 
 // The sentences backing what is pointed at: a relationship (both its ends), else the entities;
-// with nothing pointed at, the node the article was opened for. Sorted for ArticleText.
+// with nothing pointed at, the node or relationship the article was opened for.
 function evidenceFor(
   article: ArticleDetail,
   hovered: ReadonlySet<string>,
@@ -37,6 +37,9 @@ function evidenceFor(
       (r) => (r.source === a && r.target === b) || (r.source === b && r.target === a)
     )
     spans = relationship?.spans ?? []
+  }
+  if (hovered.size === 0) {
+    spans = article.relationships.find((r) => r.id === focusId)?.spans ?? []
   }
   if (spans.length === 0) {
     spans = article.entities

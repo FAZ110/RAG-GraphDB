@@ -41,6 +41,7 @@ class MentionedEntity(BaseModel):
 
 
 class ArticleRelationship(BaseModel):
+    id: str
     source: str
     source_label: str
     type: str

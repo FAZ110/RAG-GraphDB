@@ -5,6 +5,7 @@ import {
   deleteArticles,
   deleteSpace,
   fetchArticle,
+  fetchEdgeSources,
   fetchNodeSources,
   fetchSpaceArticles,
   fetchSpaceStats,
@@ -48,6 +49,13 @@ export function useNodeSources(spaceId: string, nodeId: string) {
   return useQuery({
     queryKey: [...SPACES_QUERY_KEY, spaceId, 'nodes', nodeId, 'sources'],
     queryFn: () => fetchNodeSources(spaceId, nodeId),
+  })
+}
+
+export function useEdgeSources(spaceId: string, edgeId: string) {
+  return useQuery({
+    queryKey: [...SPACES_QUERY_KEY, spaceId, 'edges', edgeId, 'sources'],
+    queryFn: () => fetchEdgeSources(spaceId, edgeId),
   })
 }
 

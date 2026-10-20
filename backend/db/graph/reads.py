@@ -75,6 +75,14 @@ async def node_sources(space_id: str, node_id: str) -> list[dict]:
 
 
 @translates_neo4j_errors
+async def edge_sources(space_id: str, edge_id: str) -> list[dict]:
+    params = {"space_id": space_id, "edge_id": edge_id}
+    async with get_driver().session() as session:
+        res = await session.run(_QUERIES["edge_sources"], params)
+        return [dict(r) async for r in res]
+
+
+@translates_neo4j_errors
 async def search_nodes(space_id: str, vec: list[float], top_k: int) -> list[dict]:
     params = {
         "space_id": space_id,

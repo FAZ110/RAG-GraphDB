@@ -70,6 +70,12 @@ export const fetchNodeSources = async (spaceId: string, nodeId: string): Promise
   return response.json();
 }
 
+export const fetchEdgeSources = async (spaceId: string, edgeId: string): Promise<NodeSource[]> => {
+  const response = await fetch(`${spaceUrl(spaceId)}/graph/edges/${encodeURIComponent(edgeId)}/sources`);
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
 export const fetchSpaces = async (): Promise<Space[]> => {
   const response = await fetch(`${API_URL}/spaces`);
   if (!response.ok) throw new Error(await readError(response));

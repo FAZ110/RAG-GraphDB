@@ -98,6 +98,7 @@ CALL (a) {
   WITH s, r, t
   ORDER BY s.name, type(r), t.name
   RETURN collect(CASE WHEN r IS NULL THEN null ELSE {
+           id: elementId(r),
            source: s.name, source_label: s.label,
            type: type(r),
            target: t.name, target_label: t.label,
