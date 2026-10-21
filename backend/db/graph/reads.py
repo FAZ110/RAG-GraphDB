@@ -20,6 +20,13 @@ def _node(row: Mapping[str, Any]) -> dict:
     }
 
 
+def _source(row: Mapping[str, Any]) -> dict:
+    # Spans count UTF-16 units, as the frontend does; Cypher's substring counts code points.
+    text = row["content"].encode("utf-16-le")
+    quotes = [text[s * 2 : e * 2].decode("utf-16-le") for s, e in row["spans"]]
+    return {"article_id": row["article_id"], "title": row["title"], "quotes": quotes}
+
+
 def _edge(row: Mapping[str, Any]) -> dict:
     return {
         "id": row["edge_id"],
@@ -71,7 +78,7 @@ async def node_sources(space_id: str, node_id: str) -> list[dict]:
     params = {"space_id": space_id, "node_id": node_id}
     async with get_driver().session() as session:
         res = await session.run(_QUERIES["node_sources"], params)
-        return [dict(r) async for r in res]
+        return [_source(r) async for r in res]
 
 
 @translates_neo4j_errors
@@ -79,7 +86,7 @@ async def edge_sources(space_id: str, edge_id: str) -> list[dict]:
     params = {"space_id": space_id, "edge_id": edge_id}
     async with get_driver().session() as session:
         res = await session.run(_QUERIES["edge_sources"], params)
-        return [dict(r) async for r in res]
+        return [_source(r) async for r in res]
 
 
 @translates_neo4j_errors

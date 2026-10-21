@@ -10,7 +10,7 @@ import { typeName } from '../spaceText'
 interface Pointing {
   inText: ReadonlySet<string>
   highlighted: ReadonlySet<string>
-  onHover: (names: string[]) => void
+  onHover: (names: string[], relationshipId?: string) => void
   onSelect: (name: string) => void
   onSelectRelationship: (source: string, target: string) => void
 }
@@ -94,7 +94,7 @@ function EntityBranches({
           return (
             <li
               key={`${r.type}|${r.target_label}|${r.target}`}
-              onMouseEnter={() => onHover([r.source, r.target])}
+              onMouseEnter={() => onHover([r.source, r.target], r.id)}
               className={branch}
             >
               <span className="flex min-w-0 items-center gap-2 text-sm">

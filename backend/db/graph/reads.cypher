@@ -61,7 +61,8 @@ MATCH (a:Article)-[m:MENTIONS]->(:Entity {space_id: $space_id, id: $node_id})
 WITH a, [s IN coalesce(m.spans, []) | [x IN split(s, ':') | toInteger(x)]] AS spans
 RETURN a.id AS article_id,
        a.title AS title,
-       [p IN spans | substring(a.content, p[0], p[1] - p[0])] AS quotes
+       a.content AS content,
+       spans
 ORDER BY a.created_at DESC
 
 // name: edge_sources
@@ -73,5 +74,6 @@ WITH a, [ev IN coalesce(r.evidence, []) WHERE ev STARTS WITH a.id + ':' |
          [x IN split(substring(ev, size(a.id) + 1), ':') | toInteger(x)]] AS spans
 RETURN a.id AS article_id,
        a.title AS title,
-       [p IN spans | substring(a.content, p[0], p[1] - p[0])] AS quotes
+       a.content AS content,
+       spans
 ORDER BY a.created_at DESC

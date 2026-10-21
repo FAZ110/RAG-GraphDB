@@ -23,24 +23,14 @@ const NONE: ReadonlySet<string> = new Set()
 
 const markSelector = (name: string) => `mark[data-entity="${CSS.escape(name)}"]`
 
-// The sentences backing what is pointed at: a relationship (both its ends), else the entities;
-// with nothing pointed at, the node or relationship the article was opened for.
 function evidenceFor(
   article: ArticleDetail,
   hovered: ReadonlySet<string>,
+  hoveredRelationship: string | null,
   focusId: string | null
 ): Span[] {
-  let spans: Span[] = []
-  if (hovered.size === 2) {
-    const [a, b] = [...hovered]
-    const relationship = article.relationships.find(
-      (r) => (r.source === a && r.target === b) || (r.source === b && r.target === a)
-    )
-    spans = relationship?.spans ?? []
-  }
-  if (hovered.size === 0) {
-    spans = article.relationships.find((r) => r.id === focusId)?.spans ?? []
-  }
+  const relationshipId = hoveredRelationship ?? (hovered.size === 0 ? focusId : null)
+  let spans = article.relationships.find((r) => r.id === relationshipId)?.spans ?? []
   if (spans.length === 0) {
     spans = article.entities
       .filter((e) => (hovered.size > 0 ? hovered.has(e.name) : e.id === focusId))
@@ -52,6 +42,7 @@ function evidenceFor(
 
 export function ArticleBody({ article, focusId, wide, revealed, onRevealedChange }: Props) {
   const [hovered, setHovered] = useState<ReadonlySet<string>>(NONE)
+  const [hoveredRelationship, setHoveredRelationship] = useState<string | null>(null)
   const outlineWidth = useOutlineWidth()
   const textRef = useRef<HTMLElement>(null)
   const outlineRef = useRef<HTMLDivElement>(null)
@@ -64,8 +55,8 @@ export function ArticleBody({ article, focusId, wide, revealed, onRevealedChange
   }, [article.content, article.entities, matcher])
 
   const evidence = useMemo(
-    () => evidenceFor(article, hovered, focusId),
-    [article, hovered, focusId]
+    () => evidenceFor(article, hovered, hoveredRelationship, focusId),
+    [article, hovered, hoveredRelationship, focusId]
   )
 
   const scrollTo = (mark: Element | null | undefined) =>
@@ -93,13 +84,22 @@ export function ArticleBody({ article, focusId, wide, revealed, onRevealedChange
   }
 
   const outline = (
-    <div ref={outlineRef} onMouseLeave={() => setHovered(NONE)}>
+    <div
+      ref={outlineRef}
+      onMouseLeave={() => {
+        setHovered(NONE)
+        setHoveredRelationship(null)
+      }}
+    >
       <ArticleGraphOutline
         entities={article.entities}
         relationships={article.relationships}
         inText={inText}
         highlighted={hovered}
-        onHover={(names) => setHovered(new Set(names))}
+        onHover={(names, relationshipId) => {
+          setHovered(new Set(names))
+          setHoveredRelationship(relationshipId ?? null)
+        }}
         onSelect={(name) =>
           scrollTo(firstEvidence() ?? textRef.current?.querySelector(markSelector(name)))
         }
@@ -117,6 +117,7 @@ export function ArticleBody({ article, focusId, wide, revealed, onRevealedChange
         evidence={evidence}
         onHover={(name) => {
           setHovered(name ? new Set([name]) : NONE)
+          setHoveredRelationship(null)
           // Beside the text the outline can follow; above it, scrolling would lose the text.
           if (name && wide) {
             outlineRef.current
