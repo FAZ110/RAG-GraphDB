@@ -1,9 +1,9 @@
 import re
 
 # A sentence ends at . ! ? or … (optionally closed by a quote or bracket) followed by a capital
-# or digit, or at a blank line.
+# or digit, possibly after symbols such as quotes or emoji, or at a blank line.
 _BOUNDARY = re.compile(
-    r"(?:(?<=[.!?…])|(?<=[.!?…][\"”»)]))\s+(?=[\"„«(]?[A-ZĄĆĘŁŃÓŚŹŻ0-9])|\n\s*\n"
+    r"(?:(?<=[.!?…])|(?<=[.!?…][\"”»)]))\s+(?=(?:[^\w\s]+\s*)?[A-ZĄĆĘŁŃÓŚŹŻ0-9])|\n\s*\n"
 )
 # Words whose trailing dot does not end a sentence.
 _ABBREVIATIONS = {
