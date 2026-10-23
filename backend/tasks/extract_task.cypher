@@ -5,6 +5,7 @@ WHERE node.space_id = $space_id
 RETURN node.name AS name,
        node.description AS description,
        node.type AS type,
+       node.aliases AS aliases,
        [l IN labels(node) WHERE l <> 'Entity'][0] AS label,
        score
 ORDER BY score DESC

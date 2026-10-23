@@ -106,6 +106,7 @@ def _find_candidates(session, space_id: str, vec: list[float]) -> list[dict]:
             "label": r["label"],
             "description": r["description"],
             "type": r["type"],
+            "aliases": r["aliases"],
             "score": r["score"],
         }
         for r in res
