@@ -1,4 +1,4 @@
-import type { GraphChunk, LoadedEdge, LoadedNode } from '../../../types';
+import type { ExpansionResponse, GraphChunk, LoadedEdge, LoadedNode } from '../../../types';
 
 export interface GraphState {
   readonly nodes: ReadonlyMap<string, LoadedNode>;
@@ -148,4 +148,90 @@ export function adjacency(
     edgeIds.push(edge.id);
   }
   return { nodeIds: [...nodeIds], edgeIds };
+}
+
+function withDegree(nodes: Map<string, LoadedNode>, id: string, delta: number): void {
+  const node = nodes.get(id);
+  if (node) nodes.set(id, { ...node, degree: Math.max(node.degree + delta, 0) });
+}
+
+/** Adds or replaces a node; a new one is pinned, so it shows up. */
+export function upsertNode(state: GraphState, node: LoadedNode): GraphState {
+  const nodes = new Map(state.nodes);
+  const isNew = !nodes.has(node.id);
+  nodes.set(node.id, node);
+  if (!isNew) return { ...state, nodes };
+  return { ...state, nodes, pinnedIds: new Set(state.pinnedIds).add(node.id) };
+}
+
+export function removeNode(state: GraphState, nodeId: string): GraphState {
+  const nodes = new Map(state.nodes);
+  nodes.delete(nodeId);
+  const edges = new Map(state.edges);
+  for (const [id, edge] of state.edges) {
+    if (edge.source !== nodeId && edge.target !== nodeId) continue;
+    edges.delete(id);
+    withDegree(nodes, edge.source === nodeId ? edge.target : edge.source, -1);
+  }
+  const without = (ids: ReadonlySet<string>) => {
+    const next = new Set(ids);
+    next.delete(nodeId);
+    return next;
+  };
+  return {
+    nodes,
+    edges,
+    seedIds: without(state.seedIds),
+    expandedIds: without(state.expandedIds),
+    pinnedIds: without(state.pinnedIds),
+  };
+}
+
+/** Adds an edge, or swaps `replacedId` for it; both ends are pinned so it shows up. */
+export function upsertEdge(state: GraphState, edge: LoadedEdge, replacedId?: string): GraphState {
+  const nodes = new Map(state.nodes);
+  const edges = new Map(state.edges);
+  if (replacedId) edges.delete(replacedId);
+  if (!replacedId && !edges.has(edge.id)) {
+    withDegree(nodes, edge.source, 1);
+    withDegree(nodes, edge.target, 1);
+  }
+  edges.set(edge.id, edge);
+  const pinnedIds = new Set(state.pinnedIds).add(edge.source).add(edge.target);
+  return { ...state, nodes, edges, pinnedIds };
+}
+
+export function removeEdge(state: GraphState, edgeId: string): GraphState {
+  const edge = state.edges.get(edgeId);
+  if (!edge) return state;
+  const nodes = new Map(state.nodes);
+  const edges = new Map(state.edges);
+  edges.delete(edgeId);
+  withDegree(nodes, edge.source, -1);
+  withDegree(nodes, edge.target, -1);
+  return { ...state, nodes, edges };
+}
+
+/** `mergedId` is gone and the kept node's links were rebuilt, so they come fresh from `kept`. */
+export function applyMerge(state: GraphState, mergedId: string, kept: ExpansionResponse): GraphState {
+  const keepId = kept.root.id;
+  const wasExpanded = state.expandedIds.has(mergedId) || state.expandedIds.has(keepId);
+  const cleared = removeNode(state, mergedId);
+  const edges = new Map(cleared.edges);
+  for (const [id, edge] of cleared.edges) {
+    if (edge.source === keepId || edge.target === keepId) edges.delete(id);
+  }
+  const { nodes: mergedNodes, edges: mergedEdges } = withChunk(
+    { ...cleared, edges },
+    { nodes: [kept.root, ...kept.nodes], edges: kept.edges },
+  );
+  const expandedIds = new Set(cleared.expandedIds);
+  if (wasExpanded) expandedIds.add(keepId);
+  return {
+    nodes: mergedNodes,
+    edges: mergedEdges,
+    seedIds: cleared.seedIds,
+    expandedIds,
+    pinnedIds: new Set(cleared.pinnedIds).add(keepId),
+  };
 }

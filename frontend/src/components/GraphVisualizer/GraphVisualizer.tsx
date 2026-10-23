@@ -5,8 +5,10 @@ import { useProgressiveGraph } from './hooks/useProgressiveGraph';
 import { adjacency, isExpanded, visibleDegree } from './utils/graphExpansion';
 import { toReagraphEdges, toReagraphNodes } from './utils/toReagraph';
 import { buildLabelColorMap } from './utils/buildLabelColorMap';
-import { DetailsPanel, EdgeDetailsPanel } from './components/DetailsPanel';
-import type { SelectedEdge, SelectedNode } from './components/DetailsPanel';
+import { DetailsPanel, EdgeDetailsPanel, PickPanel } from './components/DetailsPanel';
+import type { PickKind, SelectedEdge, SelectedNode } from './components/DetailsPanel';
+import { NodeCreateModal } from './components/EditForms';
+import { useGraphEdits } from './hooks/useGraphEdits';
 import { Legend } from './components/Legend';
 import type { LoadedEdge, LoadedNode } from '../../types';
 
@@ -41,12 +43,17 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
     focusNode,
     prunePins,
     toggleNode,
+    applyEdit,
   } = useProgressiveGraph(spaceId);
+  const edits = useGraphEdits(spaceId, applyEdit);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Merging or linking: the node it started from, then the one clicked on the canvas.
+  const [pick, setPick] = useState<{ kind: PickKind; from: string; to: string | null } | null>(null);
+  const [creating, setCreating] = useState(false);
   const pendingFocusRef = useRef<string | null>(null);
   const [focusTick, setFocusTick] = useState(0);
 
@@ -131,6 +138,7 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
       if (e.key !== 'Escape') return;
       const active = document.activeElement as HTMLElement | null;
       if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+      setPick(null);
       setSelectedId(null);
       setSelectedEdgeId(null);
     };
@@ -149,6 +157,8 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
       degree: node.degree,
       visibleDegree: visibleDegree(shownEdges, node.id),
       expanded: isExpanded(state, node.id),
+      description: (node.properties.description as string | null | undefined) ?? null,
+      aliases: (node.properties.aliases as string[] | undefined) ?? [],
     };
   }, [selectedId, shownIds, state, shownEdges]);
 
@@ -175,6 +185,17 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
     setSelectedId(id);
     setSelectedEdgeId(null);
   };
+
+  const clickNode = (id: string) => {
+    if (pick && !pick.to) {
+      if (id !== pick.from) setPick({ ...pick, to: id });
+      return;
+    }
+    setPick(null);
+    selectNode(id);
+  };
+
+  const nodeRef = (id: string) => ({ id, name: state.nodes.get(id)?.name || id });
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -216,29 +237,73 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
           animated
           selections={selected ? [selected.id] : selectedEdge ? [selectedEdge.id] : []}
           actives={actives}
-          onNodeClick={(node: InternalGraphNode) => selectNode(node.id)}
+          onNodeClick={(node: InternalGraphNode) => clickNode(node.id)}
           onNodeDoubleClick={(node: InternalGraphNode) => void toggleNode(node.id)}
           onEdgeClick={(edge: InternalGraphEdge) => {
+            if (pick) return;
             setSelectedId(null);
             setSelectedEdgeId(edge.id);
           }}
-          onCanvasClick={() => selectNode(null)}
+          onCanvasClick={() => {
+            if (!pick) selectNode(null);
+          }}
         />
 
-        {selected && (
-          <DetailsPanel
-            spaceId={spaceId}
-            node={selected}
-            isPending={pendingId === selected.id}
-            onToggleExpand={() => void toggleNode(selected.id)}
-            onClose={() => setSelectedId(null)}
-          />
+        {pick && !pick.to && (
+          <div className="absolute top-2 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm">
+            <span>
+              Kliknij węzeł, {pick.kind === 'merge' ? 'z którym scalić' : 'z którym powiązać'} „
+              {nodeRef(pick.from).name}”
+            </span>
+            <button
+              onClick={() => setPick(null)}
+              className="cursor-pointer text-xs font-medium text-slate-700 hover:underline"
+            >
+              Anuluj (Esc)
+            </button>
+          </div>
         )}
 
-        {selectedEdge && (
+        {pick?.to ? (
+          <PickPanel
+            kind={pick.kind}
+            from={nodeRef(pick.from)}
+            to={nodeRef(pick.to)}
+            edits={edits}
+            onSwap={() => setPick({ ...pick, from: pick.to!, to: pick.from })}
+            onDone={(id) => {
+              setPick(null);
+              selectNode(id);
+            }}
+            onCancel={() => setPick(null)}
+          />
+        ) : (
+          selected &&
+          !pick && (
+            <DetailsPanel
+              key={selected.id}
+              spaceId={spaceId}
+              node={selected}
+              isPending={pendingId === selected.id}
+              edits={edits}
+              onToggleExpand={() => void toggleNode(selected.id)}
+              onStartPick={(kind) => {
+                edits.merge.reset();
+                edits.addEdge.reset();
+                setPick({ kind, from: selected.id, to: null });
+              }}
+              onClose={() => setSelectedId(null)}
+            />
+          )
+        )}
+
+        {selectedEdge && !pick && (
           <EdgeDetailsPanel
+            key={selectedEdge.id}
             spaceId={spaceId}
             edge={selectedEdge}
+            edits={edits}
+            onReplaced={setSelectedEdgeId}
             onClose={() => setSelectedEdgeId(null)}
           />
         )}
@@ -246,6 +311,41 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
         <div className="absolute bottom-2 left-2 z-10 text-xs text-gray-500 bg-white/90 border border-gray-200 rounded-lg px-2 py-1">
           {nodes.length} z {totalNodes} węzłów · dwuklik rozwija
         </div>
+
+        <button
+          onClick={() => {
+            // The modal opens over the page, which can't show over native fullscreen.
+            if (document.fullscreenElement) void document.exitFullscreen();
+            edits.addNode.reset();
+            setCreating(true);
+          }}
+          className="absolute bottom-2 right-36 z-10 p-1.5 rounded-lg bg-white border border-gray-200 shadow-sm hover:bg-gray-50 text-gray-600"
+        >
+          + Węzeł
+        </button>
+
+        <NodeCreateModal
+          open={creating}
+          onOpenChange={setCreating}
+          spaceId={spaceId}
+          pending={edits.addNode.isPending}
+          error={edits.addNode.error?.message ?? null}
+          onSubmit={(fields) =>
+            edits.addNode.mutate(fields, {
+              onSuccess: (node) => {
+                setCreating(false);
+                setSelectedCategory(null);
+                selectNode(node.id);
+              },
+            })
+          }
+          onShowExisting={(id) => {
+            setCreating(false);
+            setSelectedCategory(null);
+            // Loaded and pinned first, as it may not be on the canvas yet.
+            void focusNode(id).then(() => selectNode(id));
+          }}
+        />
 
         <button
           onClick={toggleFullscreen}
