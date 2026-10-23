@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "start": "docker compose up -d --wait neo4j rabbitmq redis && concurrently -c blue,magenta,green npm:dev:*",
-    "dev:backend": "cd backend && node ../scripts/venv.mjs uvicorn main:app --port 8000 --reload",
+    "dev:backend": "cd backend && node ../scripts/venv.mjs watchfiles --filter python --ignore-paths venv \"uvicorn main:app --port 8000\" .",
     "dev:worker": "cd backend && node ../scripts/venv.mjs watchfiles --filter python --ignore-paths venv \"celery -A celery_app worker --loglevel=info --pool=threads --concurrency=2\" .",
     "dev:frontend": "npm --prefix frontend run dev"
   },
