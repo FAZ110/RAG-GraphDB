@@ -4,6 +4,9 @@ from db.query_loader import load_queries
 
 _QUERIES = load_queries(__file__)
 
+# Held by every writer of a space's graph (extraction and manual edits), per space.
+GRAPH_WRITE_LOCK = "lock:graph-write:{space_id}"
+
 _SAFE_IDENTIFIER = re.compile(r"^\w+$", re.UNICODE)
 # The LLM may return properties with these names; they must not overwrite the graph's own.
 _RESERVED_PROPS = {

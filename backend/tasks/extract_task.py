@@ -18,7 +18,7 @@ from core.config import (
     NEO4J_USER,
     REDIS_URL,
 )
-from db.graph.writer import build_statements
+from db.graph.writer import GRAPH_WRITE_LOCK, build_statements
 from db.json_validator import validate_graph_json
 from db.query_loader import load_queries
 from db.spaces.articles import fail_article, finish_article, release_article, start_article
@@ -30,7 +30,7 @@ from services.dedup import (
     merge_same_key,
     resolve_batch,
 )
-from services.embedding_service import get_embedding_service
+from services.embedding_service import embedding_text, get_embedding_service
 from services.evidence import mentioning, numbered, split_sentences, to_spans
 from services.jobs.results import push_result
 from services.llm_service import LLMService
@@ -113,12 +113,6 @@ def _find_candidates(session, space_id: str, vec: list[float]) -> list[dict]:
     ]
 
 
-def _embedding_text(node: dict) -> str:
-    text = f"{node['label']}: {node['properties'].get('name', '')}"
-    description = str(node["properties"].get("description") or "").strip()
-    return f"{text} — {description}" if description else text
-
-
 def _record_dedup_log(r: redis.Redis, job_id: str, title: str, entries: list[dict]) -> None:
     if not entries:
         return
@@ -152,7 +146,12 @@ def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
             )
 
         embedder = get_embedding_service()
-        texts = [_embedding_text(n) for n in nodes_dicts]
+        texts = [
+            embedding_text(
+                n["label"], n["properties"].get("name", ""), n["properties"].get("description")
+            )
+            for n in nodes_dicts
+        ]
         vectors = embedder.embed_batch(texts)
         embeddings_map = {n["id"]: v for n, v in zip(nodes_dicts, vectors, strict=True)}
 
@@ -170,7 +169,9 @@ def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
         # same entity twice. Spaces don't share entities, so each has its own lock.
         r = redis.from_url(REDIS_URL)
         lock = r.lock(
-            f"lock:graph-write:{space_id}", timeout=_LOCK_TIMEOUT, blocking_timeout=_LOCK_WAIT
+            GRAPH_WRITE_LOCK.format(space_id=space_id),
+            timeout=_LOCK_TIMEOUT,
+            blocking_timeout=_LOCK_WAIT,
         )
         try:
             with lock, driver.session() as session:

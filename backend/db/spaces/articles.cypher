@@ -47,14 +47,18 @@ WITH DISTINCT r
 SET r.article_ids = [i IN r.article_ids WHERE i <> $article_id],
     r.evidence = [s IN coalesce(r.evidence, []) WHERE NOT s STARTS WITH $article_id + ':']
 WITH r
-WHERE size(r.article_ids) = 0
+// Hand-made relationships stay once no article backs them.
+WHERE size(r.article_ids) = 0 AND NOT coalesce(r.manual, false)
 DELETE r
 
 // name: release_article_mentions
 MATCH (:Article {id: $article_id})-[m:MENTIONS]->(e:Entity)
 DELETE m
 WITH DISTINCT e
+// Entities made, edited or linked by hand stay without mentions.
 WHERE NOT (:Article)-[:MENTIONS]->(e)
+  AND NOT coalesce(e.manual, false)
+  AND NOT EXISTS { (e)-[r]-(:Entity) WHERE r.manual }
 DETACH DELETE e
 
 // name: list_articles

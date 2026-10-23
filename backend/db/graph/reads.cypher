@@ -77,3 +77,16 @@ RETURN a.id AS article_id,
        a.content AS content,
        spans
 ORDER BY a.created_at DESC
+
+// name: nearest_entities
+// Nearest entities of the space to a vector; names are compared in Python.
+CALL db.index.vector.queryNodes('entity_embeddings', $search_k, $vec)
+YIELD node, score
+WHERE node.space_id = $space_id
+RETURN node.id AS id,
+       node.name AS name,
+       node.label AS label,
+       coalesce(node.aliases, []) AS aliases,
+       score
+ORDER BY score DESC
+LIMIT $search_top

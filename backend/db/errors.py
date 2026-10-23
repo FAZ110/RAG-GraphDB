@@ -13,3 +13,7 @@ class GraphDatabaseError(RuntimeError):
 
 class SpaceNameTakenError(ValueError):
     """Another space already uses this name (`space_name` constraint)."""
+
+
+class EntityKeyTakenError(ValueError):
+    """Another entity of the space already has this label and name (`entity_key` constraint)."""
