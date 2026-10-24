@@ -55,7 +55,7 @@ def extract_article_task(
         if exc.response is not None:
             retry_after = int(float(exc.response.headers.get("retry-after", 60)))
         try:
-            raise self.retry(exc=exc, countdown=retry_after) from exc
+            raise self.retry(countdown=retry_after) from exc
         except MaxRetriesExceededError:
             result = _error_result(article_id, title, "Rate limit exceeded - too much retries")
 
