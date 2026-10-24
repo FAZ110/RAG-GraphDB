@@ -1,12 +1,16 @@
 from collections.abc import Mapping
 from typing import Any
 
+from core.config import DEDUP_LEXICAL_MIN
 from db.driver import get_driver, translates_neo4j_errors
 from db.query_loader import load_queries
+from services.dedup import name_similarity, normalize_name
 
 _QUERIES = load_queries(__file__)
 _SEARCH_K_FACTOR = 20
 _HIDDEN_PROPS = {"embedding", "space_id"}
+# How many nearest entities are checked for a duplicate by name.
+_DUPLICATE_POOL = 20
 
 
 def _node(row: Mapping[str, Any]) -> dict:
@@ -110,3 +114,30 @@ async def search_all_spaces(vec: list[float], top_k: int) -> list[dict]:
     async with get_driver().session() as session:
         res = await session.run(_QUERIES["search_all"], {"vec": vec, "top_k": top_k})
         return [dict(r) async for r in res]
+
+
+@translates_neo4j_errors
+async def existing_like(
+    space_id: str, vec: list[float], label: str, names: list[str], top_k: int
+) -> list[dict]:
+    """Entities a new one with this embedding, label and names would likely duplicate:
+    one with the same name, or of the same label named alike as auto-dedup requires.
+    The label stands in for dedup's type check, which keeps a club apart from its matches."""
+    params = {
+        "space_id": space_id,
+        "vec": vec,
+        "search_top": _DUPLICATE_POOL,
+        "search_k": _DUPLICATE_POOL * _SEARCH_K_FACTOR,
+    }
+    async with get_driver().session() as session:
+        rows = [r async for r in await session.run(_QUERIES["nearest_entities"], params)]
+
+    own = {normalize_name(n) for n in names}
+    hits = []
+    for r in rows:
+        theirs = [r["name"], *r["aliases"]]
+        same_name = any(normalize_name(t) in own for t in theirs)
+        alike = max(name_similarity(a, b) for a in names for b in theirs) >= DEDUP_LEXICAL_MIN
+        if same_name or (alike and r["label"] == label):
+            hits.append({k: r[k] for k in ("id", "name", "label", "score")})
+    return hits[:top_k]

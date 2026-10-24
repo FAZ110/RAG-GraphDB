@@ -99,8 +99,10 @@ def _match_reason(
     cfg: MatchConfig,
     a_type: str | None = None,
     b_type: str | None = None,
+    b_aliases: list[str] | None = None,
 ) -> str | None:
-    if normalize_name(a_name) == normalize_name(b_name):
+    # An alias counts as a name, so an entity merged by hand isn't recreated on re-extraction.
+    if normalize_name(a_name) in {normalize_name(n) for n in [b_name, *(b_aliases or [])]}:
         return "name" if score >= cfg.name_min_score else None
     # Keeps "Udinese" out of "Mecz Juventus – Udinese"; entities without a type don't block.
     if a_type and b_type and a_type != b_type:
@@ -254,7 +256,13 @@ def match_existing(
             if not cand["label"]:
                 continue
             reason = _match_reason(
-                name, cand["name"], cand["score"], cfg, node.get("type"), cand.get("type")
+                name,
+                cand["name"],
+                cand["score"],
+                cfg,
+                node.get("type"),
+                cand.get("type"),
+                cand.get("aliases"),
             )
             if reason:
                 if log is not None and (cand["name"], cand["label"]) != (name, node["label"]):

@@ -43,3 +43,10 @@ def get_embedding_service() -> EmbeddingService:
     if _service is None:
         _service = EmbeddingService(provider=EMBEDDING_PROVIDER)
     return _service
+
+
+def embedding_text(label: str, name: str, description: str | None) -> str:
+    """What an entity's embedding is made from, for extraction and manual edits alike."""
+    text = f"{label}: {name}"
+    description = str(description or "").strip()
+    return f"{text} — {description}" if description else text

@@ -4,6 +4,16 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { useEdgeSources, useNodeSources } from '../../../hooks/useSpaces';
 import type { NodeSource } from '../../../types';
 import { ArticlePreview } from '../../Spaces/preview/ArticlePreview';
+import { Button, ConfirmDialog, ErrorNote } from '../../deck';
+import type { GraphEdits } from '../hooks/useGraphEdits';
+import { EdgeTypeForm, NodeForm } from './EditForms';
+
+export type PickKind = 'merge' | 'link';
+
+// Dialogs open over the page, which can't show over an element in native fullscreen.
+const leaveFullscreen = () => {
+  if (document.fullscreenElement) void document.exitFullscreen();
+};
 
 export interface SelectedNode {
   id: string;
@@ -12,13 +22,17 @@ export interface SelectedNode {
   degree: number;
   visibleDegree: number;
   expanded: boolean;
+  description: string | null;
+  aliases: string[];
 }
 
 interface DetailsPanelProps {
   spaceId: string;
   node: SelectedNode;
   isPending: boolean;
+  edits: GraphEdits;
   onToggleExpand: () => void;
+  onStartPick: (kind: PickKind) => void;
   onClose: () => void;
 }
 
@@ -31,7 +45,8 @@ export interface SelectedEdge {
 
 function Panel({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
-    <div className="absolute top-2 right-2 z-10 w-64 bg-white border border-gray-200 rounded-xl shadow-lg p-4 transition-all">
+    // Stops above the "+ Węzeł" and fullscreen buttons pinned to the canvas bottom.
+    <div className="absolute top-2 right-2 z-10 w-64 max-h-[calc(100%-4rem)] overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg p-4 transition-all">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</span>
         <button
@@ -46,33 +61,215 @@ function Panel({ title, onClose, children }: { title: string; onClose: () => voi
   );
 }
 
+function DeleteControl({
+  title,
+  description,
+  mutation,
+  onDelete,
+}: {
+  title: string;
+  description: string;
+  mutation: { isPending: boolean; error: Error | null; reset: () => void };
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button
+        variant="danger-outline"
+        size="sm"
+        onClick={() => {
+          leaveFullscreen();
+          mutation.reset();
+          setOpen(true);
+        }}
+      >
+        Usuń
+      </Button>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={title}
+        description={description}
+        error={mutation.error?.message}
+        confirmLabel="Usuń"
+        pending={mutation.isPending}
+        onConfirm={onDelete}
+      />
+    </>
+  );
+}
+
 export function EdgeDetailsPanel({
   spaceId,
   edge,
+  edits,
+  onReplaced,
   onClose,
 }: {
   spaceId: string;
   edge: SelectedEdge;
+  edits: GraphEdits;
+  onReplaced: (edgeId: string) => void;
   onClose: () => void;
 }) {
   const sources = useEdgeSources(spaceId, edge.id);
+  const [editing, setEditing] = useState(false);
+  const ends = `${edge.source} → ${edge.target}`;
 
   return (
     <Panel title="Powiązanie" onClose={onClose}>
-      <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
-        {edge.type}
-      </span>
-      <p className="text-sm font-semibold text-gray-900 wrap-break-word">
-        {edge.source} → {edge.target}
-      </p>
+      {editing ? (
+        <EdgeTypeForm
+          initial={edge.type}
+          pending={edits.editEdge.isPending}
+          error={edits.editEdge.error?.message ?? null}
+          submitLabel="Zapisz"
+          onSubmit={(type) =>
+            // A new type means a new relationship, so the selection follows its new id.
+            edits.editEdge.mutate({ id: edge.id, type }, { onSuccess: (next) => onReplaced(next.id) })
+          }
+          onCancel={() => setEditing(false)}
+        />
+      ) : (
+        <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+          {edge.type}
+        </span>
+      )}
+      <p className="text-sm font-semibold text-gray-900 wrap-break-word">{ends}</p>
+      {!editing && (
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              edits.editEdge.reset();
+              setEditing(true);
+            }}
+          >
+            Zmień typ
+          </Button>
+          <DeleteControl
+            title="Usunąć powiązanie?"
+            description={`„${ends}” (${edge.type}) zniknie z grafu. Tego nie da się cofnąć.`}
+            mutation={edits.removeEdge}
+            onDelete={() => edits.removeEdge.mutate(edge.id, { onSuccess: onClose })}
+          />
+        </div>
+      )}
       <Sources spaceId={spaceId} focusId={edge.id} sources={sources} />
     </Panel>
   );
 }
 
-export function DetailsPanel({ spaceId, node, isPending, onToggleExpand, onClose }: DetailsPanelProps) {
+/** Confirms merging or linking the node picked on the canvas with the one it started from. */
+export function PickPanel({
+  kind,
+  from,
+  to,
+  edits,
+  onSwap,
+  onDone,
+  onCancel,
+}: {
+  kind: PickKind;
+  from: { id: string; name: string };
+  to: { id: string; name: string };
+  edits: GraphEdits;
+  onSwap: () => void;
+  onDone: (selectId: string) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Panel title={kind === 'merge' ? 'Scalanie' : 'Nowe powiązanie'} onClose={onCancel}>
+      <p className="text-sm text-gray-900 wrap-break-word">
+        <span className="font-semibold">{from.name}</span>
+        {kind === 'merge' ? ' zostanie włączony w ' : ' → '}
+        <span className="font-semibold">{to.name}</span>
+      </p>
+      <Button variant="ghost" size="sm" className="px-0" onClick={onSwap}>
+        ⇄ Zamień kierunek
+      </Button>
+      {kind === 'merge' ? (
+        <>
+          <p className="text-xs text-gray-500">
+            Wzmianki, powiązania i aliasy przejdą do „{to.name}”, a „{from.name}” zostanie jego
+            aliasem i zniknie z grafu.
+          </p>
+          {edits.merge.error && <ErrorNote>{edits.merge.error.message}</ErrorNote>}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="secondary" size="sm" onClick={onCancel}>
+              Anuluj
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={edits.merge.isPending}
+              onClick={() =>
+                edits.merge.mutate(
+                  { keepId: to.id, mergeId: from.id },
+                  { onSuccess: () => onDone(to.id) },
+                )
+              }
+            >
+              {edits.merge.isPending ? 'Scalam…' : 'Scal'}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <EdgeTypeForm
+          initial=""
+          pending={edits.addEdge.isPending}
+          error={edits.addEdge.error?.message ?? null}
+          submitLabel="Dodaj"
+          onSubmit={(type) =>
+            edits.addEdge.mutate(
+              { source: from.id, target: to.id, type },
+              { onSuccess: () => onDone(from.id) },
+            )
+          }
+          onCancel={onCancel}
+        />
+      )}
+    </Panel>
+  );
+}
+
+export function DetailsPanel({
+  spaceId,
+  node,
+  isPending,
+  edits,
+  onToggleExpand,
+  onStartPick,
+  onClose,
+}: DetailsPanelProps) {
   const hidden = Math.max(node.degree - node.visibleDegree, 0);
   const sources = useNodeSources(spaceId, node.id);
+  const [editing, setEditing] = useState(false);
+
+  if (editing) {
+    return (
+      <Panel title="Edycja węzła" onClose={() => setEditing(false)}>
+        <NodeForm
+          initial={{
+            name: node.label,
+            label: node.category,
+            description: node.description,
+            aliases: node.aliases,
+          }}
+          spaceId={spaceId}
+          pending={edits.editNode.isPending}
+          error={edits.editNode.error?.message ?? null}
+          submitLabel="Zapisz"
+          onSubmit={(fields) =>
+            edits.editNode.mutate({ id: node.id, fields }, { onSuccess: () => setEditing(false) })
+          }
+          onCancel={() => setEditing(false)}
+        />
+      </Panel>
+    );
+  }
 
   return (
     <Panel title="Węzeł" onClose={onClose}>
@@ -80,6 +277,10 @@ export function DetailsPanel({ spaceId, node, isPending, onToggleExpand, onClose
         {node.category}
       </span>
       <p className="text-sm font-semibold text-gray-900 wrap-break-word">{node.label}</p>
+      {node.description && <p className="text-xs text-gray-600 line-clamp-4">{node.description}</p>}
+      {node.aliases.length > 0 && (
+        <p className="text-xs text-gray-500 wrap-break-word">Aliasy: {node.aliases.join(', ')}</p>
+      )}
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600">
         <div className="bg-gray-50 rounded-lg px-2 py-1.5 text-center">
@@ -99,6 +300,31 @@ export function DetailsPanel({ spaceId, node, isPending, onToggleExpand, onClose
       >
         {isPending ? 'Wczytuję...' : node.expanded ? 'Zwiń' : 'Rozwiń'}
       </button>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            edits.editNode.reset();
+            setEditing(true);
+          }}
+        >
+          Edytuj
+        </Button>
+        <DeleteControl
+          title="Usunąć węzeł?"
+          description={`„${node.label}” zniknie z grafu razem ze swoimi powiązaniami. Tego nie da się cofnąć.`}
+          mutation={edits.removeNode}
+          onDelete={() => edits.removeNode.mutate(node.id, { onSuccess: onClose })}
+        />
+        <Button variant="secondary" size="sm" onClick={() => onStartPick('merge')}>
+          Scal z…
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => onStartPick('link')}>
+          Powiąż z…
+        </Button>
+      </div>
 
       {hidden > 0 && (
         <p className="text-xs text-gray-500 text-center">

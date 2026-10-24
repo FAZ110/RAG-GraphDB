@@ -61,6 +61,13 @@ export interface ExpansionResponse extends GraphChunk {
     root: LoadedNode;
 }
 
+export interface NodeFields {
+    name: string;
+    label: string;
+    description?: string | null;
+    aliases?: string[];
+}
+
 export interface Space {
     id: string;
     name: string;

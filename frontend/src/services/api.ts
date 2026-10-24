@@ -1,11 +1,14 @@
-import type { BulkExtractRequest, ExpansionResponse, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource } from '../types';
+import type { BulkExtractRequest, ExpansionResponse, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
 
 const readError = async (response: Response): Promise<string> => {
   const body: unknown = await response.json().catch(() => null);
   const detail = (body as { detail?: unknown } | null)?.detail;
-  return typeof detail === 'string' ? detail : `Server error: ${response.status}`;
+  if (typeof detail === 'string') return detail;
+  // FastAPI's validation errors come as a list.
+  const first = Array.isArray(detail) ? (detail[0] as { msg?: unknown } | undefined)?.msg : undefined;
+  return typeof first === 'string' ? first : `Server error: ${response.status}`;
 }
 
 const spaceUrl = (spaceId: string) => `${API_URL}/spaces/${encodeURIComponent(spaceId)}`;
@@ -75,6 +78,52 @@ export const fetchEdgeSources = async (spaceId: string, edgeId: string): Promise
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
+
+const sendJson = async <T>(url: string, method: string, body?: unknown): Promise<T> => {
+  const response = await fetch(url, {
+    method,
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(await readError(response));
+  return response.status === 204 ? (undefined as T) : response.json();
+}
+
+const graphUrl = (spaceId: string, path: string) => `${spaceUrl(spaceId)}/graph/${path}`;
+
+export const createNode = (spaceId: string, fields: NodeFields) =>
+  sendJson<LoadedNode>(graphUrl(spaceId, 'nodes'), 'POST', fields);
+
+/** Existing nodes the one about to be created would likely duplicate. */
+export const findExistingLike = (spaceId: string, fields: NodeFields) =>
+  sendJson<SimilarNode[]>(graphUrl(spaceId, 'nodes/similar'), 'POST', fields);
+
+export const updateNode = (spaceId: string, nodeId: string, fields: Partial<NodeFields>) =>
+  sendJson<LoadedNode>(graphUrl(spaceId, `nodes/${encodeURIComponent(nodeId)}`), 'PATCH', fields);
+
+export const deleteNode = (spaceId: string, nodeId: string) =>
+  sendJson<void>(graphUrl(spaceId, `nodes/${encodeURIComponent(nodeId)}`), 'DELETE');
+
+/** Folds `mergeId` into `keepId`; returns the kept node with its neighbours. */
+export const mergeNodes = (spaceId: string, keepId: string, mergeId: string) =>
+  sendJson<ExpansionResponse>(graphUrl(spaceId, 'nodes/merge'), 'POST', {
+    keep_id: keepId,
+    merge_id: mergeId,
+  });
+
+export const createEdge = (spaceId: string, sourceId: string, targetId: string, type: string) =>
+  sendJson<LoadedEdge>(graphUrl(spaceId, 'edges'), 'POST', {
+    source_id: sourceId,
+    target_id: targetId,
+    type,
+  });
+
+/** A relationship's type can't change in place, so the edge comes back with a new id. */
+export const updateEdge = (spaceId: string, edgeId: string, type: string) =>
+  sendJson<LoadedEdge>(graphUrl(spaceId, `edges/${encodeURIComponent(edgeId)}`), 'PATCH', { type });
+
+export const deleteEdge = (spaceId: string, edgeId: string) =>
+  sendJson<void>(graphUrl(spaceId, `edges/${encodeURIComponent(edgeId)}`), 'DELETE');
 
 export const fetchSpaces = async (): Promise<Space[]> => {
   const response = await fetch(`${API_URL}/spaces`);

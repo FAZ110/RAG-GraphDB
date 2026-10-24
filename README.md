@@ -9,7 +9,7 @@ npm start
 
 Starts Neo4j, RabbitMQ and Redis in Docker, then runs locally with hot reload:
 
-- backend (uvicorn `--reload`) on http://localhost:8000
+- backend (uvicorn, restarted by `watchfiles` on `.py` changes; uvicorn's own `--reload` sends Ctrl+C to the whole console on Windows and would stop everything) on http://localhost:8000
 - Celery worker (restarted by `watchfiles` on `.py` changes)
 - frontend (Vite HMR) on http://localhost:5173
 

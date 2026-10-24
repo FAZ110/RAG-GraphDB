@@ -5,6 +5,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Tailwind's preflight resets buttons to the default cursor; in the base layer, so utilities still win. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
+
 /* Screens with room for the map beside a space's header. */
 @custom-variant beside-map (@media (min-width: 88rem) and (min-height: 50rem));
 

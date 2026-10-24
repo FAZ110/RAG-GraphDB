@@ -136,6 +136,21 @@ export function useProgressiveGraph(spaceId: string) {
     },
     [state, collapse, expandNode],
   );
+  /** Applies a manual edit already saved on the server. `refetch` lists nodes whose
+   * neighbours changed, so expanding them loads again. */
+  const applyEdit = useCallback(
+    (update: (prev: GraphState) => GraphState, totalDelta = 0, refetch: string[] = []) => {
+      for (const id of refetch) fetchedIds.current.delete(id);
+      setState((prev) => {
+        const next = update(prev);
+        for (const id of next.nodes.keys()) knownIds.current.add(id);
+        return next;
+      });
+      setTotalNodes((total) => total + totalDelta);
+    },
+    [],
+  );
+
   const { nodes, edges } = useMemo(() => visibleGraph(state), [state]);
 
   return {
@@ -151,5 +166,6 @@ export function useProgressiveGraph(spaceId: string) {
     prunePins,
     collapse,
     toggleNode,
+    applyEdit,
   };
 }
