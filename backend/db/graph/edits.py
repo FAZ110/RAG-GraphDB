@@ -212,3 +212,16 @@ async def delete_relationship(space_id: str, edge_id: str) -> bool:
         return row["deleted"] > 0
 
     return await _write(space_id, work)
+
+
+@translates_neo4j_errors
+async def reject_suggestion(space_id: str, suggestion_id: str) -> bool:
+    """Mark a suggested pair as different entities, so it is not suggested again.
+    No graph lock: suggestions are not part of the graph."""
+
+    async def work(tx: AsyncManagedTransaction) -> bool:
+        params = {"space_id": space_id, "suggestion_id": suggestion_id}
+        return (await _single(tx, "reject_suggestion", params))["rejected"] > 0
+
+    async with get_driver().session() as session:
+        return await session.execute_write(work)

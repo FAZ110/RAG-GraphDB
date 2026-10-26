@@ -11,7 +11,11 @@ from db.query_loader import load_queries
 
 _QUERIES = load_queries(__file__)
 # Batched, so clearing a large space is not one huge transaction.
-_CLEAR_SPACE_STEPS = ("delete_space_articles", "delete_space_entities")
+_CLEAR_SPACE_STEPS = (
+    "delete_space_articles",
+    "delete_space_entities",
+    "delete_space_suggestions",
+)
 
 
 def _space_from_row(row: Mapping[str, Any]) -> dict:

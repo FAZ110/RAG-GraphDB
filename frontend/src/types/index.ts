@@ -41,6 +41,13 @@ export interface LoadedNode {
     properties: Record<string, unknown>;
 }
 
+export interface DuplicateSuggestion {
+    id: string;
+    score: number;
+    lexical: number;
+    nodes: [LoadedNode, LoadedNode];
+}
+
 export interface LoadedEdge {
     id: string;
     source: string;

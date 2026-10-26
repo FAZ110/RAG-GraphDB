@@ -8,10 +8,12 @@ from db.graph.edits import (
     delete_entity,
     delete_relationship,
     merge_entities,
+    reject_suggestion,
     update_entity,
     update_relationship,
 )
 from db.graph.reads import (
+    duplicate_suggestions,
     edge_sources,
     existing_like,
     node_neighbours,
@@ -92,6 +94,18 @@ async def post_similar(space_id: str, body: EntityCreate):
     """Existing entities the node about to be created would likely duplicate."""
     vec = get_embedding_service().embed(embedding_text(body.label, body.name, body.description))
     return await existing_like(space_id, vec, body.label, [body.name, *body.aliases], 3)
+
+
+@router.get("/duplicates")
+async def get_duplicates(space_id: str):
+    return await duplicate_suggestions(space_id)
+
+
+@router.post("/duplicates/{suggestion_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
+async def post_reject_duplicate(space_id: str, suggestion_id: str):
+    if not await reject_suggestion(space_id, suggestion_id):
+        raise _not_found("Suggestion")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/nodes/merge")

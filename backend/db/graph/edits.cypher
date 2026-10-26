@@ -90,3 +90,8 @@ MATCH (:Entity {space_id: $space_id})-[r]->(:Entity)
 WHERE elementId(r) = $edge_id
 DELETE r
 RETURN count(*) AS deleted
+
+// name: reject_suggestion
+MATCH (s:DuplicateSuggestion {space_id: $space_id, id: $suggestion_id})
+SET s.rejected = true
+RETURN count(*) AS rejected

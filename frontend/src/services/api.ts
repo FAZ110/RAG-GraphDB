@@ -1,4 +1,4 @@
-import type { BulkExtractRequest, ExpansionResponse, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
+import type { BulkExtractRequest, DuplicateSuggestion, ExpansionResponse, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
 
@@ -110,6 +110,12 @@ export const mergeNodes = (spaceId: string, keepId: string, mergeId: string) =>
     keep_id: keepId,
     merge_id: mergeId,
   });
+
+export const fetchDuplicates = (spaceId: string) =>
+  sendJson<DuplicateSuggestion[]>(graphUrl(spaceId, 'duplicates'), 'GET');
+
+export const rejectDuplicate = (spaceId: string, suggestionId: string) =>
+  sendJson<void>(graphUrl(spaceId, `duplicates/${encodeURIComponent(suggestionId)}/reject`), 'POST');
 
 export const createEdge = (spaceId: string, sourceId: string, targetId: string, type: string) =>
   sendJson<LoadedEdge>(graphUrl(spaceId, 'edges'), 'POST', {

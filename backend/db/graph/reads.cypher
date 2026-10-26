@@ -90,3 +90,17 @@ RETURN node.id AS id,
        score
 ORDER BY score DESC
 LIMIT $search_top
+
+// name: duplicate_suggestions
+// A pair whose entity was since merged, renamed or deleted no longer matches and is skipped.
+// The thresholds apply again here, so suggestions saved under looser ones drop out.
+MATCH (s:DuplicateSuggestion {space_id: $space_id, rejected: false})
+WHERE s.score >= $score_min AND (s.lexical >= $lexical_min OR s.score >= $any_name_min)
+MATCH (a:Entity {space_id: $space_id, label: s.a_label, name: s.a_name})
+MATCH (b:Entity {space_id: $space_id, label: s.b_label, name: s.b_name})
+RETURN s.id AS id,
+       s.score AS score,
+       s.lexical AS lexical,
+       a.id AS a_id, a.label AS a_label, properties(a) AS a_props, COUNT { (a)--(:Entity) } AS a_degree,
+       b.id AS b_id, b.label AS b_label, properties(b) AS b_props, COUNT { (b)--(:Entity) } AS b_degree
+ORDER BY s.score DESC

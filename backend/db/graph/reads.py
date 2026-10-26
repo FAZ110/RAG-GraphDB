@@ -1,7 +1,12 @@
 from collections.abc import Mapping
 from typing import Any
 
-from core.config import DEDUP_LEXICAL_MIN
+from core.config import (
+    DEDUP_LEXICAL_MIN,
+    DEDUP_SUGGEST_ANY_NAME_MIN,
+    DEDUP_SUGGEST_LEXICAL_MIN,
+    DEDUP_SUGGEST_MIN,
+)
 from db.driver import get_driver, translates_neo4j_errors
 from db.query_loader import load_queries
 from services.dedup import name_similarity, normalize_name
@@ -141,3 +146,28 @@ async def existing_like(
         if same_name or (alike and r["label"] == label):
             hits.append({k: r[k] for k in ("id", "name", "label", "score")})
     return hits[:top_k]
+
+
+@translates_neo4j_errors
+async def duplicate_suggestions(space_id: str) -> list[dict]:
+    """Pairs extraction found alike but not alike enough to merge on its own."""
+    async with get_driver().session() as session:
+        params = {
+            "space_id": space_id,
+            "score_min": DEDUP_SUGGEST_MIN,
+            "lexical_min": DEDUP_SUGGEST_LEXICAL_MIN,
+            "any_name_min": DEDUP_SUGGEST_ANY_NAME_MIN,
+        }
+        res = await session.run(_QUERIES["duplicate_suggestions"], params)
+        return [
+            {
+                "id": r["id"],
+                "score": r["score"],
+                "lexical": r["lexical"],
+                "nodes": [
+                    _node({k: r[f"{side}_{k}"] for k in ("id", "label", "props", "degree")})
+                    for side in ("a", "b")
+                ],
+            }
+            async for r in res
+        ]
