@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { SearchIcon, XIcon } from 'lucide-react'
 import { IconButton, SearchField, SearchFieldButton } from '@/components/deck'
-import { EASE_DECK } from '@/design/motion'
+import { fade, leave, move } from '@/design/motion'
 
 interface Props {
   query: string
@@ -21,24 +21,23 @@ export function ArticleSearch({ query, onQueryChange, open, onOpenChange, status
     <AnimatePresence mode="popLayout" initial={false}>
       {open ? (
         // popLayout measures its child through a ref, which SearchField hands to the input.
-        <motion.div key="field" className="flex min-w-0">
+        <motion.div key="field" className="flex min-w-36 flex-1 justify-end">
           <SearchField
             size="md"
             // A fixed width rather than `auto`: the field is a size container, which has no
             // width of its own content, so it unfolds by its max width instead.
             frame={{
               initial: { maxWidth: 40, opacity: 0 },
-              animate: { maxWidth: 400, opacity: 1 },
-              exit: { maxWidth: 40, opacity: 0 },
-              transition: { duration: 0.2, ease: EASE_DECK },
+              animate: { maxWidth: 320, opacity: 1, transition: move.base },
+              exit: { maxWidth: 40, opacity: 0, transition: leave.base },
             }}
-            className="w-80 overflow-hidden border-fg"
+            className="w-full min-w-0 overflow-hidden border-fg"
             autoFocus
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Escape' && close()}
             onBlur={() => !query && onOpenChange(false)}
-            placeholder="Szukaj artykułu"
+            placeholder="Szukaj"
             aria-label="Szukaj artykułu"
             status={query ? status : undefined}
             action={
@@ -49,12 +48,7 @@ export function ArticleSearch({ query, onQueryChange, open, onOpenChange, status
           />
         </motion.div>
       ) : (
-        <motion.div
-          key="icon"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
+        <motion.div key="icon" {...fade}>
           <IconButton size="icon-lg" label="Szukaj artykułu" onClick={() => onOpenChange(true)}>
             <SearchIcon />
           </IconButton>

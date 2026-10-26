@@ -1,7 +1,7 @@
 import { XIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { IconButton } from '@/components/deck'
-import { EASE_DECK } from '@/design/motion'
+import { leave, move, staggerDelay } from '@/design/motion'
 import { cn } from '@/lib/utils'
 import { sourceHost } from '../articles/articleSource'
 import type { UploadItem } from './parseUpload'
@@ -32,9 +32,9 @@ export function UploadPreview({ items, known, onRemove }: Props) {
               key={item.key}
               layout="position"
               initial={{ opacity: 0, x: 16 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -16, transition: { duration: 0.15 } }}
-              transition={{ duration: 0.25, ease: EASE_DECK, delay: Math.min(i, 6) * 0.04 }}
+              animate={{ opacity: 1, x: 0, transition: { ...move.base, delay: staggerDelay(i) } }}
+              exit={{ opacity: 0, x: -16, transition: leave.quick }}
+              transition={move.base}
               className="flex items-center gap-3 py-2.5 pr-2 pl-4"
             >
               <div className="min-w-0 flex-1">

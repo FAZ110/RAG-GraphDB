@@ -6,7 +6,7 @@ export function BatchSummary({ batch }: { batch: Batch }) {
   const done = batch.ok + batch.error
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line-soft bg-surface-sunken px-4 py-3 text-sm">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-surface px-4 py-3 text-sm">
       {isRunning(batch) ? (
         <>
           <span className="font-semibold text-fg">
@@ -14,7 +14,7 @@ export function BatchSummary({ batch }: { batch: Batch }) {
           </span>
           <span className="h-1.5 min-w-24 flex-1 bg-line-soft" aria-hidden="true">
             <span
-              className="block h-full bg-fg transition-[width] duration-500"
+              className="block h-full bg-fg transition-[width] spring-panel"
               style={{ width: `${(done / batch.total) * 100}%` }}
             />
           </span>

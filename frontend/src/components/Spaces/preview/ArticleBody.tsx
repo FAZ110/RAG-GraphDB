@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ErrorNote } from '@/components/deck'
-import { EASE_DECK, unfold } from '@/design/motion'
+import { leave, move, reveal } from '@/design/motion'
 import { cn } from '@/lib/utils'
 import type { ArticleDetail, Span } from '@/types'
 import { ArticleGraphOutline } from './ArticleGraphOutline'
@@ -152,7 +152,7 @@ export function ArticleBody({ article, focusId, wide, revealed, onRevealedChange
         <AnimatePresence initial={false}>
           {revealed && (
             <motion.div
-              {...unfold}
+              {...reveal}
               className="shrink-0 overflow-hidden border-b border-line-soft bg-surface-sunken"
             >
               <div className="max-h-[45dvh] overflow-y-auto px-8 py-6">{outline}</div>
@@ -172,9 +172,8 @@ export function ArticleBody({ article, focusId, wide, revealed, onRevealedChange
           <motion.aside
             aria-label="Encje i powiązania"
             initial={{ width: 0 }}
-            animate={{ width: outlineWidth }}
-            exit={{ width: 0 }}
-            transition={{ duration: 0.3, ease: EASE_DECK }}
+            animate={{ width: outlineWidth, transition: move.panel }}
+            exit={{ width: 0, transition: leave.panel }}
             className="h-full shrink-0 overflow-hidden border-r border-line-soft bg-surface-sunken"
           >
             <div className="h-full overflow-y-auto p-6" style={{ width: outlineWidth }}>

@@ -1,6 +1,7 @@
 import { RemoveControl } from '@/components/deck'
 import { useDeleteSpace } from '@/hooks/useSpaces'
 import type { Space } from '@/types'
+import { deleteSpaceQuestion } from '../deleteSpaceText'
 
 interface Props {
   space: Space
@@ -12,8 +13,8 @@ export function SpaceDeleteControl({ space, className }: Props) {
   return (
     <RemoveControl
       label={`Usuń przestrzeń ${space.name}`}
-      question="Usunąć przestrzeń?"
-      detail="Tego nie da się cofnąć."
+      question={deleteSpaceQuestion(space)}
+      inRow
       pending={remove.isPending}
       error={remove.error?.message ?? null}
       onOpen={remove.reset}

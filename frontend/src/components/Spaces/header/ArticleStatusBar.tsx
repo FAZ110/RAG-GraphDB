@@ -24,7 +24,7 @@ export function ArticleStatusBar({ articles }: Props) {
         {present.map((key) => (
           <div
             key={key}
-            className="transition-[flex-grow] duration-500"
+            className="transition-[flex-grow] spring-panel"
             style={{
               backgroundColor: ARTICLE_STATUS[key].color,
               flexBasis: 0,

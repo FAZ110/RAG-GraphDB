@@ -29,8 +29,18 @@ function toItems(parsed: unknown, from: string | null): UploadItem[] {
   })
 }
 
-export function parsePasted(text: string): UploadItem[] {
-  return toItems(JSON.parse(text), null)
+export function parseArticlesJson(text: string): UploadItem[] | null {
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) return null
+  try {
+    return toItems(JSON.parse(trimmed), null)
+  } catch {
+    return null
+  }
+}
+
+export function textItem(title: string, url: string, content: string): UploadItem {
+  return toItems({ title, url, content }, null)[0]
 }
 
 export async function parseFile(file: File): Promise<UploadItem[]> {

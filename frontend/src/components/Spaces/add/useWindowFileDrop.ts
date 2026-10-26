@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes('Files') ?? false
 
 /** Files dropped anywhere in the window; `dragging` while some are held over it. */
-export function useWindowFileDrop(onDrop: (files: FileList, at: { x: number; y: number }) => void) {
+export function useWindowFileDrop(onDrop: (files: FileList) => void) {
   const [dragging, setDragging] = useState(false)
   const depth = useRef(0)
   // The listeners are set up once, so they call the latest handler through a ref.
@@ -34,7 +34,7 @@ export function useWindowFileDrop(onDrop: (files: FileList, at: { x: number; y: 
     const drop = (e: DragEvent) => {
       if (!hasFiles(e) || !e.dataTransfer) return
       e.preventDefault()
-      handler.current(e.dataTransfer.files, { x: e.clientX, y: e.clientY })
+      handler.current(e.dataTransfer.files)
     }
     window.addEventListener('dragenter', enter)
     window.addEventListener('dragleave', leave)

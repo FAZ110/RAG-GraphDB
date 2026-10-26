@@ -16,6 +16,7 @@ export function SpaceSearchField({ query, onQueryChange, status }: Props) {
   return (
     <SearchField
       ref={input}
+      size="md"
       className="flex-1"
       value={query}
       onChange={(e) => onQueryChange(e.target.value)}

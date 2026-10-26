@@ -23,7 +23,7 @@ export function AddArticlesProvider({ children }: { children: ReactNode }) {
     matchPath('/graph/:spaceId', pathname)?.params.spaceId
 
   const open = (next: AddRequest = {}) => {
-    setRequest({ spaceId: next.spaceId ?? spaceInView, origin: next.origin })
+    setRequest({ spaceId: next.spaceId ?? spaceInView })
     setOpened((n) => n + 1)
   }
   const close = () => {
@@ -31,10 +31,10 @@ export function AddArticlesProvider({ children }: { children: ReactNode }) {
     setItems([])
   }
 
-  const dragging = useWindowFileDrop(async (files, at) => {
+  const dragging = useWindowFileDrop(async (files) => {
     const { items } = await readFiles(files)
     setItems((prev) => [...prev, ...items])
-    if (!isOpen) open({ origin: at })
+    if (!isOpen) open()
   })
 
   return (
@@ -45,7 +45,6 @@ export function AddArticlesProvider({ children }: { children: ReactNode }) {
         key={opened}
         open={isOpen}
         onOpenChange={(next) => !next && close()}
-        origin={request?.origin}
         initialSpaceId={request?.spaceId}
         items={items}
         onItemsChange={setItems}

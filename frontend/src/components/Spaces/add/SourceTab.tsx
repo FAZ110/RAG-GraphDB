@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { focusRing } from '@/components/deck'
 import type { Ink } from '@/design/inks'
+import { move } from '@/design/motion'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -30,7 +31,7 @@ export function SourceTab({ active, ink, onSelect, children }: Props) {
           layoutId="add-source-tab"
           className="absolute inset-x-0 -bottom-px h-0.5"
           style={{ backgroundColor: ink.color }}
-          transition={{ type: 'spring', stiffness: 520, damping: 42 }}
+          transition={move.quick}
         />
       )}
     </button>

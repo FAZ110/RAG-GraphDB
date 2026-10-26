@@ -3,8 +3,7 @@ import { inkTint } from '@/design/inks'
 import type { Ink } from '@/design/inks'
 import { cn } from '@/lib/utils'
 
-const sheet =
-  'absolute inset-0 border bg-surface transition-transform duration-300 ease-deck motion-reduce:transition-none'
+const sheet = 'absolute inset-0 border bg-surface transition-transform spring-base'
 
 export function ArticleStack({
   ink,

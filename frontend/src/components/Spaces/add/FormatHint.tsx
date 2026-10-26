@@ -1,42 +1,39 @@
-import { useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
-import { focusRing } from '@/components/deck'
-import { unfold } from '@/design/motion'
+import { InfoIcon } from 'lucide-react'
+import { Popover } from 'radix-ui'
+import { focusRing, surface } from '@/components/deck'
 import { cn } from '@/lib/utils'
 
-const EXAMPLE = `[
-  {
-    "title": "Tytuł artykułu",
-    "url": "https://example.com/artykul",
-    "content": "Treść artykułu…"
-  }
-]`
+const optional = <span className="text-fg-faint"> // opcjonalnie</span>
 
 export function FormatHint() {
-  const [open, setOpen] = useState(false)
   return (
-    <div className="text-sm text-fg-subtle">
-      <p>
-        Pliki JSON z jednym artykułem albo listą. Każdy potrzebuje treści, tytuł i adres są
-        opcjonalne.{' '}
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => setOpen(!open)}
-          className={cn('font-semibold text-fg-muted hover:text-fg', focusRing)}
+    <Popover.Root>
+      <Popover.Trigger
+        aria-label="Format artykułów"
+        className={cn('ml-auto self-center p-1 text-fg-subtle hover:text-fg', focusRing)}
+      >
+        <InfoIcon className="size-4" />
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          side="bottom"
+          align="end"
+          sideOffset={8}
+          collisionPadding={12}
+          className={cn(surface, 'z-60 animate-in p-4 outline-none fade-in-0 spring-quick')}
         >
-          {open ? 'Ukryj przykład' : 'Pokaż przykład'}
-        </button>
-      </p>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div {...unfold} className="overflow-hidden">
-            <pre className="mt-2 border border-line-soft bg-surface-sunken p-3 font-mono text-xs text-fg-soft">
-              {EXAMPLE}
-            </pre>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+          <p className="mb-3 text-xs font-semibold tracking-wide text-fg-subtle uppercase">
+            Schemat danych wejściowych
+          </p>
+          <pre className="font-mono text-xs leading-5 text-fg-soft">
+            {'[\n  {\n    "title": "Tytuł artykułu",'}
+            {optional}
+            {'\n    "url": "https://example.com",'}
+            {optional}
+            {'\n    "content": "Treść artykułu…"\n  }\n]'}
+          </pre>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }

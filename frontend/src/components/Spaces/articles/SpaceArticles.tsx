@@ -66,28 +66,34 @@ export function SpaceArticles({ spaceId, ink }: Props) {
         <EmptyArticles spaceId={spaceId} ink={ink} />
       ) : (
         // Padding leaves room for the table's offset shadow.
-        <div className="flex min-h-0 flex-1 flex-col pb-2">
-          {recent.tab === 'recent' && recent.batch && (
-            <div className={cn(surface, 'border-b-0')}>
-              <BatchSummary batch={recent.batch} />
-            </div>
-          )}
-          <div className="min-h-0 flex-1">
-            {articles.data ? (
-              <ArticleTable
-                // Keyed, so each tab fits its own rows and keeps its own open errors.
-                key={recent.tab}
-                spaceId={spaceId}
-                articles={shown}
-                needle={needle}
-                query={query}
-                selection={selection}
-                onOpen={preview.show}
-                onDeleteSelected={() => setConfirmDelete(true)}
-              />
-            ) : (
-              <div className={cn(surface, 'h-full animate-pulse')} />
+        <div className="relative flex min-h-0 flex-1 flex-col pb-2">
+          <div
+            // Keyed, so each tab fits its own rows and keeps its own open errors.
+            key={recent.tab}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            {recent.tab === 'recent' && recent.batch && (
+              <div className={cn(surface, 'border-b-0')}>
+                <BatchSummary batch={recent.batch} />
+              </div>
             )}
+            <div className="min-h-0 flex-1">
+              {articles.data ? (
+                <ArticleTable
+                  spaceId={spaceId}
+                  ink={ink}
+                  articles={shown}
+                  needle={needle}
+                  query={query}
+                  onClearQuery={() => setQuery('')}
+                  selection={selection}
+                  onOpen={preview.show}
+                  onDeleteSelected={() => setConfirmDelete(true)}
+                />
+              ) : (
+                <div className={cn(surface, 'h-full animate-pulse')} />
+              )}
+            </div>
           </div>
         </div>
       )}

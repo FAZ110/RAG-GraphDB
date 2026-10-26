@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { motion } from 'motion/react'
 import { Button, ErrorNote, TextInput } from '@/components/deck'
-import { unfold } from '@/design/motion'
+import { reveal } from '@/design/motion'
 import { useCreateSpace } from '@/hooks/useSpaces'
 import type { Space } from '@/types'
 import { SPACE_NAME_MAX_LENGTH } from '../spaceText'
@@ -24,7 +24,7 @@ export function DraftSpaceItem({ initialName, onCreated, onCancel }: Props) {
   }
 
   return (
-    <motion.li {...unfold} className="overflow-hidden border-b border-line-soft bg-surface-sunken">
+    <motion.li {...reveal} className="overflow-hidden border-b border-line-soft bg-surface-sunken">
       <form
         onSubmit={submit}
         onKeyDown={(e) => e.key === 'Escape' && onCancel()}
@@ -50,9 +50,9 @@ export function DraftSpaceItem({ initialName, onCreated, onCancel }: Props) {
               size="sm"
               disabled={create.isPending || !name.trim()}
             >
-              {create.isPending ? 'Tworzę...' : 'Utwórz'}
+              {create.isPending ? 'Tworzę…' : 'Utwórz'}
             </Button>
-            <Button variant="ghost" size="sm" className="px-2" onClick={onCancel}>
+            <Button size="sm" onClick={onCancel}>
               Anuluj
             </Button>
           </div>
