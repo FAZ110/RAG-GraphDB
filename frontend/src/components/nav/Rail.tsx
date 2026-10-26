@@ -1,6 +1,6 @@
-import { SearchIcon, SettingsIcon } from 'lucide-react'
+import { PanelLeftOpenIcon, SearchIcon, SettingsIcon } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
-import { focusRing } from '@/components/deck'
+import { IconSwap, focusRing } from '@/components/deck'
 import { useOpenGlobalSearch } from '@/components/search/globalSearchContext'
 import { useSpaceListHidden } from '@/components/Spaces/list/spaceListHidden'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -9,31 +9,28 @@ import type { Space } from '@/types'
 import { AtlasMark } from './AtlasMark'
 import { Flyout } from './Flyout'
 import { isActive, navItems, pressable } from './navItems'
-import { PullTab } from './PullTab'
 import { RailLink } from './RailLink'
 import { SpaceTile } from './SpaceTile'
 
 export function Rail({ space, spaces }: { space?: Space; spaces: Space[] }) {
   const { pathname } = useLocation()
   const openSearch = useOpenGlobalSearch()
-  // Where the spaces page shows its list beside the space, its item puts the list away into
-  // the rail and brings it back.
-  const listBeside = useMediaQuery('(min-width: 64rem)') && pathname.startsWith('/spaces')
   const list = useSpaceListHidden()
+  const togglesList = useMediaQuery('(min-width: 64rem)') && pathname.startsWith('/spaces')
 
   return (
     <header className="sticky top-0 z-20 hidden h-dvh shrink-0 py-6 pl-6 sm:block lg:py-8 lg:pl-8">
-      <nav className="deck flex h-full w-14 flex-col items-center gap-2 border border-fg bg-surface py-3 [--deck-shadow:var(--fg)]">
+      <nav className="deck flex h-full w-14 flex-col items-center gap-2 border border-fg bg-surface py-2 [--deck-shadow:var(--fg)]">
         <Link
           to="/"
           aria-label="Atlas, strona startowa"
-          className={cn('group relative text-fg', focusRing)}
+          className={cn('group relative flex h-11 items-center text-fg', focusRing)}
         >
-          <AtlasMark />
+          <AtlasMark size={28} />
           <Flyout>Atlas</Flyout>
         </Link>
-        {space && <SpaceTile space={space} spaces={spaces} side="right" />}
         <span className="h-px w-8 bg-line" />
+        {space && <SpaceTile space={space} spaces={spaces} side="right" />}
 
         <button
           type="button"
@@ -49,21 +46,23 @@ export function Rail({ space, spaces }: { space?: Space; spaces: Space[] }) {
         </button>
 
         {navItems.map((item) =>
-          listBeside && item.path === '/spaces' ? (
+          togglesList && item.path === '/spaces' ? (
             <RailLink
               key={item.path}
               to={item.path}
-              icon={item.icon}
-              label={list.hidden ? 'Pokaż listę przestrzeni' : 'Schowaj listę przestrzeni'}
+              icon={
+                <IconSwap id={list.hidden ? 'unfold' : 'fold'}>
+                  {list.hidden ? <PanelLeftOpenIcon /> : item.icon}
+                </IconSwap>
+              }
+              label={list.hidden ? 'Rozwiń listę przestrzeni' : 'Zwiń listę przestrzeni'}
               active
               aria-expanded={!list.hidden}
               onClick={(e) => {
                 e.preventDefault()
                 list.setHidden(!list.hidden)
               }}
-            >
-              <PullTab out={!list.hidden} />
-            </RailLink>
+            />
           ) : (
             <RailLink
               key={item.path}
@@ -80,6 +79,7 @@ export function Rail({ space, spaces }: { space?: Space; spaces: Space[] }) {
           icon={<SettingsIcon />}
           label="Ustawienia"
           active={isActive('/settings', pathname)}
+          group="settings"
           className="mt-auto"
         />
       </nav>

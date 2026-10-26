@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils'
 import { contour } from './contours'
 
 // Fractions of the backdrop's width and height.
@@ -13,13 +14,21 @@ const WIDTH = 1600
 const HEIGHT = 900
 const RING_STEP = 34
 
-export function ContourBackdrop({ color }: { color: string }) {
+interface Props {
+  color: string
+  className?: string
+}
+
+export function ContourBackdrop({ color, className = 'fixed inset-0' }: Props) {
   return (
     <svg
       aria-hidden="true"
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       preserveAspectRatio="xMidYMid slice"
-      className="pointer-events-none fixed inset-0 h-full w-full transition-colors duration-700 motion-reduce:transition-none"
+      className={cn(
+        'pointer-events-none h-full w-full transition-colors duration-700 motion-reduce:transition-none',
+        className
+      )}
       style={{ color }}
     >
       <g fill="none" stroke="currentColor" strokeOpacity={0.16} strokeWidth={1}>

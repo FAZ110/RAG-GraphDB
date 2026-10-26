@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { XIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { ConfirmPopover } from './ConfirmPopover'
 import { IconButton } from './IconButton'
 import { InlineConfirm } from './InlineConfirm'
 
@@ -14,14 +16,13 @@ interface Props {
   onOpen?: () => void
   /** Call `done` on success to close the question. */
   onConfirm: (done: () => void) => void
-  confirmClassName?: string
+  inRow?: boolean
   className?: string
   /** Other controls shown with the button, in a wrapper styled by `groupClassName`. */
   leading?: ReactNode
   groupClassName?: string
 }
 
-// The row must be the positioned parent, since the question covers it.
 export function RemoveControl({
   label,
   question,
@@ -31,29 +32,53 @@ export function RemoveControl({
   error,
   onOpen,
   onConfirm,
-  confirmClassName,
+  inRow = false,
   className,
   leading,
   groupClassName,
 }: Props) {
   const [confirming, setConfirming] = useState(false)
-  const close = () => setConfirming(false)
+  const [byKeyboard, setByKeyboard] = useState(false)
+  const setOpen = (open: boolean) => {
+    if (open) onOpen?.()
+    setConfirming(open)
+  }
+  const close = () => setOpen(false)
 
-  const button = (
+  const iconButton = (
     <IconButton
       variant="remove"
       size="icon-sm"
       label={blockedBy ?? label}
       aria-label={label}
       disabled={blockedBy !== undefined}
-      className={className}
-      onClick={() => {
-        onOpen?.()
-        setConfirming(true)
-      }}
+      className={cn(className, inRow && confirming && 'invisible')}
+      onClick={
+        inRow
+          ? (e) => {
+              setByKeyboard(e.detail === 0)
+              setOpen(true)
+            }
+          : undefined
+      }
     >
       <XIcon />
     </IconButton>
+  )
+  const button = inRow ? (
+    iconButton
+  ) : (
+    <ConfirmPopover
+      open={confirming}
+      onOpenChange={setOpen}
+      question={question}
+      detail={detail}
+      error={error}
+      pending={pending}
+      onConfirm={() => onConfirm(close)}
+    >
+      {iconButton}
+    </ConfirmPopover>
   )
 
   return (
@@ -66,16 +91,17 @@ export function RemoveControl({
       ) : (
         button
       )}
-      <InlineConfirm
-        open={confirming}
-        question={question}
-        detail={detail}
-        error={error}
-        pending={pending}
-        onConfirm={() => onConfirm(close)}
-        onCancel={close}
-        className={confirmClassName}
-      />
+      {inRow && (
+        <InlineConfirm
+          open={confirming}
+          question={question}
+          error={error}
+          pending={pending}
+          onConfirm={() => onConfirm(close)}
+          onCancel={close}
+          focusCancel={byKeyboard}
+        />
+      )}
     </>
   )
 }

@@ -21,7 +21,7 @@ export function ArticleStatusCell({ article, showError, onShowErrorChange }: Pro
         >
           Pokaż błąd
           <ChevronDownIcon
-            className={cn('size-4 transition-transform', showError && 'rotate-180')}
+            className={cn('size-4 transition-transform spring-quick', showError && 'rotate-180')}
           />
         </button>
       ) : (

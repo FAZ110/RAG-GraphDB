@@ -1,57 +1,74 @@
+import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { slideFromEnd } from '@/design/motion'
-import { cn } from '@/lib/utils'
+import { coverFromEnd } from '@/design/motion'
 import { Button } from './Button'
 
 interface Props {
   open: boolean
   question: string
-  detail?: string
   error?: string | null
   confirmLabel?: string
   pending?: boolean
   onConfirm: () => void
   onCancel: () => void
-  className?: string
+  focusCancel?: boolean
 }
 
 export function InlineConfirm({
   open,
   question,
-  detail,
   error,
   confirmLabel = 'Usuń',
   pending = false,
   onConfirm,
   onCancel,
-  className,
+  focusCancel = false,
 }: Props) {
-  const second = error ?? detail
+  // Without preventScroll the frame scrolls to the off-screen strip and it skips its slide.
+  const cancel = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (open && focusCancel) cancel.current?.focus({ preventScroll: true })
+  }, [open, focusCancel])
+  useEffect(() => {
+    if (!open) return
+    const escape = (e: KeyboardEvent) => e.key === 'Escape' && onCancel()
+    document.addEventListener('keydown', escape)
+    return () => document.removeEventListener('keydown', escape)
+  }, [open, onCancel])
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          {...slideFromEnd}
-          role="alertdialog"
-          aria-label={question}
-          onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-          className={cn(
-            'absolute inset-0 z-10 flex items-center gap-3 border-l-4 border-danger bg-danger-surface pr-2 pl-4',
-            className
-          )}
-        >
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-danger-fg">{question}</p>
-            {second && <p className="truncate text-xs text-danger-strong">{second}</p>}
-          </div>
-          <Button variant="danger" size="sm" disabled={pending} onClick={onConfirm}>
-            {confirmLabel}
-          </Button>
-          <Button variant="ghost-danger" size="sm" className="px-2" autoFocus onClick={onCancel}>
-            Anuluj
-          </Button>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    // `clip`, unlike `hidden`, can't be scrolled to the strip while it slides in.
+    <div
+      data-confirm={open ? 'open' : 'closed'}
+      className="pointer-events-none absolute inset-0 z-10 overflow-clip"
+    >
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            {...coverFromEnd}
+            role="alertdialog"
+            aria-label={question}
+            className="pointer-events-auto absolute inset-y-0 right-0 flex items-center gap-2 pr-2"
+          >
+            {error && (
+              <p role="alert" className="sr-only">
+                {error}
+              </p>
+            )}
+            <Button
+              variant="danger"
+              size="sm"
+              title={error ?? undefined}
+              disabled={pending}
+              onClick={onConfirm}
+            >
+              {confirmLabel}
+            </Button>
+            <Button size="sm" ref={cancel} onClick={onCancel}>
+              Anuluj
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }

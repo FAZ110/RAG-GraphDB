@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { ErrorNote } from '@/components/deck'
 import type { Ink } from '@/design/inks'
-import { EASE_DECK } from '@/design/motion'
+import { leave, move } from '@/design/motion'
 import { FileDropZone } from './FileDropZone'
 import { FormatHint } from './FormatHint'
 import { PasteField } from './PasteField'
@@ -20,9 +20,8 @@ type Mode = 'files' | 'paste'
 export function SourcePanel({ ink, onAdd }: Props) {
   const [mode, setMode] = useState<Mode>('files')
   const [errors, setErrors] = useState<string[]>([])
-  const reducedMotion = useReducedMotion()
   // Files sit left of pasting, so each slides in from its own side.
-  const side = (m: Mode) => (reducedMotion ? 0 : m === 'files' ? -16 : 16)
+  const side = (m: Mode) => (m === 'files' ? -16 : 16)
 
   const addFiles = async (files: FileList) => {
     const { items, errors } = await readFiles(files)
@@ -32,28 +31,30 @@ export function SourcePanel({ ink, onAdd }: Props) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5">
-      <div role="tablist" className="flex gap-5 border-b border-line-soft">
-        <SourceTab active={mode === 'files'} ink={ink} onSelect={() => setMode('files')}>
-          Pliki
-        </SourceTab>
-        <SourceTab active={mode === 'paste'} ink={ink} onSelect={() => setMode('paste')}>
-          Wklej JSON
-        </SourceTab>
+      <div className="flex border-b border-line-soft">
+        <div role="tablist" className="flex gap-5">
+          <SourceTab active={mode === 'files'} ink={ink} onSelect={() => setMode('files')}>
+            Pliki
+          </SourceTab>
+          <SourceTab active={mode === 'paste'} ink={ink} onSelect={() => setMode('paste')}>
+            Wklej
+          </SourceTab>
+        </div>
+        <FormatHint />
       </div>
 
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence mode="popLayout" initial={false}>
         <motion.div
           key={mode}
           className="flex min-h-0 flex-1 flex-col"
           initial={{ opacity: 0, x: side(mode) }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: side(mode) }}
-          transition={{ duration: 0.2, ease: EASE_DECK }}
+          animate={{ opacity: 1, x: 0, transition: move.base }}
+          exit={{ opacity: 0, x: side(mode), transition: leave.base }}
         >
           {mode === 'files' ? (
             <FileDropZone ink={ink} onFiles={(files) => void addFiles(files)} />
           ) : (
-            <PasteField onAdd={onAdd} onError={(error) => setErrors(error ? [error] : [])} />
+            <PasteField ink={ink} onAdd={onAdd} />
           )}
         </motion.div>
       </AnimatePresence>
@@ -61,8 +62,6 @@ export function SourcePanel({ ink, onAdd }: Props) {
       {errors.map((error) => (
         <ErrorNote key={error}>{error}</ErrorNote>
       ))}
-
-      <FormatHint />
     </div>
   )
 }

@@ -36,6 +36,9 @@
   --deck-offset-lg: 6px;
   --deck-press: 3px;
 
+  /* The springs come from src/design/motion; this is the moment a press goes down. */
+  --motion-press: 60ms;
+
   --ink-cherry: #8c3843;
   --ink-cherry-field: #f8eded;
   --ink-brick: #9c503e;
@@ -129,6 +132,4 @@
   --text-figure--line-height: 1;
   --text-figure--letter-spacing: -0.02em;
   --text-figure--font-weight: 800;
-
-  --ease-deck: cubic-bezier(0.22, 1, 0.36, 1);
 }

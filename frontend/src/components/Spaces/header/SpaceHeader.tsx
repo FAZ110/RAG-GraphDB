@@ -4,7 +4,6 @@ import { useElementSize } from '@/hooks/useElementSize'
 import { cn } from '@/lib/utils'
 import type { Space } from '@/types'
 import { ConstellationField } from '../map/ConstellationField'
-import { formatDate } from '../spaceText'
 import { ExploreCallout } from './ExploreCallout'
 import { SpaceStatsStrip } from './SpaceStatsStrip'
 import { SpaceTitle } from './SpaceTitle'
@@ -31,7 +30,6 @@ export function SpaceHeader({ space, ink }: Props) {
       <div ref={sheetRef} className={cn(surface, '@container flex min-w-0 flex-col')}>
         <div className="px-5 pt-3 pb-2">
           <SpaceTitle key={space.id} space={space} />
-          <p className="text-sm text-fg-subtle">Utworzona {formatDate(space.created_at)}</p>
         </div>
         <div className="hidden border-t border-line @md:block">
           <SpaceStatsStrip spaceId={space.id} />

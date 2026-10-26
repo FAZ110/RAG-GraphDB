@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "motion/react";
-import { item, SECTION } from "./motion";
+import { SECTION } from "./sections";
 
 interface Step {
   n: string;
@@ -56,8 +55,7 @@ export function StepsSection() {
     <section
       className={`${SECTION} max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-center border-t border-slate-200`}
     >
-      <motion.div
-        variants={item}
+      <div
         className="mb-8 lg:mb-14 flex items-end justify-between gap-6"
       >
         <div>
@@ -71,13 +69,12 @@ export function StepsSection() {
         <span className="hidden sm:block text-sm text-slate-400 tabular-nums">
           01 — 03
         </span>
-      </motion.div>
+      </div>
 
       <ol className="grid gap-px bg-slate-200 border-y border-slate-200 sm:grid-cols-3">
         {steps.map((step, idx) => (
-          <motion.li
+          <li
             key={step.n}
-            variants={item}
             className="relative bg-white p-8 lg:p-10 flex flex-col"
           >
             <div className="flex items-baseline gap-4">
@@ -106,12 +103,11 @@ export function StepsSection() {
                 </svg>
               </span>
             )}
-          </motion.li>
+          </li>
         ))}
       </ol>
 
-      <motion.div
-        variants={item}
+      <div
         className="mt-8 lg:mt-14 flex flex-wrap items-center justify-between gap-6"
       >
         <p className="text-sm text-slate-500 max-w-[48ch]">
@@ -123,12 +119,12 @@ export function StepsSection() {
           className="group inline-flex items-center gap-2.5 rounded-full bg-slate-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-slate-800"
         >
           Przejdź do ekstrakcji
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-0.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform spring-quick group-hover:translate-x-0.5">
             <path d="M5 12h14" />
             <path d="m13 6 6 6-6 6" />
           </svg>
         </Link>
-      </motion.div>
+      </div>
     </section>
   );
 }

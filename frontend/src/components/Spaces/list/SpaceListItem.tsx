@@ -3,6 +3,8 @@ import { motion, Reorder } from 'motion/react'
 import { Link } from 'react-router-dom'
 import { HighlightedText } from '@/components/deck'
 import { inkFor } from '@/design/inks'
+import { move } from '@/design/motion'
+import { usePrefetchSpace } from '@/hooks/useSpaces'
 import type { Space } from '@/types'
 import { ARTICLE_FORMS, ENTITY_FORMS, pluralForm } from '../spaceText'
 import { SpaceDeleteControl } from './SpaceDeleteControl'
@@ -32,6 +34,7 @@ export function SpaceListItem({
   const ink = inkFor(space.id)
   // Releasing a drag also fires a click on the link.
   const dragged = useRef(false)
+  const prefetch = usePrefetchSpace()
 
   return (
     <Reorder.Item
@@ -39,6 +42,7 @@ export function SpaceListItem({
       // Animating size would stretch and squash the content when rows are refitted.
       layout="position"
       layoutDependency={layoutKey}
+      transition={move.base}
       dragListener={draggable}
       onDragStart={() => {
         dragged.current = true
@@ -48,20 +52,24 @@ export function SpaceListItem({
       whileDrag={{ boxShadow: 'var(--deck-offset) var(--deck-offset) 0 var(--line)' }}
       className="group relative flex h-(--space-row) snap-start items-center border-b border-line-soft bg-surface hover:bg-surface-sunken"
     >
+      {/* Above every row's background, so it's seen the whole way whichever row it flies to;
+          the rows' text and controls sit above it in turn. */}
       {selected && (
         <motion.span
           layoutId="selected-space"
           layout="position"
           aria-hidden="true"
-          className="absolute inset-0 border-l-[5px]"
+          className="absolute inset-0 z-1 border-l-[5px]"
           style={{ backgroundColor: ink.field, borderColor: ink.color }}
-          transition={{ type: 'spring', stiffness: 520, damping: 42 }}
+          transition={move.quick}
         />
       )}
       <Link
         to={`/spaces/${space.id}`}
         // The browser's native link drag would cancel motion's.
         draggable={false}
+        onPointerEnter={() => prefetch(space.id)}
+        onFocus={() => prefetch(space.id)}
         onClick={(e) => {
           if (dragged.current) {
             dragged.current = false
@@ -71,7 +79,7 @@ export function SpaceListItem({
           }
         }}
         aria-current={selected ? 'page' : undefined}
-        className="relative flex h-full min-w-0 flex-1 items-center pr-2 pl-5 focus-visible:ring-2 focus-visible:ring-fg focus-visible:outline-none focus-visible:ring-inset"
+        className="relative z-2 flex h-full min-w-0 flex-1 items-center pr-2 pl-5 transition-[padding-right] spring-quick group-has-data-[confirm=open]:room-for-confirm focus-visible:ring-2 focus-visible:ring-fg focus-visible:outline-none focus-visible:ring-inset"
       >
         <span className="min-w-0">
           <span className="block truncate font-semibold text-fg">
@@ -84,11 +92,9 @@ export function SpaceListItem({
           </span>
         </span>
       </Link>
-      {/* `relative` lifts it above the selection marker. With a mouse it shows on hover only;
-          the space's own header has the delete too. */}
       <SpaceDeleteControl
         space={space}
-        className="relative mr-2 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
+        className="relative z-2 mr-2 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
       />
     </Reorder.Item>
   )

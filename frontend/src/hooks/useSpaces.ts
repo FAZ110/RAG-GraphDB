@@ -21,20 +21,31 @@ export function useSpaces() {
   return useQuery({ queryKey: SPACES_QUERY_KEY, queryFn: fetchSpaces })
 }
 
+const statsQuery = (spaceId: string) => ({
+  queryKey: [...SPACES_QUERY_KEY, spaceId, 'stats'],
+  queryFn: () => fetchSpaceStats(spaceId),
+})
+
+const articlesQuery = (spaceId: string) => ({
+  queryKey: [...SPACES_QUERY_KEY, spaceId, 'articles'],
+  queryFn: () => fetchSpaceArticles(spaceId),
+})
+
 export function useSpaceStats(spaceId: string) {
-  return useQuery({
-    queryKey: [...SPACES_QUERY_KEY, spaceId, 'stats'],
-    queryFn: () => fetchSpaceStats(spaceId),
-  })
+  return useQuery(statsQuery(spaceId))
 }
 
 export function useSpaceArticles(spaceId: string) {
-  return useQuery({
-    queryKey: [...SPACES_QUERY_KEY, spaceId, 'articles'],
-    queryFn: () => fetchSpaceArticles(spaceId),
-    // An empty id means no space is picked yet.
-    enabled: spaceId !== '',
-  })
+  // An empty id means no space is picked yet.
+  return useQuery({ ...articlesQuery(spaceId), enabled: spaceId !== '' })
+}
+
+export function usePrefetchSpace() {
+  const queryClient = useQueryClient()
+  return (spaceId: string) => {
+    void queryClient.prefetchQuery(statsQuery(spaceId))
+    void queryClient.prefetchQuery(articlesQuery(spaceId))
+  }
 }
 
 export function useArticle(spaceId: string, articleId: string | null) {

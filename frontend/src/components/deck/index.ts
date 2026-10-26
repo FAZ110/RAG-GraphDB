@@ -4,6 +4,7 @@ export type { ButtonProps } from './Button'
 export { buttonVariants } from './buttonVariants'
 export { Checkbox } from './Checkbox'
 export { ConfirmDialog } from './ConfirmDialog'
+export { ConfirmPopover } from './ConfirmPopover'
 export {
   Drawer,
   DrawerContent,
@@ -16,6 +17,7 @@ export { EmptyState } from './EmptyState'
 export { ErrorNote } from './ErrorNote'
 export { HighlightedText } from './HighlightedText'
 export { IconButton } from './IconButton'
+export { IconSwap } from './IconSwap'
 export { InlineConfirm } from './InlineConfirm'
 export { Legend, LegendItem } from './Legend'
 export { Modal } from './Modal'

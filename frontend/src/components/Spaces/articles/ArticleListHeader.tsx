@@ -1,25 +1,31 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { Trash2Icon } from 'lucide-react'
 import { Button, Checkbox } from '@/components/deck'
-import { swapY } from '@/design/motion'
+import type { Ink } from '@/design/inks'
+import { swap } from '@/design/motion'
 import { cn } from '@/lib/utils'
 import { ARTICLE_FORMS, pluralForm } from '../spaceText'
 import { ARTICLE_GRID } from './articleGrid'
 
 interface Props {
+  ink: Ink
   selected: number
   selectable: number
   onToggleAll: () => void
   onDeleteSelected: () => void
 }
 
-export function ArticleListHeader({ selected, selectable, onToggleAll, onDeleteSelected }: Props) {
+export function ArticleListHeader({
+  ink,
+  selected,
+  selectable,
+  onToggleAll,
+  onDeleteSelected,
+}: Props) {
   return (
     <li
-      className={cn(
-        ARTICLE_GRID,
-        'sticky top-0 z-10 h-11 border-b border-line bg-surface-sunken text-sm'
-      )}
+      className={cn(ARTICLE_GRID, 'sticky top-0 z-10 h-11 border-b border-line text-sm')}
+      style={{ backgroundColor: ink.field }}
     >
       <Checkbox
         aria-label="Zaznacz wszystkie artykuły"
@@ -28,11 +34,11 @@ export function ArticleListHeader({ selected, selectable, onToggleAll, onDeleteS
         disabled={selectable === 0}
         onChange={onToggleAll}
       />
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence mode="popLayout" initial={false}>
         {selected > 0 ? (
           <motion.div
             key="actions"
-            {...swapY}
+            {...swap}
             className="col-start-2 -col-end-1 flex items-center justify-between gap-4"
           >
             <span className="font-semibold text-fg">
@@ -46,12 +52,13 @@ export function ArticleListHeader({ selected, selectable, onToggleAll, onDeleteS
         ) : (
           <motion.div
             key="columns"
-            {...swapY}
-            className="col-start-3 -col-end-1 grid grid-cols-subgrid font-semibold text-fg-subtle"
+            {...swap}
+            className="col-start-3 -col-end-1 grid grid-cols-subgrid font-semibold text-fg"
           >
             <span>Artykuł</span>
             <span className="hidden @3xl:block">Status</span>
             <span className="hidden @3xl:block">Encje</span>
+            <span className="hidden @3xl:block">Powiązania</span>
             <span className="hidden @md:block">Data</span>
           </motion.div>
         )}

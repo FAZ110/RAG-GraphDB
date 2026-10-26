@@ -18,7 +18,7 @@ export function Tooltip({ content, side = 'top', children }: Props) {
             side={side}
             sideOffset={8}
             collisionPadding={12}
-            className="z-60 max-w-64 animate-in border border-fg bg-fg px-2.5 py-1.5 text-xs text-fg-inverse fade-in-0"
+            className="z-60 max-w-64 animate-in border border-fg bg-fg px-2.5 py-1.5 text-xs text-fg-inverse fade-in-0 spring-quick"
           >
             {content}
           </Primitive.Content>

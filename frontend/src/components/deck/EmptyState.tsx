@@ -6,12 +6,21 @@ interface Props {
   title: string
   children?: ReactNode
   action?: ReactNode
+  art?: ReactNode
   accent?: string
   framed?: boolean
   className?: string
 }
 
-export function EmptyState({ title, children, action, accent, framed = true, className }: Props) {
+export function EmptyState({
+  title,
+  children,
+  action,
+  art,
+  accent,
+  framed = true,
+  className,
+}: Props) {
   return (
     <div
       className={cn(
@@ -25,10 +34,11 @@ export function EmptyState({ title, children, action, accent, framed = true, cla
           : undefined
       }
     >
-      <div className="max-w-md">
+      {art}
+      <div className="max-w-md min-w-0">
         <p className="text-lg font-semibold text-fg">{title}</p>
         {children && (
-          <p className="mt-1 text-sm break-words text-balance text-fg-subtle">{children}</p>
+          <p className="mt-1 text-sm text-balance wrap-anywhere text-fg-subtle">{children}</p>
         )}
       </div>
       {action}

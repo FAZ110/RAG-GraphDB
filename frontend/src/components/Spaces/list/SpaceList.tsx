@@ -1,20 +1,20 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { AnimatePresence, LayoutGroup, Reorder } from 'motion/react'
-import { surface } from '@/components/deck'
-import { useElementSize } from '@/hooks/useElementSize'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
 import type { Space } from '@/types'
+import { ContourBackdrop } from '../map/ContourBackdrop'
 import { filterSpaces } from '../spaceSearch'
 import { SPACE_FORMS, pluralForm } from '../spaceText'
 import { DraftSpaceItem } from './DraftSpaceItem'
-import { layoutSpaceList } from './listLayout'
-import { NewSpaceTile } from './NewSpaceTile'
+import { NoSpaceMatch } from './NoSpaceMatch'
 import { SpaceListItem } from './SpaceListItem'
 import { SpaceListToolbar } from './SpaceListToolbar'
 import { useSpaceOrder } from './useSpaceOrder'
+
+const ROW_HEIGHT = 68
 
 interface Props {
   spaces: Space[]
@@ -26,7 +26,7 @@ interface Props {
   draft: string | null
   onDraftChange: (draft: string | null) => void
   onCreated: (space: Space) => void
-  onHide?: () => void
+  edgeToEdge?: boolean
   onPicked?: () => void
 }
 
@@ -39,28 +39,20 @@ export function SpaceList({
   draft,
   onDraftChange,
   onCreated,
-  onHide,
+  edgeToEdge = false,
   onPicked,
 }: Props) {
-  const [listRef, list] = useElementSize<HTMLUListElement>()
   const needle = normalize(query.trim())
   const shown = filterSpaces(spaces, needle)
   const status = needle
     ? `${shown.length} z ${spaces.length}`
     : `${spaces.length} ${pluralForm(spaces.length, SPACE_FORMS)}`
-
-  // The 1px is the list's top border.
-  const room = list && list.height - 1
-  const { itemHeight, rowHeight, spare } = layoutSpaceList(shown.length, room)
-  const noMatch = needle !== '' && shown.length === 0
-  const showTile = !loading && draft === null && spare !== null && (noMatch || spare >= itemHeight)
+  const noMatch = !loading && draft === null && needle !== '' && shown.length === 0
 
   // On touch, dragging would take over the list's scrolling.
   const finePointer = useMediaQuery('(pointer: fine)')
   const reorderable = finePointer && !needle && draft === null
   const order = useSpaceOrder(shown)
-  // Mounted before the list is measured, items would animate from the base to the stretched height.
-  const listed = room === null ? [] : order.ordered
 
   // Stays true until the draft's exit animation ends, not just while `draft` is set.
   const [draftShown, setDraftShown] = useState(false)
@@ -78,23 +70,20 @@ export function SpaceList({
         onQueryChange={onQueryChange}
         status={status}
         onNewSpace={() => startDraft()}
-        onHide={onHide}
       />
 
-      {/* Room for the offset shadow, matching the panel's so both end on one line. */}
-      <div className="min-h-0 flex-1 pr-2 pb-2">
+      <div className={cn('relative min-h-0 flex-1', edgeToEdge && '-mx-3')}>
+        <ContourBackdrop color="var(--fg-faint)" className="absolute inset-0 opacity-70" />
         <Reorder.Group
           as="ul"
           axis="y"
-          values={listed.map((s) => s.id)}
+          values={order.ordered.map((s) => s.id)}
           onReorder={order.onReorder}
-          ref={listRef}
           aria-label="Przestrzenie"
-          style={{ '--space-row': `${rowHeight}px` } as CSSProperties}
+          style={{ '--space-row': `${ROW_HEIGHT}px` } as CSSProperties}
           // Snapping and scroll anchoring would scroll the opening draft out of sight.
           className={cn(
-            surface,
-            'h-full overflow-y-auto border-b-0',
+            'relative h-full overflow-y-auto border-t border-line',
             draftShown ? '[overflow-anchor:none]' : 'snap-y snap-mandatory'
           )}
         >
@@ -113,7 +102,7 @@ export function SpaceList({
             )}
           </AnimatePresence>
           <LayoutGroup>
-            {listed.map((space) => (
+            {order.ordered.map((space) => (
               <SpaceListItem
                 key={space.id}
                 space={space}
@@ -127,12 +116,8 @@ export function SpaceList({
               />
             ))}
           </LayoutGroup>
-          {showTile && (
-            <NewSpaceTile
-              height={Math.max(spare, itemHeight)}
-              name={noMatch ? query.trim() : undefined}
-              onCreate={() => startDraft(noMatch ? query.trim() : '')}
-            />
+          {noMatch && (
+            <NoSpaceMatch name={query.trim()} onCreate={() => startDraft(query.trim())} />
           )}
         </Reorder.Group>
       </div>

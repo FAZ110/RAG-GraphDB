@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { XIcon } from 'lucide-react'
+import { motion } from 'motion/react'
 import { focusRing } from '@/components/deck'
+import { move } from '@/design/motion'
 import { cn } from '@/lib/utils'
 import type { Batch } from '@/types'
 import { BatchCount } from '../batches/BatchCount'
@@ -31,12 +33,19 @@ function Tab({
       aria-selected={active}
       onClick={onSelect}
       className={cn(
-        'flex h-10 items-center gap-2 border-b-2 text-heading transition-colors',
-        active ? 'border-fg text-fg' : 'border-transparent text-fg-faint hover:text-fg-muted',
+        'relative flex h-10 items-center gap-2 text-heading transition-colors',
+        active ? 'text-fg' : 'text-fg-faint hover:text-fg-muted',
         focusRing
       )}
     >
       {children}
+      {active && (
+        <motion.span
+          layoutId="articles-tab"
+          className="absolute inset-x-0 bottom-0 h-0.5 bg-fg"
+          transition={move.quick}
+        />
+      )}
     </button>
   )
 }

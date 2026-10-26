@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Checkbox, ErrorNote, HighlightedText, Swatch } from '@/components/deck'
-import { unfold } from '@/design/motion'
+import { reveal } from '@/design/motion'
 import { cn } from '@/lib/utils'
 import type { Article } from '@/types'
 import { formatDate } from '../spaceText'
@@ -65,7 +65,10 @@ export function ArticleRow({ spaceId, article, selected, onToggle, onOpen, needl
         <span className="hidden text-sm text-fg-muted tabular-nums @3xl:block">
           {article.nodes_count ?? '–'}
         </span>
-        <span className="hidden text-sm text-fg-subtle transition-opacity pointer-fine:group-focus-within:opacity-0 pointer-fine:group-hover:opacity-0 @md:block">
+        <span className="hidden text-sm text-fg-muted tabular-nums @3xl:block">
+          {article.edges_count ?? '–'}
+        </span>
+        <span className="hidden text-sm text-fg-subtle @md:block">
           {formatDate(article.processed_at ?? article.created_at)}
         </span>
         <ArticleDeleteControl
@@ -80,7 +83,7 @@ export function ArticleRow({ spaceId, article, selected, onToggle, onOpen, needl
       </div>
       <AnimatePresence initial={false}>
         {article.status === 'error' && showError && (
-          <motion.div {...unfold} className="overflow-hidden">
+          <motion.div {...reveal} className="overflow-hidden">
             <ErrorNote className="mx-4 mb-3">{article.error}</ErrorNote>
           </motion.div>
         )}

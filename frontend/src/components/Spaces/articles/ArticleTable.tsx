@@ -1,20 +1,23 @@
 import type { CSSProperties } from 'react'
-import { AddTile, AddTileIcon, surface } from '@/components/deck'
+import { surface } from '@/components/deck'
 import { useElementSize } from '@/hooks/useElementSize'
+import type { Ink } from '@/design/inks'
 import { cn } from '@/lib/utils'
 import type { Article } from '@/types'
-import { useAddArticlesClick } from '../add/addArticlesContext'
-import { layoutRows } from '../fitRows'
+import { fitRowHeight } from '../fitRows'
 import { ARTICLE_HEADER_HEIGHT, ARTICLE_ROW_HEIGHT } from './articleGrid'
 import { ArticleListHeader } from './ArticleListHeader'
 import { ArticleRow } from './ArticleRow'
+import { NoArticleMatch } from './NoArticleMatch'
 import type { ArticleSelection } from './useArticleSelection'
 
 interface Props {
   spaceId: string
+  ink: Ink
   articles: Article[]
   needle: string
   query: string
+  onClearQuery: () => void
   selection: ArticleSelection
   onOpen: (articleId: string) => void
   onDeleteSelected: () => void
@@ -22,17 +25,18 @@ interface Props {
 
 export function ArticleTable({
   spaceId,
+  ink,
   articles,
   needle,
   query,
+  onClearQuery,
   selection,
   onOpen,
   onDeleteSelected,
 }: Props) {
-  const addArticles = useAddArticlesClick(spaceId)
   const [tableRef, table] = useElementSize<HTMLUListElement>()
   const rowRoom = table && table.height - 1 - ARTICLE_HEADER_HEIGHT
-  const { rowHeight, spare } = layoutRows(articles.length, rowRoom, ARTICLE_ROW_HEIGHT)
+  const rowHeight = fitRowHeight(articles.length, rowRoom, ARTICLE_ROW_HEIGHT, 1)
 
   return (
     <ul
@@ -44,6 +48,7 @@ export function ArticleTable({
       )}
     >
       <ArticleListHeader
+        ink={ink}
         selected={selection.selected.length}
         selectable={selection.selectableCount}
         onToggleAll={selection.toggleAll}
@@ -61,17 +66,7 @@ export function ArticleTable({
         />
       ))}
       {articles.length === 0 && (
-        <li className="px-4 py-5 text-sm text-fg-muted">
-          Żaden artykuł nie pasuje do „{query.trim()}”.
-        </li>
-      )}
-      {articles.length > 0 && spare !== null && spare >= ARTICLE_ROW_HEIGHT && (
-        <li className="p-3" style={{ height: spare }}>
-          <AddTile onClick={addArticles}>
-            <AddTileIcon />
-            Dodaj artykuły
-          </AddTile>
-        </li>
+        <NoArticleMatch query={query.trim()} ink={ink} onClear={onClearQuery} />
       )}
     </ul>
   )

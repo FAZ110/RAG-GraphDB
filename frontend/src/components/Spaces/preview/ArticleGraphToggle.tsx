@@ -25,7 +25,7 @@ export function ArticleGraphToggle({ entities, relationships, open, onOpenChange
   const chevron = (
     <Chevron
       className={cn(
-        'size-4 shrink-0 text-fg-soft transition-transform',
+        'size-4 shrink-0 text-fg-soft transition-transform spring-quick',
         side === 'below' && open && 'rotate-180'
       )}
       aria-hidden="true"

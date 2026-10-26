@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
-import { ChevronsUpDownIcon } from 'lucide-react'
+import { ChevronsUpDownIcon, XIcon } from 'lucide-react'
 import {
   Drawer,
   DrawerContent,
   DrawerTitle,
   DrawerTrigger,
   focusRing,
+  IconButton,
   surface,
 } from '@/components/deck'
 import { cn } from '@/lib/utils'
@@ -41,9 +42,20 @@ export function SpaceSwitcher({ space, open, onOpenChange, children }: Props) {
       </DrawerTrigger>
       <DrawerContent
         side="left"
-        className="flex flex-col gap-4 bg-surface-sunken p-4 pt-12 data-[side=left]:sm:max-w-md"
+        showCloseButton={false}
+        className={cn(
+          'flex flex-col gap-3 border px-3 pt-2 pb-3',
+          '[box-shadow:var(--deck-offset-lg)_var(--deck-offset-lg)_0_var(--fg)]',
+          'data-[side=left]:inset-y-3 data-[side=left]:left-3 data-[side=left]:h-auto',
+          'data-[side=left]:w-[calc(100vw-2.25rem)] data-[side=left]:sm:max-w-md'
+        )}
       >
-        <DrawerTitle className="sr-only">Przestrzenie</DrawerTitle>
+        <header className="flex items-center justify-between">
+          <DrawerTitle className="text-heading">Przestrzenie</DrawerTitle>
+          <IconButton variant="ghost" label="Zamknij" onClick={() => onOpenChange(false)}>
+            <XIcon />
+          </IconButton>
+        </header>
         {children}
       </DrawerContent>
     </Drawer>
