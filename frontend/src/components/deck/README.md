@@ -18,11 +18,11 @@ them through `@theme inline`.
 | Status   | `status-ok`, `-processing`, `-pending`, `-error`                                 | article extraction states                     |
 | Type     | `text-display(-lg/-xl)`, `text-title`, `text-heading`, `text-figure`             | page titles, dialog titles, sections, numbers |
 | Shadow   | `deck`, `deck-lg`, `deck-press` (recolour with `[--deck-shadow:…]`)              | raised sheets, overlays, pressable controls   |
-| Easing   | `ease-deck` / `EASE_DECK`                                                        | every transition                              |
+| Motion   | springs `quick`, `base`, `panel`, `release` (`spring-*` in CSS)                  | everything that moves; see src/design/motion  |
 
 Map inks (`--ink-<name>` and `--ink-<name>-field`, 18 of them) colour spaces and entity types;
-use them through `inkFor(id)` from `src/design/inks.ts`. Motion presets (`swapX`, `swapY`,
-`slideFromEnd`, `unfold`, `enter`) are in `src/design/motion.ts`.
+use them through `inkFor(id)` from `src/design/inks.ts`. Motion presets (`fade`, `pop`, `reveal`,
+`swap`, `slideFromEnd`, `page`) and the rules for moving things are in `src/design/motion/`.
 
 ## Components
 
@@ -32,8 +32,9 @@ use them through `inkFor(id)` from `src/design/inks.ts`. Motion presets (`swapX`
 | `TextInput`                               | text fields; `size="display"` edits a title in its own type                                                                                                                          |
 | `SearchField`, `SearchFieldButton`, `Kbd` | search with a count, a clear button or a key hint                                                                                                                                    |
 | `Checkbox`                                | square checkbox with an indeterminate state                                                                                                                                          |
-| `RemoveControl`                           | the ✕ at a row's end with its inline question                                                                                                                                        |
-| `InlineConfirm`                           | a destructive question slid over a row                                                                                                                                               |
+| `RemoveControl`                           | the ✕ at a row's end, asking with a `ConfirmPopover`, or over a narrow row with `inRow`                                                                                              |
+| `ConfirmPopover`, `InlineConfirm`         | a destructive question hanging from its control, or its row's delete slid over a narrow row's end                                                                                    |
+| `IconSwap`                                | an icon turning into another in place, keyed by `id`                                                                                                                                 |
 | `ConfirmDialog`                           | a destructive question about many things at once                                                                                                                                     |
 | `DrawerContent` & co.                     | a sheet sliding in from the side                                                                                                                                                     |
 | `EmptyState`                              | nothing here yet, and the way to add it                                                                                                                                              |
