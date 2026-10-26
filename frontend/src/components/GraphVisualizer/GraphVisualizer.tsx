@@ -8,6 +8,8 @@ import { buildLabelColorMap } from './utils/buildLabelColorMap';
 import { DetailsPanel, EdgeDetailsPanel, PickPanel } from './components/DetailsPanel';
 import type { PickKind, SelectedEdge, SelectedNode } from './components/DetailsPanel';
 import { NodeCreateModal } from './components/EditForms';
+import { DuplicatesModal } from './components/DuplicatesModal';
+import { useDuplicates } from './hooks/useDuplicates';
 import { useGraphEdits } from './hooks/useGraphEdits';
 import { Legend } from './components/Legend';
 import type { LoadedEdge, LoadedNode } from '../../types';
@@ -46,6 +48,7 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
     applyEdit,
   } = useProgressiveGraph(spaceId);
   const edits = useGraphEdits(spaceId, applyEdit);
+  const duplicates = useDuplicates(spaceId);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
@@ -309,7 +312,7 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
         )}
 
         <div className="absolute bottom-2 left-2 z-10 text-xs text-gray-500 bg-white/90 border border-gray-200 rounded-lg px-2 py-1">
-          {nodes.length} z {totalNodes} węzłów · dwuklik rozwija
+          {nodes.length} z {totalNodes} węzłów · podwójne kliknięcie rozwija
         </div>
 
         <button
@@ -343,6 +346,32 @@ export function GraphVisualizer({ spaceId, highlightedIds = [], focusedId = null
             setCreating(false);
             setSelectedCategory(null);
             // Loaded and pinned first, as it may not be on the canvas yet.
+            void focusNode(id).then(() => selectNode(id));
+          }}
+        />
+
+        {duplicates.suggestions.length > 0 && (
+          <button
+            onClick={() => {
+              if (document.fullscreenElement) void document.exitFullscreen();
+              edits.merge.reset();
+              duplicates.setOpen(true);
+            }}
+            className="absolute top-2 left-2 z-10 p-1.5 rounded-lg bg-amber-50 border border-amber-300 shadow-sm hover:bg-amber-100 text-amber-900"
+          >
+            Duplikaty ({duplicates.suggestions.length})
+          </button>
+        )}
+
+        <DuplicatesModal
+          open={duplicates.open}
+          onOpenChange={duplicates.setOpen}
+          spaceId={spaceId}
+          suggestions={duplicates.suggestions}
+          edits={edits}
+          onShow={(id) => {
+            duplicates.setOpen(false);
+            setSelectedCategory(null);
             void focusNode(id).then(() => selectNode(id));
           }}
         />

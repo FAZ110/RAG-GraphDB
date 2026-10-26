@@ -34,3 +34,11 @@ CREATE INDEX entity_space IF NOT EXISTS FOR (e:Entity) ON (e.space_id)
 CREATE VECTOR INDEX entity_embeddings IF NOT EXISTS
 FOR (n:Entity) ON (n.embedding)
 OPTIONS {indexConfig: {`vector.dimensions`: $dim, `vector.similarity_function`: 'cosine'}}
+
+// name: duplicate_suggestion_id
+CREATE CONSTRAINT duplicate_suggestion_id IF NOT EXISTS
+FOR (s:DuplicateSuggestion) REQUIRE s.id IS UNIQUE
+
+// name: duplicate_suggestion_space
+CREATE INDEX duplicate_suggestion_space IF NOT EXISTS
+FOR (s:DuplicateSuggestion) ON (s.space_id)

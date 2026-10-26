@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 Candidate = dict  # {"name": str, "label": str, "score": float}
 MergeLog = list[dict] | None
+Suggestions = list[dict] | None
 OnMerge = Callable[[dict, dict], None] | None
 
 DEDUP_LOG_KEY = "debug:dedup:log"
@@ -90,6 +91,11 @@ class MatchConfig:
     threshold: float
     name_min_score: float
     lexical_min: float
+    # Unmerged pairs scoring from here up are saved as suggestions.
+    suggest_min: float
+
+
+_MERGE_REASONS = ("name", "embedding")
 
 
 def _match_reason(
@@ -109,7 +115,7 @@ def _match_reason(
         return None
     if score >= cfg.threshold and name_similarity(a_name, b_name) >= cfg.lexical_min:
         return "embedding"
-    return None
+    return "suggest"
 
 
 class _UnionFind:
@@ -217,7 +223,8 @@ def resolve_batch(
     for i, a in enumerate(nodes):
         for b in nodes[i + 1 :]:
             score = cosine(embeddings[a["id"]], embeddings[b["id"]])
-            if _match_reason(_name(a), _name(b), score, cfg, a.get("type"), b.get("type")):
+            reason = _match_reason(_name(a), _name(b), score, cfg, a.get("type"), b.get("type"))
+            if reason in _MERGE_REASONS:
                 uf.union(a["id"], b["id"])
 
     def on_merge(member: dict, canonical: dict) -> None:
@@ -249,9 +256,11 @@ def match_existing(
     find_candidates: Callable[[list[float]], list[Candidate]],
     cfg: MatchConfig,
     log: MergeLog = None,
+    suggestions: Suggestions = None,
 ) -> None:
     for node in nodes:
         name = _name(node)
+        near: list[Candidate] = []
         for cand in find_candidates(embeddings[node["id"]]):  # sorted by score, descending
             if not cand["label"]:
                 continue
@@ -264,13 +273,36 @@ def match_existing(
                 cand.get("type"),
                 cand.get("aliases"),
             )
-            if reason:
+            if reason == "suggest":
+                if cand["score"] >= cfg.suggest_min:
+                    near.append(cand)
+            elif reason:
                 if log is not None and (cand["name"], cand["label"]) != (name, node["label"]):
                     log.append(_log_entry("existing", node, cand, cand["score"], reason))
                 node["label"] = cand["label"]
                 node["properties"]["name"] = cand["name"]
                 _add_alias(node, name)
                 break
+        else:
+            if suggestions is not None:
+                suggestions.extend(
+                    _suggestion(node, c)
+                    for c in near
+                    if c["label"] != node["label"] or c["name"] != name
+                )
+
+
+def _suggestion(node: dict, cand: Candidate) -> dict:
+    # The pair is stored in one order, so it is found again whichever entity came second.
+    a, b = sorted([(node["label"], _name(node)), (cand["label"], cand["name"])])
+    return {
+        "a_label": a[0],
+        "a_name": a[1],
+        "b_label": b[0],
+        "b_name": b[1],
+        "score": cand["score"],
+        "lexical": name_similarity(_name(node), cand["name"]),
+    }
 
 
 def merge_same_key(nodes: list[dict], edges: list[dict]) -> tuple[list[dict], list[dict]]:

@@ -37,6 +37,10 @@ CALL (n) { DETACH DELETE n } IN TRANSACTIONS OF 1000 ROWS
 MATCH (n:Entity {space_id: $space_id})
 CALL (n) { DETACH DELETE n } IN TRANSACTIONS OF 1000 ROWS
 
+// name: delete_space_suggestions
+MATCH (n:DuplicateSuggestion {space_id: $space_id})
+CALL (n) { DELETE n } IN TRANSACTIONS OF 1000 ROWS
+
 // name: delete_space
 MATCH (s:Space {id: $space_id})
 DELETE s

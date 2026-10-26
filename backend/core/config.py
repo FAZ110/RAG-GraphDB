@@ -27,9 +27,15 @@ EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", LLM_BASE_URL)
 EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY", LLM_API_KEY)
 
 DEDUP_ENABLED = os.getenv("DEDUP_ENABLED", "true").lower() == "true"
+# Every dedup score is plain cosine similarity of the entities' embeddings.
 DEDUP_THRESHOLD = float(os.getenv("DEDUP_THRESHOLD", "0.75"))
-DEDUP_NAME_MIN_SCORE = float(os.getenv("DEDUP_NAME_MIN_SCORE", "0.75"))
+DEDUP_NAME_MIN_SCORE = float(os.getenv("DEDUP_NAME_MIN_SCORE", "0.5"))
 DEDUP_LEXICAL_MIN = float(os.getenv("DEDUP_LEXICAL_MIN", "0.85"))
+DEDUP_SUGGEST_MIN = float(os.getenv("DEDUP_SUGGEST_MIN", "0.5"))
+# A saved suggestion is shown when the names are alike, or the embedding alone is near certain:
+# it is dominated by label and description, so any two players otherwise score high.
+DEDUP_SUGGEST_LEXICAL_MIN = float(os.getenv("DEDUP_SUGGEST_LEXICAL_MIN", "0.8"))
+DEDUP_SUGGEST_ANY_NAME_MIN = float(os.getenv("DEDUP_SUGGEST_ANY_NAME_MIN", "0.9"))
 DEDUP_TOP_K = int(os.getenv("DEDUP_TOP_K", "5"))
 
 # Longer than a task can take: its 130 s time limit plus the countdowns of rate-limit retries.

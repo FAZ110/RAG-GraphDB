@@ -11,6 +11,7 @@ from core.config import (
     DEDUP_ENABLED,
     DEDUP_LEXICAL_MIN,
     DEDUP_NAME_MIN_SCORE,
+    DEDUP_SUGGEST_MIN,
     DEDUP_THRESHOLD,
     DEDUP_TOP_K,
     NEO4J_PASSWORD,
@@ -86,13 +87,15 @@ _MATCH_CONFIG = MatchConfig(
     threshold=DEDUP_THRESHOLD,
     name_min_score=DEDUP_NAME_MIN_SCORE,
     lexical_min=DEDUP_LEXICAL_MIN,
+    suggest_min=DEDUP_SUGGEST_MIN,
 )
 
 
 # The vector index cannot filter by space, so it is asked for many more neighbours than
 # needed and those from other spaces are dropped.
 _SEARCH_K = max(DEDUP_TOP_K * 20, 100)
-_SIMILAR_IN_SPACE_CYPHER = load_queries(__file__)["similar_in_space"]
+_QUERIES = load_queries(__file__)
+_SIMILAR_IN_SPACE_CYPHER = _QUERIES["similar_in_space"]
 
 
 def _find_candidates(session, space_id: str, vec: list[float]) -> list[dict]:
@@ -107,7 +110,8 @@ def _find_candidates(session, space_id: str, vec: list[float]) -> list[dict]:
             "description": r["description"],
             "type": r["type"],
             "aliases": r["aliases"],
-            "score": r["score"],
+            # The index scores (1 + cos) / 2; plain cosine keeps one scale with resolve_batch.
+            "score": 2 * r["score"] - 1,
         }
         for r in res
     ]
@@ -156,6 +160,7 @@ def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
         embeddings_map = {n["id"]: v for n, v in zip(nodes_dicts, vectors, strict=True)}
 
         dedup_log: list[dict] = []
+        suggestions: list[dict] = []
         if DEDUP_ENABLED:
             nodes_dicts, edges_dicts = resolve_batch(
                 nodes_dicts,
@@ -182,12 +187,17 @@ def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
                         lambda vec: _find_candidates(session, space_id, vec),
                         _MATCH_CONFIG,
                         dedup_log,
+                        suggestions,
                     )
                     nodes_dicts, edges_dicts = merge_same_key(nodes_dicts, edges_dicts)
 
                 statements = build_statements(
                     nodes_dicts, edges_dicts, space_id, article_id, embeddings=embeddings_map
                 )
+                statements += [
+                    (_QUERIES["suggest_duplicate"], {**s, "space_id": space_id})
+                    for s in suggestions
+                ]
                 # The article's previous share is replaced in the same transaction, so a
                 # failed write leaves the old graph intact.
                 with session.begin_transaction() as tx:
