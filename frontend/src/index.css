@@ -39,11 +39,12 @@
   box-shadow: var(--deck-offset-lg) var(--deck-offset-lg) 0 var(--deck-shadow, var(--line));
 }
 
+/* A press goes down at once and springs back on release. */
 @utility deck-press {
   box-shadow: var(--deck-offset) var(--deck-offset) 0 var(--deck-shadow, var(--fg-subtle));
   transition:
-    transform 120ms ease-out,
-    box-shadow 120ms ease-out,
+    transform var(--motion-quick) var(--ease-quick),
+    box-shadow var(--motion-quick) var(--ease-quick),
     background-color 150ms,
     border-color 150ms,
     color 150ms;
@@ -51,6 +52,8 @@
   &:active:not(:disabled) {
     transform: translate(var(--deck-press), var(--deck-press));
     box-shadow: 1px 1px 0 var(--deck-shadow, var(--fg-subtle));
+    transition-duration: var(--motion-press);
+    transition-timing-function: ease-out;
   }
 
   &:disabled {
@@ -62,15 +65,69 @@
   }
 }
 
+/* Shrinks a touch while pressed and springs back; colours follow on the same spring. */
+@utility press-shrink {
+  transition-property: color, background-color, transform;
+  transition-duration: var(--motion-quick);
+  transition-timing-function: var(--ease-quick);
+
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+    transition-duration: var(--motion-press);
+    transition-timing-function: ease-out;
+  }
+}
+
+@utility room-for-confirm {
+  padding-right: 7.5rem;
+}
+
+/* The springs of src/design/motion for transitions and tw-animate; `-out` ones are for leaving. */
+@utility spring-quick {
+  --tw-duration: var(--motion-quick);
+  --tw-ease: var(--ease-quick);
+  transition-duration: var(--motion-quick);
+  transition-timing-function: var(--ease-quick);
+}
+
+@utility spring-base {
+  --tw-duration: var(--motion-base);
+  --tw-ease: var(--ease-base);
+  transition-duration: var(--motion-base);
+  transition-timing-function: var(--ease-base);
+}
+
+@utility spring-panel {
+  --tw-duration: var(--motion-panel);
+  --tw-ease: var(--ease-panel);
+  transition-duration: var(--motion-panel);
+  transition-timing-function: var(--ease-panel);
+}
+
+@utility spring-quick-out {
+  --tw-duration: var(--motion-quick-out);
+  --tw-ease: var(--ease-quick-out);
+  transition-duration: var(--motion-quick-out);
+  transition-timing-function: var(--ease-quick-out);
+}
+
+@utility spring-base-out {
+  --tw-duration: var(--motion-base-out);
+  --tw-ease: var(--ease-base-out);
+  transition-duration: var(--motion-base-out);
+  transition-timing-function: var(--ease-base-out);
+}
+
+@utility spring-panel-out {
+  --tw-duration: var(--motion-panel-out);
+  --tw-ease: var(--ease-panel-out);
+  transition-duration: var(--motion-panel-out);
+  transition-timing-function: var(--ease-panel-out);
+}
+
 .stage {
   position: relative;
   transition:
-    grid-template-columns 500ms var(--ease-deck),
-    column-gap 500ms var(--ease-deck);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .stage {
-    transition: none;
-  }
+    grid-template-columns var(--motion-panel) var(--ease-panel),
+    column-gap var(--motion-panel) var(--ease-panel);
 }
