@@ -1,6 +1,4 @@
 import { useEffect } from "react";
-import { motion } from "motion/react";
-import { container } from "./motion";
 import { HeroSection } from "./HeroSection";
 import { StepsSection } from "./StepsSection";
 
@@ -29,14 +27,9 @@ export function HomePlaceholder() {
   }, []);
 
   return (
-    <motion.div
-      variants={container}
-      initial="hidden"
-      animate="show"
-      className="-my-6"
-    >
+    <div className="-my-6">
       <HeroSection />
       <StepsSection />
-    </motion.div>
+    </div>
   );
 }

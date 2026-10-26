@@ -20,12 +20,19 @@ export const isActive = (path: string, pathname: string) =>
 
 const sizes = { icon: 'size-9 justify-center', row: 'h-10 w-full gap-3 px-3' }
 
-export const pressable = (active: boolean, size: keyof typeof sizes = 'icon', className?: string) =>
+export const activeFill = 'bg-fg shadow-[inset_2px_2px_0_rgb(0_0_0/0.35)]'
+
+export const pressable = (
+  active: boolean,
+  size: keyof typeof sizes = 'icon',
+  className?: string,
+  slid = false
+) =>
   cn(
-    'group relative inline-flex shrink-0 items-center text-sm font-semibold transition-colors [&_svg]:size-4 [&_svg]:shrink-0',
+    'press-shrink group relative inline-flex shrink-0 items-center text-sm font-semibold [&_svg]:size-4 [&_svg]:shrink-0',
     sizes[size],
     active
-      ? 'bg-fg text-fg-inverse shadow-[inset_2px_2px_0_rgb(0_0_0/0.35)]'
+      ? cn('text-fg-inverse', !slid && activeFill)
       : 'text-fg-muted hover:bg-surface-sunken hover:text-fg',
     focusRing,
     className
