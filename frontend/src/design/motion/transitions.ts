@@ -26,3 +26,6 @@ export const move = bySpring(1)
 export const leave = bySpring(EXIT_SHARE)
 
 export const staggerDelay = (index: number) => Math.min(index, STAGGER.upTo) * STAGGER.gap
+
+/** A dragged thing let go, settling into its slot without overshooting. */
+export const dragSettle = { bounceStiffness: 600, bounceDamping: 50 }

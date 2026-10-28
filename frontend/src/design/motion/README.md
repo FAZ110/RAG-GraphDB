@@ -17,7 +17,7 @@ Leaving takes 0.8 of arriving (`EXIT_SHARE`); opacity takes 0.6 of the move it r
 
 - A preset, spread on a `motion.*` element: `fade`, `pop` (modal, popover), `reveal` (height),
   `swap` (one state turning into another; use `AnimatePresence mode="popLayout"`), `replace` (an icon becoming another), `slideFromEnd`, `coverFromEnd` (a strip sliding over a row from the control at its end)
-  and `arrive` (a page switched to).
+  `arrive` (a page switched to), `step` (one step of a flow replacing another, forward or back).
 - Anything else: `transition={move.quick}` toward a visible state, `leave.quick` toward removal.
   `staggerDelay(i)` spaces out items entering together.
 
@@ -27,7 +27,7 @@ Leaving takes 0.8 of arriving (`EXIT_SHARE`); opacity takes 0.6 of the move it r
 and `--ease-<name>` `linear()` curves. Use them through the utilities: `transition-transform
 spring-quick`, `transition-[width] spring-panel`, or with tw-animate, `data-open:animate-in
 data-open:spring-panel data-closed:animate-out data-closed:spring-panel-out`. Under reduced motion
-they are 0s. `deck-press` goes down in `--motion-press` and springs back; `press-shrink` does the
+they are 0s. `deck-press` goes down in `--motion-press` and springs back; `deck-land` deals a deck sheet onto the page, raised and settling onto its shadow (stagger with `animation-delay`); `press-shrink` does the
 same for controls without a deck shadow, by scaling to 0.97.
 
 ## Rules

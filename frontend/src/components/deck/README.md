@@ -17,7 +17,7 @@ them through `@theme inline`.
 | Danger   | `danger`, `danger-strong`, `danger-fg`, `danger-surface(-strong)`, `danger-line` | destructive actions, errors                   |
 | Status   | `status-ok`, `-processing`, `-pending`, `-error`                                 | article extraction states                     |
 | Type     | `text-display(-lg/-xl)`, `text-title`, `text-heading`, `text-figure`             | page titles, dialog titles, sections, numbers |
-| Shadow   | `deck`, `deck-lg`, `deck-press` (recolour with `[--deck-shadow:…]`)              | raised sheets, overlays, pressable controls   |
+| Shadow   | `deck`, `deck-lg`, `deck-press`, `deck-lift`, `deck-land` (recolour with `[--deck-shadow:…]`) | sheets, overlays, controls, cards picked up   |
 | Motion   | springs `quick`, `base`, `panel`, `release` (`spring-*` in CSS)                  | everything that moves; see src/design/motion  |
 
 Map inks (`--ink-<name>` and `--ink-<name>-field`, 18 of them) colour spaces and entity types;
