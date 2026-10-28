@@ -18,8 +18,13 @@ _HIDDEN_PROPS = {"embedding", "space_id"}
 _DUPLICATE_POOL = 20
 
 
+def _plain(value: Any) -> Any:
+    # Neo4j's temporal types would serialise as their private fields.
+    return value.to_native() if hasattr(value, "to_native") else value
+
+
 def _node(row: Mapping[str, Any]) -> dict:
-    props = {k: v for k, v in dict(row["props"]).items() if k not in _HIDDEN_PROPS}
+    props = {k: _plain(v) for k, v in dict(row["props"]).items() if k not in _HIDDEN_PROPS}
     return {
         "id": row["id"],
         "label": row["label"],
@@ -67,9 +72,42 @@ async def top_graph(space_id: str, limit: int) -> dict:
 
 
 @translates_neo4j_errors
-async def node_neighbours(space_id: str, node_id: str, limit: int) -> dict | None:
-    """A node of the space with up to `limit` neighbours; None if it is not in the space."""
-    params = {"space_id": space_id, "node_id": node_id, "limit": limit}
+async def edges_among(space_id: str, ids: list[str]) -> list[dict]:
+    """Every edge of the space whose both ends are among `ids`."""
+    async with get_driver().session() as session:
+        res = await session.run(_QUERIES["edges_between"], {"space_id": space_id, "ids": ids})
+        return [_edge(r) async for r in res]
+
+
+@translates_neo4j_errors
+async def subgraph(space_id: str, ids: list[str]) -> dict:
+    """The given entities of the space, with fresh degrees, and the edges among them."""
+    async with get_driver().session() as session:
+        res = await session.run(_QUERIES["nodes_by_id"], {"space_id": space_id, "ids": ids})
+        nodes = [_node(r) async for r in res]
+    edges = await edges_among(space_id, [n["id"] for n in nodes]) if nodes else []
+    return {"nodes": nodes, "edges": edges}
+
+
+@translates_neo4j_errors
+async def node_neighbours(
+    space_id: str,
+    node_id: str,
+    limit: int,
+    type_: str | None = None,
+    label: str | None = None,
+    direction: str | None = None,
+) -> dict | None:
+    """A node of the space with up to `limit` neighbours, optionally of one group;
+    None if it is not in the space."""
+    params = {
+        "space_id": space_id,
+        "node_id": node_id,
+        "limit": limit,
+        "type": type_,
+        "label": label,
+        "direction": direction,
+    }
     async with get_driver().session() as session:
         root = await (await session.run(_QUERIES["node"], params)).single()
         if root is None:
