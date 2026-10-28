@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { AnalysesPage } from './pages/AnalysesPage'
+import { AnalysisEditorPage } from './pages/AnalysisEditorPage'
 import { GraphPage } from './pages/GraphPage'
 import { HomePlaceholder } from './pages/HomePage'
 import { SettingsPage } from './pages/SettingsPage'
@@ -23,6 +24,13 @@ export const appRoutes: AppRoute[] = [
     showInNavbar: false,
   },
   { path: '/analyses', element: <AnalysesPage />, label: 'Analizy', showInNavbar: true },
+  // `new` stands for an analysis not saved yet; it gets its id with its first entity.
+  {
+    path: '/analyses/:spaceId/:analysisId',
+    element: <AnalysisEditorPage />,
+    label: 'Analiza',
+    showInNavbar: false,
+  },
   { path: '/graph', element: <GraphPage />, label: 'Graf', showInNavbar: true },
   {
     path: '/graph/:spaceId',
