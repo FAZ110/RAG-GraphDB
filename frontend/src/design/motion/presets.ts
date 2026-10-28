@@ -55,3 +55,15 @@ export const arrive: Variants = {
   enter: (direction: number) => ({ transform: `translateY(${direction * 16}px)` }),
   center: { transform: 'translateY(0px)', transition: move.quick },
 }
+
+/** One step of a flow replacing another: forward comes in from the end, back from the start.
+ * Pass the direction, 1 or -1, as `custom` to both the step and its `AnimatePresence`. */
+export const step: Variants = {
+  enter: (direction: number) => ({ opacity: 0, transform: `translateX(${direction * 32}px)` }),
+  center: { opacity: 1, transform: 'translateX(0px)', transition: move.base },
+  exit: (direction: number) => ({
+    opacity: 0,
+    transform: `translateX(${direction * -32}px)`,
+    transition: leave.base,
+  }),
+}
