@@ -145,8 +145,8 @@ async def delete_entity(space_id: str, node_id: str) -> bool:
 
 @translates_neo4j_errors
 async def merge_entities(space_id: str, keep_id: str, dup_id: str) -> bool:
-    """Fold `dup` into `keep`: its mentions, relationships, name and aliases move over
-    and it is deleted. False if either entity is not in the space."""
+    """Fold `dup` into `keep`: its mentions, relationships, name, aliases and places in
+    analyses move over and it is deleted. False if either entity is not in the space."""
     if keep_id == dup_id:
         raise ValueError("Nie można scalić węzła z samym sobą")
     params = {"space_id": space_id, "keep_id": keep_id, "dup_id": dup_id}
@@ -162,7 +162,7 @@ async def merge_entities(space_id: str, keep_id: str, dup_id: str) -> bool:
         props = {k: v for k, v in dp.items() if k not in _MERGE_SKIP and kp.get(k) is None}
         if "description" in props:
             props["embedding"] = _embed(keep["label"], kp["name"], props["description"])
-        for name in ("merge_mentions", "merge_outgoing", "merge_incoming"):
+        for name in ("merge_mentions", "merge_outgoing", "merge_incoming", "merge_analyses"):
             await (await tx.run(_QUERIES[name], params)).consume()
         await (
             await tx.run(

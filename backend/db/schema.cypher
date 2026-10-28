@@ -42,3 +42,9 @@ FOR (s:DuplicateSuggestion) REQUIRE s.id IS UNIQUE
 // name: duplicate_suggestion_space
 CREATE INDEX duplicate_suggestion_space IF NOT EXISTS
 FOR (s:DuplicateSuggestion) ON (s.space_id)
+
+// name: analysis_id
+CREATE CONSTRAINT analysis_id IF NOT EXISTS FOR (a:Analysis) REQUIRE a.id IS UNIQUE
+
+// name: analysis_space
+CREATE INDEX analysis_space IF NOT EXISTS FOR (a:Analysis) ON (a.space_id)
