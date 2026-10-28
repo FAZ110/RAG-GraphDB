@@ -1,4 +1,4 @@
-import type { BulkExtractRequest, DuplicateSuggestion, ExpansionResponse, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
+import type { BulkExtractRequest, CustomProvider, CustomProviderUpdate, DuplicateSuggestion, ExpansionResponse, ExtractionSettings, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
 
@@ -136,6 +136,23 @@ export const fetchSpaces = async (): Promise<Space[]> => {
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
+
+const customProviderUrl = `${API_URL}/settings/custom-provider`;
+
+export const fetchCustomProvider = () => sendJson<CustomProvider | null>(customProviderUrl, 'GET');
+
+export const saveCustomProvider = (provider: CustomProviderUpdate) =>
+  sendJson<CustomProvider>(customProviderUrl, 'PUT', provider);
+
+export const deleteCustomProvider = () => sendJson<void>(customProviderUrl, 'DELETE');
+
+export const fetchExtractionSettings = (spaceId: string) =>
+  sendJson<ExtractionSettings>(`${spaceUrl(spaceId)}/extraction-settings`, 'GET');
+
+export const saveExtractionSettings = (
+  spaceId: string,
+  settings: { rules: string | null; labels: string[] | null }
+) => sendJson<ExtractionSettings>(`${spaceUrl(spaceId)}/extraction-settings`, 'PUT', settings);
 
 export const fetchSpaceStats = async (id: string): Promise<SpaceStats> => {
   const response = await fetch(`${API_URL}/spaces/${encodeURIComponent(id)}/stats`);

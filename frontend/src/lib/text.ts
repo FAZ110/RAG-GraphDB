@@ -7,3 +7,11 @@ export function normalize(text: string): string {
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
 }
+
+// Labels and relationship types become Neo4j labels: the backend accepts uppercase identifiers.
+export function toIdentifier(value: string): string {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_')
+}

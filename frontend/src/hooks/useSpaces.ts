@@ -6,12 +6,14 @@ import {
   deleteSpace,
   fetchArticle,
   fetchEdgeSources,
+  fetchExtractionSettings,
   fetchNodeSources,
   fetchSpaceArticles,
   fetchSpaceStats,
   fetchSpaces,
   renameSpace,
   reorderSpaces,
+  saveExtractionSettings,
 } from '../services/api'
 import type { Space } from '../types'
 
@@ -67,6 +69,28 @@ export function useEdgeSources(spaceId: string, edgeId: string) {
   return useQuery({
     queryKey: [...SPACES_QUERY_KEY, spaceId, 'edges', edgeId, 'sources'],
     queryFn: () => fetchEdgeSources(spaceId, edgeId),
+  })
+}
+
+const extractionSettingsKey = (spaceId: string) => [
+  ...SPACES_QUERY_KEY,
+  spaceId,
+  'extraction-settings',
+]
+
+export function useExtractionSettings(spaceId: string) {
+  return useQuery({
+    queryKey: extractionSettingsKey(spaceId),
+    queryFn: () => fetchExtractionSettings(spaceId),
+  })
+}
+
+export function useSaveExtractionSettings(spaceId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (settings: Parameters<typeof saveExtractionSettings>[1]) =>
+      saveExtractionSettings(spaceId, settings),
+    onSuccess: (saved) => queryClient.setQueryData(extractionSettingsKey(spaceId), saved),
   })
 }
 

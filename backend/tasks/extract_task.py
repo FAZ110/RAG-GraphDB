@@ -91,8 +91,6 @@ _MATCH_CONFIG = MatchConfig(
 )
 
 
-# The vector index cannot filter by space, so it is asked for many more neighbours than
-# needed and those from other spaces are dropped.
 _SEARCH_K = max(DEDUP_TOP_K * 20, 100)
 _QUERIES = load_queries(__file__)
 _SIMILAR_IN_SPACE_CYPHER = _QUERIES["similar_in_space"]
@@ -110,7 +108,6 @@ def _find_candidates(session, space_id: str, vec: list[float]) -> list[dict]:
             "description": r["description"],
             "type": r["type"],
             "aliases": r["aliases"],
-            # The index scores (1 + cos) / 2; plain cosine keeps one scale with resolve_batch.
             "score": 2 * r["score"] - 1,
         }
         for r in res
@@ -132,10 +129,12 @@ def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
     if article is None:
         return _error_result(article_id, None, "Article no longer exists")
     space_id, title, content = article["space_id"], article["title"] or "", article["content"]
-    llm = LLMService(provider=provider)
     try:
+        llm = LLMService(provider=provider)
         sentences = split_sentences(content)
-        raw_json = llm.generate_graph_json(title, numbered(content, sentences))
+        raw_json = llm.generate_graph_json(
+            title, numbered(content, sentences), article["rules"], article["labels"]
+        )
         graph = validate_graph_json(raw_json)
         nodes_dicts = [n.model_dump() for n in graph.nodes]
         edges_dicts = [e.model_dump() for e in graph.edges]
@@ -170,8 +169,6 @@ def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
                 dedup_log,
             )
 
-        # Candidate lookup and writing share one lock, so parallel workers can't create the
-        # same entity twice. Spaces don't share entities, so each has its own lock.
         r = redis.from_url(REDIS_URL)
         lock = r.lock(
             GRAPH_WRITE_LOCK.format(space_id=space_id),
@@ -198,8 +195,6 @@ def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
                     (_QUERIES["suggest_duplicate"], {**s, "space_id": space_id})
                     for s in suggestions
                 ]
-                # The article's previous share is replaced in the same transaction, so a
-                # failed write leaves the old graph intact.
                 with session.begin_transaction() as tx:
                     release_article(tx, article_id)
                     for cypher, params in statements:

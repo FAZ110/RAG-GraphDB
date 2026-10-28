@@ -4,6 +4,8 @@ export const PROVIDERS = [
   { value: 'openai', label: 'OpenAI', model: 'gpt-4o-mini', paid: true },
 ] as const
 
-export type Provider = (typeof PROVIDERS)[number]['value']
+export const CUSTOM_PROVIDER = 'custom'
+
+export type Provider = (typeof PROVIDERS)[number]['value'] | typeof CUSTOM_PROVIDER
 
 export const DEFAULT_PROVIDER: Provider = 'groq'

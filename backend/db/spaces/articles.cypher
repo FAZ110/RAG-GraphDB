@@ -17,11 +17,15 @@ RETURN a.id AS id, unchanged, a.nodes_count AS nodes_count, a.edges_count AS edg
 // name: start_article
 MATCH (a:Article {id: $article_id})
 SET a.status = 'processing', a.started_at = datetime()
+WITH a
+OPTIONAL MATCH (s:Space {id: a.space_id})
 RETURN a.id AS id,
        a.space_id AS space_id,
        a.title AS title,
        a.content AS content,
-       a.content_hash AS content_hash
+       a.content_hash AS content_hash,
+       s.extraction_rules AS rules,
+       s.extraction_labels AS labels
 
 // name: finish_article
 // A newer text may have been uploaded while this one was processing; the article then

@@ -12,8 +12,18 @@ from core.config import (
     OPENAI_API_KEY,
     OPENAI_MODEL,
 )
+from db.settings import custom_provider_config
 
 _GROQ_MAX_COMPLETION_TOKENS = 8000
+
+DEFAULT_LABELS = ["OSOBA", "ORGANIZACJA", "MIEJSCE", "WYDARZENIE"]
+
+_EXTRA_RULES_PROMPT = """\
+Przy ekstrakcji stosuj także poniższe dodatkowe reguły użytkownika. Format odpowiedzi \
+(JSON z "nodes" i "edges") pozostaje bez zmian.
+
+{rules}\
+"""
 
 _GRAPH_JSON_PROMPT = """\
 Poniżej wyśle ci tekst, twoim zadaniem jest wyekstrahować encje i relacje semantyczne między nimi.
@@ -27,7 +37,7 @@ Format krawędzi:
 {{"source": "id_węzła", "target": "id_węzła", "type": "TYP_RELACJI", "evidence": ["S2"], "properties": {{}}}}
 
 Bardzo ważne zasady:
-1. Dobierz etykiety (label) odpowiednio do domeny tekstu (np. OSOBA, ORGANIZACJA, MIEJSCE, WYDARZENIE lub inne pasujące).
+1. Dobierz etykiety (label) odpowiednio do domeny tekstu (np. {labels} lub inne pasujące).
    Etykiety pisz wielkimi literami, np. OSOBA, FIRMA, PRODUKT.
    Etykieta to rodzaj bytu (jedno słowo lub słowa połączone podkreślnikiem, np. KLUB,
    ZAWODNIK, KLUB_PIŁKARSKI), NIGDY jego nazwa: "KLUB", nie "KLUB AC MILAN".
@@ -89,17 +99,38 @@ class LLMService:
             self._client = OpenAI(api_key=OPENAI_API_KEY, max_retries=0)
             self._model = OPENAI_MODEL
             self._extra = {"response_format": {"type": "json_object"}}
+        elif provider == "custom":
+            config = custom_provider_config()
+            if config is None:
+                raise ValueError("No custom LLM provider configured in settings")
+            self._client = OpenAI(
+                base_url=config["base_url"], api_key=config["api_key"] or "none", max_retries=0
+            )
+            self._model = config["model"]
         else:
             self._client = OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY, max_retries=0)
             self._model = LLM_MODEL
 
         print(f"Initialized with: {self._model}")
 
-    def generate_graph_json(self, title: str, content: str) -> dict:
-        prompt = _GRAPH_JSON_PROMPT.format(title=title, content=content)
+    def generate_graph_json(
+        self,
+        title: str,
+        content: str,
+        rules: str | None = None,
+        labels: list[str] | None = None,
+    ) -> dict:
+        prompt = _GRAPH_JSON_PROMPT.format(
+            labels=", ".join(labels or DEFAULT_LABELS), title=title, content=content
+        )
+        messages = [{"role": "user", "content": prompt}]
+        if rules:
+            messages.insert(
+                0, {"role": "system", "content": _EXTRA_RULES_PROMPT.format(rules=rules)}
+            )
         response = self._client.chat.completions.create(
             model=self._model,
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
             temperature=0.1,
             **self._extra,
         )

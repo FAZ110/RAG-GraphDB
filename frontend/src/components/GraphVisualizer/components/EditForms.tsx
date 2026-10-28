@@ -2,14 +2,11 @@ import { useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { Button, ErrorNote, Modal, TextInput } from '../../deck';
 import { useSpaceStats } from '../../../hooks/useSpaces';
+import { toIdentifier } from '../../../lib/text';
 import { findExistingLike } from '../../../services/api';
 import type { NodeFields, SimilarNode } from '../../../types';
 
 const SUGGESTED_LABELS = 8;
-
-// Labels and relationship types become Neo4j labels: the backend accepts uppercase identifiers.
-const toIdentifier = (value: string) =>
-  value.trim().toUpperCase().replace(/[\s-]+/g, '_');
 
 const splitAliases = (value: string) =>
   value
