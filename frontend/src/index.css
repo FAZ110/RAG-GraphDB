@@ -1,14 +1,14 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "./styles/shadcn.css";
-@import "./styles/tokens.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import './styles/shadcn.css';
+@import './styles/tokens.css';
 
 @custom-variant dark (&:is(.dark *));
 
 /* Tailwind's preflight resets buttons to the default cursor; in the base layer, so utilities still win. */
 @layer base {
   button:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]) {
+  [role='button']:not([aria-disabled='true']) {
     cursor: pointer;
   }
 }
@@ -17,8 +17,13 @@
 @custom-variant beside-map (@media (min-width: 88rem) and (min-height: 50rem));
 
 @keyframes float-slow {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 .animate-float-slow {
@@ -28,6 +33,28 @@
 .bg-dot-grid {
   background-image: radial-gradient(circle, rgba(59, 130, 246, 0.18) 1px, transparent 1px);
   background-size: 18px 18px;
+}
+
+/* Typed, so it can be animated: a sheet being laid down shortens its shadow as it lands. */
+@property --deck-offset {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 4px;
+}
+
+/* A deck sheet dealt onto the page: it arrives raised, its shadow long, and settles onto it.
+   Stagger several with `animation-delay`. Under reduced motion the spring is 0s and it is
+   simply there. */
+@utility deck-land {
+  animation: deck-land var(--motion-panel) var(--ease-panel) both;
+}
+
+@keyframes deck-land {
+  from {
+    opacity: 0;
+    transform: translate(-6px, -6px);
+    --deck-offset: 10px;
+  }
 }
 
 /* `--deck-shadow` recolours the shadow of all three. */
@@ -58,6 +85,42 @@
 
   &:disabled {
     box-shadow: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+/* A card picked up on hover: it rises off its shadow towards the pointer, the shadow lengthening
+   and darkening, and goes down onto it when pressed. `--lift-rest` and `--lift-raised` set how
+   high it sits before and after; rows in a list rest flat on the page with `--lift-rest: 0px`. */
+@utility deck-lift {
+  --lift-from: var(--lift-rest, var(--deck-offset));
+  --lift-to: var(--lift-raised, var(--deck-offset-lg));
+  box-shadow: var(--lift-from) var(--lift-from) 0 var(--deck-shadow, var(--fg-subtle));
+  transition:
+    transform var(--motion-quick) var(--ease-quick),
+    box-shadow var(--motion-quick) var(--ease-quick),
+    background-color 150ms,
+    border-color 150ms,
+    color 150ms;
+
+  @media (hover: hover) {
+    &:hover {
+      transform: translate(
+        calc(var(--lift-from) - var(--lift-to)),
+        calc(var(--lift-from) - var(--lift-to))
+      );
+      box-shadow: var(--lift-to) var(--lift-to) 0 var(--deck-shadow, var(--fg-muted));
+    }
+  }
+
+  &:active {
+    transform: translate(var(--deck-press), var(--deck-press));
+    box-shadow: 1px 1px 0 var(--deck-shadow, var(--fg-subtle));
+    transition-duration: var(--motion-press);
+    transition-timing-function: ease-out;
   }
 
   @media (prefers-reduced-motion: reduce) {
