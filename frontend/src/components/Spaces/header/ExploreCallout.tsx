@@ -15,7 +15,7 @@ export function ExploreCallout({ spaceId }: { spaceId: string }) {
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-3">
-        <LastExploration />
+        <LastExploration spaceId={spaceId} />
         {/* On phones only its icon fits beside the other two. */}
         <Button
           asChild
@@ -29,7 +29,7 @@ export function ExploreCallout({ spaceId }: { spaceId: string }) {
           </Link>
         </Button>
         <Button asChild variant="inverse" size="xl">
-          <Link to={`/graph/${spaceId}`} state={{ explore: true }}>
+          <Link to={`/analyses/${spaceId}/new`}>
             <ScanSearchIcon />
             Nowa analiza
           </Link>
