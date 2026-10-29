@@ -138,6 +138,7 @@ function ProviderForm({ saved, onDone }: { saved: CustomProvider | null; onDone:
   const [model, setModel] = useState(saved?.model ?? '')
   const [apiKey, setApiKey] = useState('')
   const save = useSaveCustomProvider(saved?.id ?? null)
+  const keyRequired = !!saved?.has_api_key && baseUrl.trim() !== saved.base_url
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -180,13 +181,16 @@ function ProviderForm({ saved, onDone }: { saved: CustomProvider | null; onDone:
           <Field
             label="Klucz API"
             hint={
-              saved?.has_api_key
-                ? 'Klucz jest zapisany. Zostaw puste, by go nie zmieniać.'
-                : 'Opcjonalny: serwery lokalne zwykle go nie wymagają.'
+              keyRequired
+                ? 'Adres API się zmienił: podaj klucz ponownie, by nie trafił na inny serwer.'
+                : saved?.has_api_key
+                  ? 'Klucz jest zapisany. Zostaw puste, by go nie zmieniać.'
+                  : 'Opcjonalny: serwery lokalne zwykle go nie wymagają.'
             }
           >
             <TextInput
               type="password"
+              required={keyRequired}
               autoComplete="off"
               placeholder={saved?.has_api_key ? '••••••••' : ''}
               value={apiKey}

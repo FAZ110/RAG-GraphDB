@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Response, status
 
 from core.secrets import SecretsKeyError
+from db.errors import ApiKeyRequiredError
 from db.settings import (
     create_custom_provider,
     delete_custom_provider,
@@ -41,6 +42,8 @@ async def put_custom_provider(provider_id: str, body: CustomProviderIn):
         )
     except SecretsKeyError as e:
         raise _secrets_error(e) from e
+    except ApiKeyRequiredError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     if provider is None:
         raise _not_found()
     return provider

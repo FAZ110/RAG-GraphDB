@@ -2,6 +2,7 @@ import uuid
 
 from core.secrets import decrypt, encrypt
 from db.driver import get_driver, get_sync_driver, translates_neo4j_errors
+from db.errors import ApiKeyRequiredError
 from db.query_loader import load_queries
 
 _QUERIES = load_queries(__file__)
@@ -47,6 +48,11 @@ async def update_custom_provider(
         **_key_fields(api_key or ""),
     }
     async with get_driver().session() as session:
+        if api_key is None:
+            res = await session.run(_QUERIES["get_custom_provider_config"], {"id": provider_id})
+            current = await res.single()
+            if current and current["api_key_encrypted"] and current["base_url"] != base_url:
+                raise ApiKeyRequiredError("Enter the API key again when changing the API address")
         row = await (await session.run(_QUERIES["update_custom_provider"], params)).single()
         return dict(row) if row else None
 
