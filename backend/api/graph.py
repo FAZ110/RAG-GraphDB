@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from api.dependencies import existing_space
@@ -12,6 +14,13 @@ from db.graph.edits import (
     update_entity,
     update_relationship,
 )
+from db.graph.explore import (
+    common_neighbours,
+    entities_by_label,
+    relation_groups,
+    shortest_paths,
+    sources_for,
+)
 from db.graph.reads import (
     duplicate_suggestions,
     edge_sources,
@@ -19,12 +28,17 @@ from db.graph.reads import (
     node_neighbours,
     node_sources,
     search_nodes,
+    subgraph,
     top_graph,
 )
 from schemas.graph import (
+    CommonQuery,
     EntityCreate,
+    EntityIds,
     EntityMerge,
     EntityUpdate,
+    Identifier,
+    PathQuery,
     RelationshipCreate,
     RelationshipUpdate,
 )
@@ -45,11 +59,64 @@ async def get_graph(space_id: str, limit: int = Query(25, ge=1, le=_MAX_PAGE)):
 
 
 @router.get("/nodes/{node_id}/neighbours")
-async def get_neighbours(space_id: str, node_id: str, limit: int = Query(25, ge=1, le=_MAX_PAGE)):
-    result = await node_neighbours(space_id, node_id, limit)
+async def get_neighbours(
+    space_id: str,
+    node_id: str,
+    limit: int = Query(25, ge=1, le=_MAX_PAGE),
+    type: Identifier | None = None,
+    label: Identifier | None = None,
+    direction: Literal["in", "out"] | None = None,
+):
+    """Neighbours of a node, or only one group of them: a relationship type, entity type
+    or direction, as `/relations` counts them."""
+    result = await node_neighbours(space_id, node_id, limit, type, label, direction)
     if result is None:
         raise HTTPException(status_code=404, detail="Node not found")
     return result
+
+
+@router.get("/nodes/{node_id}/relations")
+async def get_relations(space_id: str, node_id: str):
+    """How many neighbours a node has per direction, relationship type and entity type."""
+    return await relation_groups(space_id, node_id)
+
+
+@router.get("/nodes")
+async def get_nodes_by_label(
+    space_id: str,
+    label: Identifier,
+    limit: int = Query(50, ge=1, le=_MAX_PAGE),
+    offset: int = Query(0, ge=0),
+):
+    """Entities of one type, best connected first, with how many there are in all."""
+    return await entities_by_label(space_id, label, limit, offset)
+
+
+@router.post("/subgraph")
+async def post_subgraph(space_id: str, body: EntityIds):
+    """Entities already picked, e.g. on an analysis canvas, with the edges among them."""
+    return await subgraph(space_id, body.ids)
+
+
+@router.post("/common")
+async def post_common(space_id: str, body: CommonQuery):
+    """What the given entities have in common, e.g. a club and a season give its players."""
+    min_shared = min(body.min_shared or len(body.ids), len(body.ids))
+    return await common_neighbours(space_id, body.ids, body.label, min_shared, body.limit)
+
+
+@router.post("/paths")
+async def post_paths(space_id: str, body: PathQuery):
+    """The shortest paths between two entities, through entities only."""
+    if body.source_id == body.target_id:
+        raise HTTPException(status_code=422, detail="Ścieżka musi łączyć dwa różne węzły")
+    return await shortest_paths(space_id, body.source_id, body.target_id, body.k, body.max_length)
+
+
+@router.post("/sources")
+async def post_sources(space_id: str, body: EntityIds, limit: int = Query(50, ge=1, le=200)):
+    """Articles mentioning the given entities, those mentioning most of them first."""
+    return await sources_for(space_id, body.ids, limit)
 
 
 @router.get("/nodes/{node_id}/sources")

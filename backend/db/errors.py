@@ -21,3 +21,7 @@ class EntityKeyTakenError(ValueError):
 
 class ApiKeyRequiredError(ValueError):
     """A provider's base URL changed while its stored API key was kept."""
+    
+    
+class RevisionConflictError(ValueError):
+    """The analysis was saved elsewhere since the revision a save started from."""

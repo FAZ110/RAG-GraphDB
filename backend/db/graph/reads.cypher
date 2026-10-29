@@ -11,6 +11,11 @@ MATCH (a:Entity {space_id: $space_id})-[r]->(b:Entity)
 WHERE a.id IN $ids AND b.id IN $ids
 RETURN elementId(r) AS edge_id, a.id AS edge_source, b.id AS edge_target, type(r) AS edge_type
 
+// name: nodes_by_id
+MATCH (n:Entity {space_id: $space_id})
+WHERE n.id IN $ids
+RETURN n.id AS id, n.label AS label, properties(n) AS props, COUNT { (n)--(:Entity) } AS degree
+
 // name: count_nodes
 MATCH (n:Entity {space_id: $space_id})
 RETURN count(n) AS total
@@ -20,7 +25,11 @@ MATCH (n:Entity {space_id: $space_id, id: $node_id})
 RETURN n.id AS id, n.label AS label, properties(n) AS props, COUNT { (n)--(:Entity) } AS degree
 
 // name: neighbours
-MATCH (:Entity {space_id: $space_id, id: $node_id})-[r]-(m:Entity)
+// Optionally only one group of them: one relationship type, direction or entity type.
+MATCH (n:Entity {space_id: $space_id, id: $node_id})-[r]-(m:Entity)
+WHERE ($type IS NULL OR type(r) = $type)
+  AND ($label IS NULL OR m.label = $label)
+  AND ($direction IS NULL OR ($direction = 'out') = (startNode(r) = n))
 WITH m, r, COUNT { (m)--(:Entity) } AS degree
 ORDER BY degree DESC, elementId(r)
 LIMIT $limit

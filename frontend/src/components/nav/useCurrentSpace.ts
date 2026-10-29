@@ -8,6 +8,6 @@ export function useCurrentSpace() {
   const { pathname } = useLocation()
   const { data } = useSpaces()
   const last = useLastSpaceId()
-  const addressed = pathname.match(/^\/(?:spaces|graph)\/([^/]+)/)?.[1] ?? last
+  const addressed = pathname.match(/^\/(?:spaces|graph|analyses)\/([^/]+)/)?.[1] ?? last
   return { space: data && pickSpace(data, addressed), spaces: data ?? [] }
 }

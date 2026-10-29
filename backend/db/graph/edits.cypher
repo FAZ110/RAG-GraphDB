@@ -60,6 +60,15 @@ SET k.article_ids = coalesce(k.article_ids, []) + [i IN coalesce(r.article_ids, 
     k.evidence = coalesce(k.evidence, []) + [s IN coalesce(r.evidence, []) WHERE NOT s IN coalesce(k.evidence, [])],
     k.manual = coalesce(k.manual, false) OR coalesce(r.manual, false)
 
+// name: merge_analyses
+// An analysis showing `dup` shows `keep` instead, where `dup` stood unless it already shows
+// `keep`. Its revision moves on, so a tab still holding `dup` reloads before saving over this.
+MATCH (a:Analysis {space_id: $space_id})-[i:INCLUDES]->(:Entity {space_id: $space_id, id: $dup_id})
+MATCH (keep:Entity {space_id: $space_id, id: $keep_id})
+MERGE (a)-[k:INCLUDES]->(keep)
+ON CREATE SET k.x = i.x, k.y = i.y
+SET a.revision = a.revision + 1
+
 // name: merge_finish
 // Marked manual, so a re-extraction that no longer mentions it does not delete the result.
 MATCH (keep:Entity {space_id: $space_id, id: $keep_id})

@@ -4,6 +4,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from api.analyses import all_router as all_analyses_router
+from api.analyses import router as analyses_router
 from api.articles import router as articles_router
 from api.batches import router as batches_router
 from api.debug import router as debug_router
@@ -44,6 +46,8 @@ async def graph_database_error_handler(_: Request, exc: GraphDatabaseError) -> J
 app.include_router(spaces_router)
 app.include_router(articles_router)
 app.include_router(graph_router)
+app.include_router(analyses_router)
+app.include_router(all_analyses_router)
 app.include_router(jobs_router)
 app.include_router(batches_router)
 app.include_router(search_router)

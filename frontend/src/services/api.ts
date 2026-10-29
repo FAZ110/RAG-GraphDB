@@ -1,8 +1,8 @@
 import type { BulkExtractRequest, CustomProvider, CustomProviderInput, DuplicateSuggestion, ExpansionResponse, ExtractionSettings, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
+export const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
 
-const readError = async (response: Response): Promise<string> => {
+export const readError = async (response: Response): Promise<string> => {
   const body: unknown = await response.json().catch(() => null);
   const detail = (body as { detail?: unknown } | null)?.detail;
   if (typeof detail === 'string') return detail;
@@ -11,7 +11,7 @@ const readError = async (response: Response): Promise<string> => {
   return typeof first === 'string' ? first : `Server error: ${response.status}`;
 }
 
-const spaceUrl = (spaceId: string) => `${API_URL}/spaces/${encodeURIComponent(spaceId)}`;
+export const spaceUrl = (spaceId: string) => `${API_URL}/spaces/${encodeURIComponent(spaceId)}`;
 
 export const submitExtract = async (
   spaceId: string,

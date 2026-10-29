@@ -15,6 +15,8 @@ _CLEAR_SPACE_STEPS = (
     "delete_space_articles",
     "delete_space_entities",
     "delete_space_suggestions",
+    # Analyses only point at entities, so with the graph gone nothing is left of them.
+    "delete_space_analyses",
 )
 
 
