@@ -1,4 +1,4 @@
-import type { BulkExtractRequest, CustomProvider, CustomProviderUpdate, DuplicateSuggestion, ExpansionResponse, ExtractionSettings, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
+import type { BulkExtractRequest, CustomProvider, CustomProviderInput, DuplicateSuggestion, ExpansionResponse, ExtractionSettings, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
 
@@ -137,14 +137,18 @@ export const fetchSpaces = async (): Promise<Space[]> => {
   return response.json();
 }
 
-const customProviderUrl = `${API_URL}/settings/custom-provider`;
+const customProvidersUrl = `${API_URL}/settings/providers`;
+const customProviderUrl = (id: string) => `${customProvidersUrl}/${encodeURIComponent(id)}`;
 
-export const fetchCustomProvider = () => sendJson<CustomProvider | null>(customProviderUrl, 'GET');
+export const fetchCustomProviders = () => sendJson<CustomProvider[]>(customProvidersUrl, 'GET');
 
-export const saveCustomProvider = (provider: CustomProviderUpdate) =>
-  sendJson<CustomProvider>(customProviderUrl, 'PUT', provider);
+export const createCustomProvider = (provider: CustomProviderInput) =>
+  sendJson<CustomProvider>(customProvidersUrl, 'POST', provider);
 
-export const deleteCustomProvider = () => sendJson<void>(customProviderUrl, 'DELETE');
+export const updateCustomProvider = (id: string, provider: CustomProviderInput) =>
+  sendJson<CustomProvider>(customProviderUrl(id), 'PUT', provider);
+
+export const deleteCustomProvider = (id: string) => sendJson<void>(customProviderUrl(id), 'DELETE');
 
 export const fetchExtractionSettings = (spaceId: string) =>
   sendJson<ExtractionSettings>(`${spaceUrl(spaceId)}/extraction-settings`, 'GET');

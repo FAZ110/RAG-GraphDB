@@ -1,24 +1,33 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { deleteCustomProvider, fetchCustomProvider, saveCustomProvider } from '../services/api'
+import {
+  createCustomProvider,
+  deleteCustomProvider,
+  fetchCustomProviders,
+  updateCustomProvider,
+} from '../services/api'
+import type { CustomProviderInput } from '../types'
 
-const CUSTOM_PROVIDER_KEY = ['settings', 'custom-provider']
+const CUSTOM_PROVIDERS_KEY = ['settings', 'providers']
 
-export function useCustomProvider() {
-  return useQuery({ queryKey: CUSTOM_PROVIDER_KEY, queryFn: fetchCustomProvider })
+export function useCustomProviders() {
+  return useQuery({ queryKey: CUSTOM_PROVIDERS_KEY, queryFn: fetchCustomProviders })
 }
 
-export function useSaveCustomProvider() {
+function useInvalidateProviders() {
   const queryClient = useQueryClient()
+  return () => queryClient.invalidateQueries({ queryKey: CUSTOM_PROVIDERS_KEY })
+}
+
+export function useSaveCustomProvider(id: string | null) {
+  const onSuccess = useInvalidateProviders()
   return useMutation({
-    mutationFn: saveCustomProvider,
-    onSuccess: (saved) => queryClient.setQueryData(CUSTOM_PROVIDER_KEY, saved),
+    mutationFn: (provider: CustomProviderInput) =>
+      id ? updateCustomProvider(id, provider) : createCustomProvider(provider),
+    onSuccess,
   })
 }
 
 export function useDeleteCustomProvider() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: deleteCustomProvider,
-    onSuccess: () => queryClient.setQueryData(CUSTOM_PROVIDER_KEY, null),
-  })
+  const onSuccess = useInvalidateProviders()
+  return useMutation({ mutationFn: deleteCustomProvider, onSuccess })
 }

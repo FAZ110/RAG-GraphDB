@@ -15,6 +15,7 @@ from core.config import (
 from db.settings import custom_provider_config
 
 _GROQ_MAX_COMPLETION_TOKENS = 8000
+CUSTOM_PROVIDER_PREFIX = "custom:"
 
 DEFAULT_LABELS = ["OSOBA", "ORGANIZACJA", "MIEJSCE", "WYDARZENIE"]
 
@@ -99,10 +100,10 @@ class LLMService:
             self._client = OpenAI(api_key=OPENAI_API_KEY, max_retries=0)
             self._model = OPENAI_MODEL
             self._extra = {"response_format": {"type": "json_object"}}
-        elif provider == "custom":
-            config = custom_provider_config()
+        elif provider.startswith(CUSTOM_PROVIDER_PREFIX):
+            config = custom_provider_config(provider.removeprefix(CUSTOM_PROVIDER_PREFIX))
             if config is None:
-                raise ValueError("No custom LLM provider configured in settings")
+                raise ValueError("Custom LLM provider no longer exists, pick another model")
             self._client = OpenAI(
                 base_url=config["base_url"], api_key=config["api_key"] or "none", max_retries=0
             )

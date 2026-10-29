@@ -6,13 +6,15 @@ Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 
 
 class CustomProvider(BaseModel):
+    id: str
     name: str
     base_url: str
     model: str
     has_api_key: bool
+    api_key_hint: str | None
 
 
-class CustomProviderUpdate(BaseModel):
+class CustomProviderIn(BaseModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
     base_url: Annotated[
         str, StringConstraints(strip_whitespace=True, pattern=r"^https?://\S+$", max_length=300)

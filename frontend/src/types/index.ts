@@ -84,13 +84,15 @@ export interface Space {
 }
 
 export interface CustomProvider {
+    id: string;
     name: string;
     base_url: string;
     model: string;
     has_api_key: boolean;
+    api_key_hint: string | null;
 }
 
-export interface CustomProviderUpdate {
+export interface CustomProviderInput {
     name: string;
     base_url: string;
     model: string;
