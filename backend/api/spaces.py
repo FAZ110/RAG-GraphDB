@@ -5,12 +5,23 @@ from db.errors import SpaceNameTakenError
 from db.spaces.spaces import (
     create_space,
     delete_space,
+    get_extraction_settings,
     list_spaces,
     rename_space,
     reorder_spaces,
+    set_extraction_settings,
 )
 from db.spaces.stats import space_stats
-from schemas.spaces import Space, SpaceCreate, SpaceOrder, SpaceStats, SpaceUpdate
+from schemas.spaces import (
+    ExtractionSettings,
+    ExtractionSettingsUpdate,
+    Space,
+    SpaceCreate,
+    SpaceOrder,
+    SpaceStats,
+    SpaceUpdate,
+)
+from services.llm_service import DEFAULT_LABELS
 
 router = APIRouter(prefix="/spaces", tags=["spaces"])
 
@@ -50,6 +61,30 @@ async def get_space_by_id(space: ExistingSpace):
 @router.get("/{space_id}/stats", response_model=SpaceStats)
 async def get_space_stats(space: ExistingSpace):
     return await space_stats(space["id"])
+
+
+def _effective(settings: dict) -> dict:
+    return {
+        "rules": settings["rules"] or "",
+        "labels": settings["labels"] or DEFAULT_LABELS,
+    }
+
+
+@router.get("/{space_id}/extraction-settings", response_model=ExtractionSettings)
+async def get_space_extraction_settings(space_id: str):
+    settings = await get_extraction_settings(space_id)
+    if settings is None:
+        raise _not_found()
+    return _effective(settings)
+
+
+@router.put("/{space_id}/extraction-settings", response_model=ExtractionSettings)
+async def put_space_extraction_settings(space_id: str, body: ExtractionSettingsUpdate):
+    labels = list(dict.fromkeys(body.labels)) if body.labels else None
+    settings = await set_extraction_settings(space_id, body.rules, labels)
+    if settings is None:
+        raise _not_found()
+    return _effective(settings)
 
 
 @router.patch("/{space_id}", response_model=Space)

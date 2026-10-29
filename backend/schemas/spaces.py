@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints
+
+from schemas.graph import Identifier
 
 SpaceName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 
@@ -12,6 +14,19 @@ class SpaceCreate(BaseModel):
 
 class SpaceUpdate(BaseModel):
     name: SpaceName
+
+
+class ExtractionSettings(BaseModel):
+    rules: str
+    labels: list[str]
+
+
+class ExtractionSettingsUpdate(BaseModel):
+    rules: (
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
+        | None
+    ) = None
+    labels: Annotated[list[Identifier], Field(min_length=1, max_length=50)] | None = None
 
 
 class SpaceOrder(BaseModel):

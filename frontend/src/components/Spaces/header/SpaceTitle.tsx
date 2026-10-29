@@ -4,6 +4,7 @@ import { ErrorNote, IconButton, IconSwap } from '@/components/deck'
 import type { Space } from '@/types'
 import { formatDate } from '../spaceText'
 import { DeleteSpaceConfirm } from './DeleteSpaceConfirm'
+import { ExtractionSettingsButton } from './ExtractionSettingsModal'
 import { TitleField } from './TitleField'
 import { useTitleRename } from './useTitleRename'
 
@@ -68,6 +69,7 @@ export function SpaceTitle({ space }: { space: Space }) {
             </IconSwap>
           </IconButton>
         </DeleteSpaceConfirm>
+        {!renaming && <ExtractionSettingsButton spaceId={space.id} />}
       </form>
       <p className="text-sm text-fg-subtle">Utworzona {formatDate(space.created_at)}</p>
       {error && (

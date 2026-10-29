@@ -3,7 +3,8 @@ import { motion } from 'motion/react'
 import { focusRing, Select } from '@/components/deck'
 import type { Ink } from '@/design/inks'
 import { move } from '@/design/motion'
-import { PROVIDERS } from '@/lib/providers'
+import { useCustomProviders } from '@/hooks/useSettings'
+import { customProvider, PROVIDERS } from '@/lib/providers'
 import type { Provider } from '@/lib/providers'
 import { cn } from '@/lib/utils'
 
@@ -41,6 +42,16 @@ interface Props {
 export const SETTINGS_HEIGHT = 61
 
 export function ProviderSettings({ value, onChange, ink }: Props) {
+  const custom = useCustomProviders().data ?? []
+  const options = [
+    ...PROVIDERS.map((p) => ({
+      value: p.value as Provider,
+      label: p.label,
+      hint: p.paid ? `${p.model}, płatny` : p.model,
+    })),
+    ...custom.map((p) => ({ value: customProvider(p.id), label: p.name, hint: p.model })),
+  ]
+
   return (
     <motion.div
       initial={{ height: 0 }}
@@ -62,11 +73,7 @@ export function ProviderSettings({ value, onChange, ink }: Props) {
         </span>
         <Select
           label="Model językowy"
-          options={PROVIDERS.map((p) => ({
-            value: p.value,
-            label: p.label,
-            hint: p.paid ? `${p.model}, płatny` : p.model,
-          }))}
+          options={options}
           value={value}
           onChange={onChange}
           ink={ink}

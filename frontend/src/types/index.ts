@@ -83,6 +83,27 @@ export interface Space {
   entity_count: number
 }
 
+export interface CustomProvider {
+    id: string;
+    name: string;
+    base_url: string;
+    model: string;
+    has_api_key: boolean;
+    api_key_hint: string | null;
+}
+
+export interface CustomProviderInput {
+    name: string;
+    base_url: string;
+    model: string;
+    api_key: string | null;
+}
+
+export interface ExtractionSettings {
+    rules: string;
+    labels: string[];
+}
+
 export interface SpaceStats {
   articles: { total: number; by_status: Record<'ok' | 'pending' | 'processing' | 'error', number> }
   entities: { total: number; by_label: { label: string; count: number }[] }

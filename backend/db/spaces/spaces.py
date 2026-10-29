@@ -102,3 +102,22 @@ async def delete_space(space_id: str) -> bool:
         await _clear(session, space_id)
         await (await session.run(_QUERIES["delete_space"], {"space_id": space_id})).consume()
     return True
+
+
+@translates_neo4j_errors
+async def get_extraction_settings(space_id: str) -> dict | None:
+    async with get_driver().session() as session:
+        row = await (
+            await session.run(_QUERIES["get_extraction_settings"], {"space_id": space_id})
+        ).single()
+        return dict(row) if row else None
+
+
+@translates_neo4j_errors
+async def set_extraction_settings(
+    space_id: str, rules: str | None, labels: list[str] | None
+) -> dict | None:
+    params = {"space_id": space_id, "rules": rules, "labels": labels}
+    async with get_driver().session() as session:
+        row = await (await session.run(_QUERIES["set_extraction_settings"], params)).single()
+        return dict(row) if row else None

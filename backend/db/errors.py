@@ -19,5 +19,9 @@ class EntityKeyTakenError(ValueError):
     """Another entity of the space already has this label and name (`entity_key` constraint)."""
 
 
+class ApiKeyRequiredError(ValueError):
+    """A provider's base URL changed while its stored API key was kept."""
+    
+    
 class RevisionConflictError(ValueError):
     """The analysis was saved elsewhere since the revision a save started from."""

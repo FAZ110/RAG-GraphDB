@@ -48,3 +48,12 @@ CALL (n) { DETACH DELETE n } IN TRANSACTIONS OF 1000 ROWS
 // name: delete_space
 MATCH (s:Space {id: $space_id})
 DELETE s
+
+// name: get_extraction_settings
+MATCH (s:Space {id: $space_id})
+RETURN s.extraction_rules AS rules, s.extraction_labels AS labels
+
+// name: set_extraction_settings
+MATCH (s:Space {id: $space_id})
+SET s.extraction_rules = $rules, s.extraction_labels = $labels
+RETURN s.extraction_rules AS rules, s.extraction_labels AS labels

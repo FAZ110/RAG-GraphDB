@@ -1,4 +1,4 @@
-import type { BulkExtractRequest, DuplicateSuggestion, ExpansionResponse, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
+import type { BulkExtractRequest, CustomProvider, CustomProviderInput, DuplicateSuggestion, ExpansionResponse, ExtractionSettings, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
 
 export const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
 
@@ -136,6 +136,27 @@ export const fetchSpaces = async (): Promise<Space[]> => {
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
+
+const customProvidersUrl = `${API_URL}/settings/providers`;
+const customProviderUrl = (id: string) => `${customProvidersUrl}/${encodeURIComponent(id)}`;
+
+export const fetchCustomProviders = () => sendJson<CustomProvider[]>(customProvidersUrl, 'GET');
+
+export const createCustomProvider = (provider: CustomProviderInput) =>
+  sendJson<CustomProvider>(customProvidersUrl, 'POST', provider);
+
+export const updateCustomProvider = (id: string, provider: CustomProviderInput) =>
+  sendJson<CustomProvider>(customProviderUrl(id), 'PUT', provider);
+
+export const deleteCustomProvider = (id: string) => sendJson<void>(customProviderUrl(id), 'DELETE');
+
+export const fetchExtractionSettings = (spaceId: string) =>
+  sendJson<ExtractionSettings>(`${spaceUrl(spaceId)}/extraction-settings`, 'GET');
+
+export const saveExtractionSettings = (
+  spaceId: string,
+  settings: { rules: string | null; labels: string[] | null }
+) => sendJson<ExtractionSettings>(`${spaceUrl(spaceId)}/extraction-settings`, 'PUT', settings);
 
 export const fetchSpaceStats = async (id: string): Promise<SpaceStats> => {
   const response = await fetch(`${API_URL}/spaces/${encodeURIComponent(id)}/stats`);
