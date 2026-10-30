@@ -4,6 +4,7 @@ import { PageBackdrop } from './components/layout/PageBackdrop';
 import { PageTransition } from './components/layout/PageTransition';
 import { directionBetween } from './components/layout/pageDirection';
 import { appRoutes } from './routes';
+import { Toaster } from '@/components/deck';
 import { Route, Routes, useLocation } from 'react-router-dom';
 
 function AnimatedRoutes() {
@@ -51,6 +52,7 @@ function App() {
       <main className="relative min-w-0 flex-1 p-4 sm:p-6 lg:p-8 lg:pl-5">
         <AnimatedRoutes />
       </main>
+      <Toaster />
     </div>
   );
 }

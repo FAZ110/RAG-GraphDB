@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import {
   clearSpace,
   createSpace,
@@ -90,7 +91,11 @@ export function useSaveExtractionSettings(spaceId: string) {
   return useMutation({
     mutationFn: (settings: Parameters<typeof saveExtractionSettings>[1]) =>
       saveExtractionSettings(spaceId, settings),
-    onSuccess: (saved) => queryClient.setQueryData(extractionSettingsKey(spaceId), saved),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(extractionSettingsKey(spaceId), saved)
+      toast.success('Zapisano ustawienia ekstrakcji')
+    },
+    onError: (error) => toast.error(error.message),
   })
 }
 
