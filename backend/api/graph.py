@@ -25,8 +25,10 @@ from db.graph.reads import (
     duplicate_suggestions,
     edge_sources,
     existing_like,
+    node_details,
     node_neighbours,
     node_sources,
+    overview_graph,
     search_nodes,
     subgraph,
     top_graph,
@@ -51,11 +53,26 @@ router = APIRouter(
 )
 
 _MAX_PAGE = 500
+_OVERVIEW_LIMIT = 20_000
 
 
 @router.get("")
 async def get_graph(space_id: str, limit: int = Query(25, ge=1, le=_MAX_PAGE)):
     return await top_graph(space_id, limit)
+
+
+@router.get("/overview")
+async def get_overview(space_id: str):
+    """The whole graph of the space for the map view: slim nodes and all edges among them."""
+    return await overview_graph(space_id, _OVERVIEW_LIMIT)
+
+
+@router.get("/nodes/{node_id}")
+async def get_node(space_id: str, node_id: str):
+    node = await node_details(space_id, node_id)
+    if node is None:
+        raise HTTPException(status_code=404, detail="Node not found")
+    return node
 
 
 @router.get("/nodes/{node_id}/neighbours")

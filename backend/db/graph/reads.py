@@ -72,6 +72,32 @@ async def top_graph(space_id: str, limit: int) -> dict:
 
 
 @translates_neo4j_errors
+async def overview_graph(space_id: str, limit: int) -> dict:
+    """Every entity of the space, best connected first and at most `limit`, slimmed to what a
+    map of the whole graph draws, with the edges among them."""
+    async with get_driver().session() as session:
+        res = await session.run(_QUERIES["overview_nodes"], {"space_id": space_id, "limit": limit})
+        nodes = [dict(r) async for r in res]
+
+        res = await session.run(_QUERIES["count_nodes"], {"space_id": space_id})
+        total = (await res.single(strict=True))["total"]
+
+        ids = {n["id"] for n in nodes}
+        res = await session.run(_QUERIES["space_edges"], {"space_id": space_id})
+        edges = [_edge(r) async for r in res if r["edge_source"] in ids and r["edge_target"] in ids]
+
+    return {"nodes": nodes, "edges": edges, "total_nodes": total, "truncated": total > len(nodes)}
+
+
+@translates_neo4j_errors
+async def node_details(space_id: str, node_id: str) -> dict | None:
+    async with get_driver().session() as session:
+        params = {"space_id": space_id, "node_id": node_id}
+        row = await (await session.run(_QUERIES["node"], params)).single()
+    return _node(row) if row else None
+
+
+@translates_neo4j_errors
 async def edges_among(space_id: str, ids: list[str]) -> list[dict]:
     """Every edge of the space whose both ends are among `ids`."""
     async with get_driver().session() as session:
