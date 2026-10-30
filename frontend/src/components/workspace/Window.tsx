@@ -66,7 +66,10 @@ export function Window({ side, width, placement, area, onDragZone, onPlace, chil
           : { left: placement.x, top: placement.y, maxHeight: `calc(100% - ${placement.y}px)` }),
       }}
       whileDrag={{ zIndex: 30 }}
-      className={cn('pointer-events-auto flex min-h-0 max-h-full', !docked && 'absolute z-20')}
+      className={cn(
+        'pointer-events-auto flex min-h-0',
+        docked ? 'max-h-max grow basis-0' : 'absolute z-20 max-h-full'
+      )}
     >
       <WindowChromeContext.Provider
         value={{
