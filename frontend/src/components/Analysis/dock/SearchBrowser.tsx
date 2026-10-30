@@ -17,7 +17,15 @@ const MORE: Partial<Record<SearchScope, string>> = {
  * The space's articles, entities and types to browse and pick from, opened inside the dock
  * while its search field has focus.
  */
-export function SearchBrowser({ search }: { search: DockSearchState }) {
+export function SearchBrowser({
+  search,
+  addedToggle = true,
+  pickLabel = 'dodaj',
+}: {
+  search: DockSearchState
+  addedToggle?: boolean
+  pickLabel?: string
+}) {
   const { sections, needle, typed, loading, error, current } = search
   const empty = !sections.length
   // Where each section's hits start in the one list the arrow keys walk.
@@ -35,7 +43,7 @@ export function SearchBrowser({ search }: { search: DockSearchState }) {
       <div className="border-b border-line-soft">
         <div className="flex items-center justify-between gap-3 pr-3">
           <SearchScopes scope={search.scope} onChange={search.showScope} />
-          {search.scope !== 'type' && (
+          {addedToggle && search.scope !== 'type' && (
             <button
               type="button"
               aria-pressed={search.hideAdded}
@@ -111,7 +119,7 @@ export function SearchBrowser({ search }: { search: DockSearchState }) {
           <Kbd>↓</Kbd> wybierz
         </span>
         <span className="flex items-center gap-1">
-          <Kbd>↵</Kbd> dodaj
+          <Kbd>↵</Kbd> {pickLabel}
         </span>
         <span className="flex items-center gap-1">
           <Kbd>Tab</Kbd> zakres
