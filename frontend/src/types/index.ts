@@ -64,6 +64,20 @@ export interface SeedResponse extends GraphChunk {
   total_nodes: number
 }
 
+export interface OverviewNode {
+  id: string
+  name: string
+  label: string
+  degree: number
+}
+
+export interface OverviewResponse {
+  nodes: OverviewNode[]
+  edges: LoadedEdge[]
+  total_nodes: number
+  truncated: boolean
+}
+
 export interface ExpansionResponse extends GraphChunk {
   root: LoadedNode
 }
