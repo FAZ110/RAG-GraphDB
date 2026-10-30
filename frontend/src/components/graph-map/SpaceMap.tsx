@@ -1,4 +1,4 @@
-import { CopyIcon, PlusIcon, XIcon } from 'lucide-react'
+import { CopyIcon, PlusIcon, Wand2Icon, XIcon } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
@@ -6,6 +6,7 @@ import { Button, EmptyState, ErrorNote, IconButton } from '@/components/deck'
 import { CHROME_INSET } from '@/components/Analysis/layout'
 import { Dock } from '@/components/Analysis/dock/Dock'
 import { DockSearch } from '@/components/Analysis/dock/DockSearch'
+import { ToolButton } from '@/components/Analysis/dock/ToolButton'
 import { SearchBrowser } from '@/components/Analysis/dock/SearchBrowser'
 import { useDockSearch } from '@/components/Analysis/dock/useDockSearch'
 import type { SearchHit } from '@/components/Analysis/dock/searchResults'
@@ -162,6 +163,12 @@ export function SpaceMap({ space, spaces, focus }: Props) {
     fitted.current = true
   }
 
+  const tidy = () => {
+    if ((data?.nodes.length ?? 0) < 2) return
+    fitted.current = false
+    map.current?.tidy()
+  }
+
   const showGroup = (nodeId: string, group: RelationGroup) => {
     const ids = new Set([nodeId])
     for (const e of data?.edges ?? []) {
@@ -204,6 +211,7 @@ export function SpaceMap({ space, spaces, focus }: Props) {
   useEditorKeys((key) => {
     if (key === 'search') return search.current?.focus()
     if (key === 'fit') return map.current?.fit()
+    if (key === 'tidy') return tidy()
     if (key === 'escape') {
       if (pick) return endPick()
       if (!selectedId && !selectedEdgeId && !highlighted.size) return false
@@ -419,6 +427,14 @@ export function SpaceMap({ space, spaces, focus }: Props) {
             >
               <PlusIcon />
             </IconButton>
+            <ToolButton
+              label="Uporządkuj wszystko"
+              hotkey="L"
+              unavailable={(data?.nodes.length ?? 0) > 1 ? undefined : 'Najpierw dodaj encje'}
+              onClick={tidy}
+            >
+              <Wand2Icon />
+            </ToolButton>
             {duplicates.suggestions.length > 0 && (
               <Button
                 size="sm"

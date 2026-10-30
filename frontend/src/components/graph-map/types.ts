@@ -27,4 +27,5 @@ export interface MapHandle {
   fit: () => void
   zoomBy: (factor: number) => void
   focus: (id: string) => void
+  tidy: () => void
 }

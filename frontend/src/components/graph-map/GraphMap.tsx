@@ -147,6 +147,7 @@ export function GraphMap({
     hovered: null,
   })
   const lit = useRef<Set<string> | null>(null)
+  const tidyRef = useRef(() => {})
 
   const emitSelect = useEffectEvent((id: string | null) => onSelect(id))
   const emitSelectEdge = useEffectEvent((id: string) => onSelectEdge(id))
@@ -278,6 +279,7 @@ export function GraphMap({
     let moved = false
     let under: string | null = null
     let layingOut = true
+    let stopLayout = () => {}
     const cursor = (value: string) => (container.current!.style.cursor = value)
 
     sigma.on('downNode', ({ node }) => {
@@ -334,11 +336,20 @@ export function GraphMap({
 
     relight()
     const stopPaper = followPaper(sigma, container.current!)
-    emitLayout(true)
-    const stopLayout = runLayout(graph, () => {
-      layingOut = false
-      emitLayout(false)
-    })
+    const layout = () => {
+      stopLayout()
+      layingOut = true
+      emitLayout(true)
+      stopLayout = runLayout(graph, () => {
+        layingOut = false
+        emitLayout(false)
+      })
+    }
+    tidyRef.current = () => {
+      sigma.setCustomBBox(null)
+      layout()
+    }
+    layout()
 
     return () => {
       stopLayout()
@@ -406,6 +417,7 @@ export function GraphMap({
         if (!sigma || !node) return
         frame(node.x, node.y, Math.min(sigma.getCamera().getState().ratio, FOCUS_RATIO))
       },
+      tidy: () => tidyRef.current(),
     }
   }, [])
 
