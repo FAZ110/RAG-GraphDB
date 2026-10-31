@@ -42,7 +42,7 @@ export function SearchBrowser({
     >
       <div className="border-b border-line-soft">
         <div className="flex items-center justify-between gap-3 pr-3">
-          <SearchScopes scope={search.scope} onChange={search.showScope} />
+          <SearchScopes scopes={search.scopes} scope={search.scope} onChange={search.showScope} />
           {addedToggle && search.scope !== 'type' && (
             <button
               type="button"

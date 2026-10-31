@@ -1,4 +1,6 @@
-import type { LoadedEdge, LoadedNode, OverviewResponse } from '@/types'
+import type { ExpansionResponse, LoadedEdge, LoadedNode, OverviewResponse } from '@/types'
+
+const slim = ({ id, name, label, degree }: LoadedNode) => ({ id, name, label, degree })
 
 function withDegrees(data: OverviewResponse, touched: Iterable<string>): OverviewResponse {
   const ids = new Set(touched)
@@ -15,12 +17,25 @@ function withDegrees(data: OverviewResponse, touched: Iterable<string>): Overvie
 }
 
 export function upsertNode(data: OverviewResponse, node: LoadedNode): OverviewResponse {
-  const slim = { id: node.id, name: node.name, label: node.label, degree: node.degree }
   const known = data.nodes.some((n) => n.id === node.id)
   return {
     ...data,
-    nodes: known ? data.nodes.map((n) => (n.id === node.id ? slim : n)) : [...data.nodes, slim],
+    nodes: known
+      ? data.nodes.map((n) => (n.id === node.id ? slim(node) : n))
+      : [...data.nodes, slim(node)],
     total_nodes: data.total_nodes + (known ? 0 : 1),
+  }
+}
+
+// Entities left out of the overview, brought in with their neighbours; degrees stay the server's.
+export function mergeChunk(data: OverviewResponse, chunk: ExpansionResponse): OverviewResponse {
+  const known = new Set(data.nodes.map((n) => n.id))
+  const fresh = [chunk.root, ...chunk.nodes].filter((n) => !known.has(n.id) && known.add(n.id))
+  const linked = new Set(data.edges.map((e) => e.id))
+  return {
+    ...data,
+    nodes: [...data.nodes, ...fresh.map(slim)],
+    edges: [...data.edges, ...chunk.edges.filter((e) => !linked.has(e.id))],
   }
 }
 

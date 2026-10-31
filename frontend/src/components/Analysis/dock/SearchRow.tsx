@@ -1,4 +1,4 @@
-import { FileTextIcon, ShapesIcon } from 'lucide-react'
+import { FileTextIcon, ShapesIcon, SplineIcon } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { HighlightedText, Swatch } from '@/components/deck'
 import { typeName } from '@/components/Spaces/spaceText'
@@ -49,6 +49,8 @@ export function SearchRow({ hit, needle, active, onCanvas, onHover, onPick }: Pr
         <span className="flex h-5 shrink-0 items-center">
           {hit.kind === 'article' ? (
             <FileTextIcon className="size-3.5 text-fg-faint" aria-hidden="true" />
+          ) : hit.kind === 'relation' ? (
+            <SplineIcon className="size-3.5 text-fg-faint" aria-hidden="true" />
           ) : hit.kind === 'type' ? (
             <ShapesIcon
               className="size-3.5"

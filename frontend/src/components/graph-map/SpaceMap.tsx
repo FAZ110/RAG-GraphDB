@@ -1,6 +1,8 @@
 import { CopyIcon, PlusIcon, Wand2Icon, XIcon } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { toast } from 'sonner'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, EmptyState, ErrorNote, IconButton } from '@/components/deck'
 import { CHROME_INSET } from '@/components/Analysis/layout'
@@ -12,6 +14,7 @@ import { useDockSearch } from '@/components/Analysis/dock/useDockSearch'
 import type { SearchHit } from '@/components/Analysis/dock/searchResults'
 import { LayersPanel } from '@/components/Analysis/panels/LayersPanel'
 import { useEditorKeys } from '@/components/Analysis/useEditorKeys'
+import { relationName } from '@/components/canvas/relationName'
 import type { Insets } from '@/components/canvas/types'
 import { DuplicatesModal } from './DuplicatesModal'
 import { NodeCreateModal } from './EditForms'
@@ -22,8 +25,8 @@ import { WindowLayer } from '@/components/workspace/WindowLayer'
 import { inkFor, inkTint } from '@/design/inks'
 import { staggerDelay } from '@/design/motion'
 import { cn } from '@/lib/utils'
-import { fetchArticle } from '@/services/api'
-import type { Space } from '@/types'
+import { fetchArticle, fetchNeighbours } from '@/services/api'
+import type { OverviewResponse, Space } from '@/types'
 import type { LabelCount, RelationGroup } from '@/types/analysis'
 import { EdgeInspector } from './EdgeInspector'
 import { GraphMap } from './GraphMap'
@@ -32,10 +35,12 @@ import { MapInspector } from './MapInspector'
 import { MapPickBar } from './MapPickBar'
 import { StatsPanel } from './stats/StatsPanel'
 import type { ColorBy, MapHandle, PickKind } from './types'
-import { useGraphOverview } from './useGraphOverview'
+import { mergeChunk } from './overviewEdits'
+import { overviewKey, useGraphOverview } from './useGraphOverview'
 import { useMapEdits } from './useMapEdits'
 
 const NONE: ReadonlySet<string> = new Set()
+const REVEAL_NEIGHBOURS = 50
 
 const without = (set: ReadonlySet<string>, item: string | undefined) => {
   if (!item || !set.has(item)) return set
@@ -52,6 +57,7 @@ interface Props {
 
 export function SpaceMap({ space, spaces, focus }: Props) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const overview = useGraphOverview(space.id)
   const data = overview.data
   const map = useRef<MapHandle>(null)
@@ -66,7 +72,12 @@ export function SpaceMap({ space, spaces, focus }: Props) {
   const fitted = useRef(false)
   const [colorBy, setColorBy] = useState<ColorBy>('type')
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NONE)
-  const [highlighted, setHighlighted] = useState<ReadonlySet<string>>(NONE)
+  const [highlighted, setHighlightedIds] = useState<ReadonlySet<string>>(NONE)
+  const [relation, setRelation] = useState<string | null>(null)
+  const setHighlighted = (ids: ReadonlySet<string>) => {
+    setHighlightedIds(ids)
+    setRelation(null)
+  }
   const [selectedId, setSelectedId] = useState<string | null>(focus)
   const [layingOut, setLayingOut] = useState(false)
   const [article, setArticle] = useState<{ id: string; focusId: string | null } | null>(null)
@@ -78,6 +89,11 @@ export function SpaceMap({ space, spaces, focus }: Props) {
   const duplicates = useDuplicates(space.id)
 
   const kindOf = useMemo(() => new Map(data?.nodes.map((n) => [n.id, n.label])), [data])
+  const relations = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const e of data?.edges ?? []) counts.set(e.type, (counts.get(e.type) ?? 0) + 1)
+    return [...counts].map(([type, count]) => ({ type, count }))
+  }, [data])
   const nameOf = useMemo(() => new Map(data?.nodes.map((n) => [n.id, n.name || n.id])), [data])
   const named = (id: string) => ({ id, name: nameOf.get(id) ?? id })
   const kinds: LabelCount[] = useMemo(() => {
@@ -115,6 +131,19 @@ export function SpaceMap({ space, spaces, focus }: Props) {
     setHighlighted(NONE)
     focusSoon(id)
   }
+  // An entity the overview left out is brought in with its neighbours before it is shown.
+  const pullIn = (id: string) =>
+    fetchNeighbours(space.id, id, REVEAL_NEIGHBOURS)
+      .then((chunk) => {
+        queryClient.setQueryData<OverviewResponse>(
+          overviewKey(space.id),
+          (current) => current && mergeChunk(current, chunk)
+        )
+        setHidden((h) => without(h, chunk.root.label))
+        show(id)
+      })
+      .catch((error: Error) => toast.error(error.message))
+  const reveal = (id: string) => (kindOf.has(id) ? show(id) : void pullIn(id))
   const clear = () => {
     setSelectedId(null)
     setSelectedEdgeId(null)
@@ -147,6 +176,12 @@ export function SpaceMap({ space, spaces, focus }: Props) {
     if (laidOut.current) focusSoon(focus)
     else pendingFocus.current = focus
   }, [focus])
+  const revealFocus = useEffectEvent((id: string) => {
+    if (!kindOf.has(id)) void pullIn(id)
+  })
+  useEffect(() => {
+    if (focus && overview.isSuccess) revealFocus(focus)
+  }, [focus, overview.isSuccess])
 
   const onLayout = (running: boolean, interrupted = false) => {
     setLayingOut(running)
@@ -191,7 +226,7 @@ export function SpaceMap({ space, spaces, focus }: Props) {
     () => false,
     () => 0,
     (hit: SearchHit) => {
-      if (hit.kind === 'entity') return show(hit.id)
+      if (hit.kind === 'entity') return reveal(hit.id)
       if (hit.kind === 'type') {
         setSelectedId(null)
         setHidden((h) => without(h, hit.id))
@@ -199,13 +234,25 @@ export function SpaceMap({ space, spaces, focus }: Props) {
           new Set(data?.nodes.filter((n) => n.label === hit.id).map((n) => n.id))
         )
       }
+      if (hit.kind === 'relation') {
+        const ends = new Set(
+          data?.edges.filter((e) => e.type === hit.id).flatMap((e) => [e.source, e.target])
+        )
+        setSelectedId(null)
+        setSelectedEdgeId(null)
+        const kinds = new Set([...ends].map((id) => kindOf.get(id)))
+        setHidden((h) => new Set([...h].filter((kind) => !kinds.has(kind))))
+        setHighlightedIds(ends)
+        return setRelation(hit.id)
+      }
       void fetchArticle(space.id, hit.id).then((a) => {
         const ids = a.entities.map((e) => e.id).filter((id) => kindOf.has(id))
         setSelectedId(null)
         setHighlighted(new Set(ids))
         if (ids[0]) focusSoon(ids[0])
       })
-    }
+    },
+    relations
   )
 
   useEditorKeys((key) => {
@@ -219,6 +266,8 @@ export function SpaceMap({ space, spaces, focus }: Props) {
     }
     return false
   })
+
+  const relationCount = (type: string) => relations.find((r) => r.type === type)?.count ?? 0
 
   const bar = pick
     ? {
@@ -246,7 +295,9 @@ export function SpaceMap({ space, spaces, focus }: Props) {
             content: (
               <div className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                 <span className="text-fg-muted">
-                  Wyróżniono {highlighted.size} {pluralForm(highlighted.size, ENTITY_FORMS)}
+                  {relation
+                    ? `Wyróżniono relacje „${relationName(relation)}”: ${relationCount(relation)}`
+                    : `Wyróżniono ${highlighted.size} ${pluralForm(highlighted.size, ENTITY_FORMS)}`}
                 </span>
                 <Button size="sm" variant="ghost" onClick={() => setHighlighted(NONE)}>
                   <XIcon />
@@ -274,6 +325,7 @@ export function SpaceMap({ space, spaces, focus }: Props) {
             colorBy={colorBy}
             hiddenKinds={hidden}
             highlighted={highlighted}
+            highlightedRelation={relation}
             selectedId={selectedId}
             selectedEdgeId={selectedEdgeId}
             onSelect={(id) => {

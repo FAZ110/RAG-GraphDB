@@ -9,7 +9,7 @@ import type { MapEdgeAttributes, MapNodeAttributes } from './types'
 
 export type MapGraph = Graph<MapNodeAttributes, MapEdgeAttributes>
 
-const JITTER = 0.02
+const RING = 0.05
 const CURVE_AMPLITUDE = 3.5
 export const CURVED = 'curved'
 
@@ -91,18 +91,21 @@ function placeNew(graph: MapGraph, added: ReadonlySet<string>) {
   const mean = (values: number[]) => values.reduce((a, b) => a + b, 0) / Math.max(values.length, 1)
   const centre = { x: mean(xs), y: mean(ys) }
   const rng = seeded()
+  const pending = new Set(added)
 
   for (const id of added) {
-    const near = graph.neighbors(id).filter((n) => !added.has(n))
+    pending.delete(id)
+    const near = graph.neighbors(id).filter((n) => !pending.has(n))
     const at = near.length
       ? {
           x: mean(near.map((n) => graph.getNodeAttribute(n, 'x'))),
           y: mean(near.map((n) => graph.getNodeAttribute(n, 'y'))),
         }
       : centre
+    const angle = rng() * 2 * Math.PI
     graph.mergeNodeAttributes(id, {
-      x: at.x + (rng() - 0.5) * span * JITTER,
-      y: at.y + (rng() - 0.5) * span * JITTER,
+      x: at.x + Math.cos(angle) * span * RING,
+      y: at.y + Math.sin(angle) * span * RING,
     })
   }
 }

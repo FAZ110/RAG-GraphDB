@@ -2,19 +2,19 @@ import { motion } from 'motion/react'
 import { focusRing } from '@/components/deck'
 import { move } from '@/design/motion'
 import { cn } from '@/lib/utils'
-import { SCOPES } from './searchResults'
 import type { SearchScope } from './searchResults'
 
 interface Props {
+  scopes: { scope: SearchScope; name: string }[]
   scope: SearchScope
   onChange: (scope: SearchScope) => void
 }
 
 /** What the search looks through: everything, or one kind of thing. */
-export function SearchScopes({ scope, onChange }: Props) {
+export function SearchScopes({ scopes, scope, onChange }: Props) {
   return (
     <div role="tablist" aria-label="Czego szukać" className="flex items-center gap-4 px-3">
-      {SCOPES.map((s) => (
+      {scopes.map((s) => (
         <button
           key={s.scope}
           type="button"

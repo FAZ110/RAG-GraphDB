@@ -1,5 +1,12 @@
-import { ChartColumnIcon, LoaderCircleIcon, ScanIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react'
-import { IconButton, focusRing } from '@/components/deck'
+import {
+  ChartColumnIcon,
+  LoaderCircleIcon,
+  ScanIcon,
+  TriangleAlertIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from 'lucide-react'
+import { IconButton, Tooltip, focusRing } from '@/components/deck'
 import { SpaceSelect } from '@/components/Spaces/choice/SpaceSelect'
 import { ENTITY_FORMS, RELATIONSHIP_FORMS, pluralForm } from '@/components/Spaces/spaceText'
 import { cn } from '@/lib/utils'
@@ -42,6 +49,20 @@ export function MapBar(props: Props) {
         {pluralForm(props.total, ENTITY_FORMS)} · {props.edges}{' '}
         {pluralForm(props.edges, RELATIONSHIP_FORMS)}
       </span>
+      {truncated && (
+        <Tooltip
+          content={`Pokazano ${props.nodes} z ${props.total} ${pluralForm(props.total, ENTITY_FORMS)}. Najsłabiej powiązane pominięto, żeby mapa działała płynnie.`}
+          side="bottom"
+        >
+          <span
+            tabIndex={0}
+            aria-label="Nie wszystkie encje są widoczne"
+            className={cn('flex text-(--ink-ochre)', focusRing)}
+          >
+            <TriangleAlertIcon className="size-4" />
+          </span>
+        </Tooltip>
+      )}
       {props.layingOut && (
         <span className="flex items-center gap-1 text-xs text-fg-subtle">
           <LoaderCircleIcon className="size-3.5 animate-spin" />

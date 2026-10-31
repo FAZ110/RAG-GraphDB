@@ -20,6 +20,7 @@ interface Props {
   colorBy: ColorBy
   hiddenKinds: ReadonlySet<string>
   highlighted: ReadonlySet<string>
+  highlightedRelation: string | null
   selectedId: string | null
   selectedEdgeId: string | null
   onSelect: (id: string | null) => void
@@ -46,6 +47,7 @@ interface View {
   colorBy: ColorBy
   hiddenKinds: ReadonlySet<string>
   highlighted: ReadonlySet<string>
+  highlightedRelation: string | null
   selectedId: string | null
   selectedEdgeId: string | null
   hovered: string | null
@@ -128,6 +130,7 @@ export function GraphMap({
   colorBy,
   hiddenKinds,
   highlighted,
+  highlightedRelation,
   selectedId,
   selectedEdgeId,
   onSelect,
@@ -142,6 +145,7 @@ export function GraphMap({
     colorBy,
     hiddenKinds,
     highlighted,
+    highlightedRelation,
     selectedId,
     selectedEdgeId,
     hovered: null,
@@ -264,6 +268,12 @@ export function GraphMap({
           }
         } else if (v.selectedEdgeId && !v.highlighted.size) {
           out.color = dimEdge
+        } else if (v.highlightedRelation) {
+          if (attrs.relation !== v.highlightedRelation) out.color = dimEdge
+          else {
+            out.color = paper.subtle
+            out.zIndex = 1
+          }
         } else if (v.highlighted.size) {
           if (!(v.highlighted.has(source) && v.highlighted.has(target))) out.color = dimEdge
           else if (source === v.selectedId || target === v.selectedId) {
@@ -374,6 +384,7 @@ export function GraphMap({
       colorBy,
       hiddenKinds,
       highlighted,
+      highlightedRelation,
       selectedId,
       selectedEdgeId,
     }
@@ -381,7 +392,7 @@ export function GraphMap({
     if (!sigma) return
     lit.current = litIn(sigma.getGraph() as MapGraph, view.current)
     sigma.refresh({ skipIndexation: true })
-  }, [colorBy, hiddenKinds, highlighted, selectedId, selectedEdgeId])
+  }, [colorBy, hiddenKinds, highlighted, highlightedRelation, selectedId, selectedEdgeId])
 
   useImperativeHandle(ref, () => {
     const motion = () => ({ duration: canvasMotion('panel').duration, easing: 'cubicOut' as const })

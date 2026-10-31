@@ -58,6 +58,9 @@ export const fetchGraphSeed = async (spaceId: string, limit = 25): Promise<SeedR
 export const fetchNode = (spaceId: string, nodeId: string) =>
   sendJson<LoadedNode>(`${spaceUrl(spaceId)}/graph/nodes/${encodeURIComponent(nodeId)}`, 'GET');
 
+export const fetchNeighbours = (spaceId: string, nodeId: string, limit: number) =>
+  sendJson<ExpansionResponse>(`${spaceUrl(spaceId)}/graph/nodes/${encodeURIComponent(nodeId)}/neighbours?limit=${limit}`, 'GET');
+
 export const fetchGraphOverview = (spaceId: string) =>
   sendJson<OverviewResponse>(`${spaceUrl(spaceId)}/graph/overview`, 'GET');
 
