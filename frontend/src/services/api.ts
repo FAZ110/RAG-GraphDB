@@ -1,4 +1,4 @@
-import type { BulkExtractRequest, CustomProvider, CustomProviderInput, DuplicateSuggestion, ExpansionResponse, ExtractionSettings, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
+import type { BulkExtractRequest, CustomProvider, CustomProviderInput, DuplicateSuggestion, ExpansionResponse, OverviewResponse, ExtractionSettings, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
 
 export const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
 
@@ -55,17 +55,14 @@ export const fetchGraphSeed = async (spaceId: string, limit = 25): Promise<SeedR
   return response.json();
 }
 
-export const fetchNodeExpansion = async (
-  spaceId: string,
-  nodeId: string,
-  limit = 25,
-): Promise<ExpansionResponse> => {
-  const response = await fetch(
-    `${spaceUrl(spaceId)}/graph/nodes/${encodeURIComponent(nodeId)}/neighbours?limit=${limit}`
-  );
-  if (!response.ok) throw new Error(await readError(response));
-  return response.json();
-}
+export const fetchNode = (spaceId: string, nodeId: string) =>
+  sendJson<LoadedNode>(`${spaceUrl(spaceId)}/graph/nodes/${encodeURIComponent(nodeId)}`, 'GET');
+
+export const fetchNeighbours = (spaceId: string, nodeId: string, limit: number) =>
+  sendJson<ExpansionResponse>(`${spaceUrl(spaceId)}/graph/nodes/${encodeURIComponent(nodeId)}/neighbours?limit=${limit}`, 'GET');
+
+export const fetchGraphOverview = (spaceId: string) =>
+  sendJson<OverviewResponse>(`${spaceUrl(spaceId)}/graph/overview`, 'GET');
 
 export const fetchNodeSources = async (spaceId: string, nodeId: string): Promise<NodeSource[]> => {
   const response = await fetch(`${spaceUrl(spaceId)}/graph/nodes/${encodeURIComponent(nodeId)}/sources`);

@@ -5,6 +5,7 @@ import {
   fetchCustomProviders,
   updateCustomProvider,
 } from '../services/api'
+import { toast } from 'sonner'
 import type { CustomProviderInput } from '../types'
 
 const CUSTOM_PROVIDERS_KEY = ['settings', 'providers']
@@ -23,11 +24,22 @@ export function useSaveCustomProvider(id: string | null) {
   return useMutation({
     mutationFn: (provider: CustomProviderInput) =>
       id ? updateCustomProvider(id, provider) : createCustomProvider(provider),
-    onSuccess,
+    onSuccess: () => {
+      toast.success(id ? 'Zapisano model' : 'Dodano model')
+      return onSuccess()
+    },
+    onError: (error) => toast.error(error.message),
   })
 }
 
 export function useDeleteCustomProvider() {
   const onSuccess = useInvalidateProviders()
-  return useMutation({ mutationFn: deleteCustomProvider, onSuccess })
+  return useMutation({
+    mutationFn: deleteCustomProvider,
+    onSuccess: () => {
+      toast.success('Usunięto model')
+      return onSuccess()
+    },
+    onError: (error) => toast.error(error.message),
+  })
 }

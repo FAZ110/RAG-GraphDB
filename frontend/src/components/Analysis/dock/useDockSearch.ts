@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import { SCOPES, useSearchSections } from './searchResults'
-import type { SearchHit, SearchScope } from './searchResults'
+import { useSearchSections } from './searchResults'
+import type { RelationCount, SearchHit, SearchScope } from './searchResults'
 
-const nextScope = (scope: SearchScope, step: number) => {
-  const i = SCOPES.findIndex((s) => s.scope === scope)
-  return SCOPES[(i + step + SCOPES.length) % SCOPES.length].scope
+const nextScope = (scopes: { scope: SearchScope }[], scope: SearchScope, step: number) => {
+  const i = scopes.findIndex((s) => s.scope === scope)
+  return scopes[(i + step + scopes.length) % scopes.length].scope
 }
 
 /**
@@ -16,7 +16,8 @@ export function useDockSearch(
   spaceId: string,
   onCanvas: (id: string) => boolean,
   placedOf: (articleId: string) => number,
-  onPick: (hit: SearchHit) => void
+  onPick: (hit: SearchHit) => void,
+  relations?: RelationCount[]
 ) {
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState<SearchScope>('all')
@@ -25,7 +26,16 @@ export function useDockSearch(
   const [open, setOpen] = useState(false)
   // Entities already on the canvas are left out until asked for.
   const [hideAdded, setHideAdded] = useState(true)
-  const results = useSearchSections(spaceId, query, scope, label, onCanvas, placedOf, hideAdded)
+  const results = useSearchSections(
+    spaceId,
+    query,
+    scope,
+    label,
+    onCanvas,
+    placedOf,
+    hideAdded,
+    relations
+  )
   const hits = results.sections.flatMap((s) => s.hits)
   const current = Math.min(active, Math.max(hits.length - 1, 0))
 
@@ -73,7 +83,7 @@ export function useDockSearch(
         setActive((current + step + hits.length) % Math.max(hits.length, 1))
       } else if (e.key === 'Tab' && open) {
         e.preventDefault()
-        showScope(nextScope(scope, e.shiftKey ? -1 : 1))
+        showScope(nextScope(results.scopes, scope, e.shiftKey ? -1 : 1))
       } else if (e.key === 'Enter' && hits[current]) {
         e.preventDefault()
         pick(hits[current])

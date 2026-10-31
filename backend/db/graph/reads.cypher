@@ -113,3 +113,14 @@ RETURN s.id AS id,
        a.id AS a_id, a.label AS a_label, properties(a) AS a_props, COUNT { (a)--(:Entity) } AS a_degree,
        b.id AS b_id, b.label AS b_label, properties(b) AS b_props, COUNT { (b)--(:Entity) } AS b_degree
 ORDER BY s.score DESC
+
+// name: overview_nodes
+MATCH (n:Entity {space_id: $space_id})
+WITH n, COUNT { (n)--(:Entity) } AS degree
+ORDER BY degree DESC, n.id
+LIMIT $limit
+RETURN n.id AS id, coalesce(n.name, '') AS name, n.label AS label, degree
+
+// name: space_edges
+MATCH (a:Entity {space_id: $space_id})-[r]->(b:Entity)
+RETURN elementId(r) AS edge_id, a.id AS edge_source, b.id AS edge_target, type(r) AS edge_type

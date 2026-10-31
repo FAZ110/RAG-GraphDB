@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useDeferredValue } from 'react'
+import { relationName } from '@/components/canvas/relationName'
 import { sourceHost } from '@/components/Spaces/articles/articleSource'
 import { typeName } from '@/components/Spaces/spaceText'
 import { useSpaceArticles, useSpaceStats } from '@/hooks/useSpaces'
@@ -19,14 +20,21 @@ export type SearchHit =
       placed: number
     }
   | { kind: 'type'; id: string; name: string; count: number }
+  | { kind: 'relation'; id: string; name: string; count: number }
 
-export type SearchScope = 'all' | 'entity' | 'article' | 'type'
+export type SearchScope = 'all' | 'entity' | 'article' | 'type' | 'relation'
+
+export interface RelationCount {
+  type: string
+  count: number
+}
 
 export const SCOPES: { scope: SearchScope; name: string }[] = [
   { scope: 'all', name: 'Wszystko' },
   { scope: 'entity', name: 'Encje' },
   { scope: 'article', name: 'Artykuły' },
   { scope: 'type', name: 'Typy' },
+  { scope: 'relation', name: 'Relacje' },
 ]
 
 export interface SearchSection {
@@ -38,7 +46,7 @@ export interface SearchSection {
 }
 
 // How much of each kind the overview previews; its own tab lists all of it.
-const PREVIEW = { entity: 5, article: 4, type: 5 }
+const PREVIEW = { entity: 5, article: 4, type: 5, relation: 5 }
 const SIMILAR = 8
 const MIN_QUERY = 2
 const POOL = 500
@@ -55,7 +63,8 @@ export function useSearchSections(
   label: string | null,
   onCanvas: (id: string) => boolean,
   placedOf: (articleId: string) => number,
-  hideAdded: boolean
+  hideAdded: boolean,
+  relations?: RelationCount[]
 ) {
   const deferred = useDeferredValue(query.trim())
   const typed = deferred.length >= MIN_QUERY
@@ -118,6 +127,11 @@ export function useSearchSections(
     .toSorted((a, b) => b.count - a.count)
     .map((t) => ({ kind: 'type', id: t.label, name: typeName(t.label), count: t.count }))
 
+  const relationHits: SearchHit[] = (relations ?? [])
+    .filter((r) => matches(relationName(r.type)) || matches(r.type))
+    .toSorted((a, b) => b.count - a.count)
+    .map((r) => ({ kind: 'relation', id: r.type, name: relationName(r.type), count: r.count }))
+
   const all = (key: string, title: string, hits: SearchHit[]): SearchSection => ({
     key,
     title,
@@ -136,18 +150,22 @@ export function useSearchSections(
           preview('article', 'Artykuły', articleHits),
           preview('entity', 'Encje', entities),
           preview('type', 'Typy', types),
+          preview('relation', 'Relacje', relationHits),
         ]
       : scope === 'article'
         ? [all('article', 'Od najnowszych', articleHits)]
         : scope === 'type'
           ? [all('type', 'Od największych', types)]
-          : [
-              all('entity', typed ? 'Po nazwie' : 'Od najbardziej powiązanych', entities),
-              all('similar', 'Podobne znaczeniowo', alike),
-            ]
+          : scope === 'relation'
+            ? [all('relation', 'Od najczęstszych', relationHits)]
+            : [
+                all('entity', typed ? 'Po nazwie' : 'Od najbardziej powiązanych', entities),
+                all('similar', 'Podobne znaczeniowo', alike),
+              ]
 
   return {
     sections: sections.filter((s) => s.hits.length > 0),
+    scopes: relations ? SCOPES : SCOPES.filter((s) => s.scope !== 'relation'),
     needle,
     typed,
     labels: stats.data?.entities.by_label ?? [],
