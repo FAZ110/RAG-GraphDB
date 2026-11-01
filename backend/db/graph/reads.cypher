@@ -53,10 +53,10 @@ ORDER BY score DESC
 LIMIT $top_k
 
 // name: search_all
-// Across every space, so no hits are dropped and the index is asked for exactly top_k.
-CALL db.index.vector.queryNodes('entity_embeddings', $top_k, $vec)
+// The index cannot filter, so it is asked for more than top_k and other owners' hits dropped.
+CALL db.index.vector.queryNodes('entity_embeddings', $search_k, $vec)
 YIELD node, score
-MATCH (s:Space {id: node.space_id})
+MATCH (s:Space {id: node.space_id, owner_id: $owner_id})
 RETURN node.id AS id,
        node.name AS name,
        node.label AS label,
@@ -64,6 +64,7 @@ RETURN node.id AS id,
        s.name AS space_name,
        score
 ORDER BY score DESC
+LIMIT $top_k
 
 // name: node_sources
 MATCH (a:Article)-[m:MENTIONS]->(:Entity {space_id: $space_id, id: $node_id})

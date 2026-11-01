@@ -17,15 +17,19 @@ def _key_fields(api_key: str) -> dict:
 
 
 @translates_neo4j_errors
-async def list_custom_providers() -> list[dict]:
+async def list_custom_providers(owner_id: str) -> list[dict]:
     async with get_driver().session() as session:
-        return [dict(r) async for r in await session.run(_QUERIES["list_custom_providers"])]
+        res = await session.run(_QUERIES["list_custom_providers"], {"owner_id": owner_id})
+        return [dict(r) async for r in res]
 
 
 @translates_neo4j_errors
-async def create_custom_provider(name: str, base_url: str, model: str, api_key: str | None) -> dict:
+async def create_custom_provider(
+    owner_id: str, name: str, base_url: str, model: str, api_key: str | None
+) -> dict:
     params = {
         "id": str(uuid.uuid4()),
+        "owner_id": owner_id,
         "name": name,
         "base_url": base_url,
         "model": model,
@@ -37,10 +41,11 @@ async def create_custom_provider(name: str, base_url: str, model: str, api_key: 
 
 @translates_neo4j_errors
 async def update_custom_provider(
-    provider_id: str, name: str, base_url: str, model: str, api_key: str | None
+    owner_id: str, provider_id: str, name: str, base_url: str, model: str, api_key: str | None
 ) -> dict | None:
     params = {
         "id": provider_id,
+        "owner_id": owner_id,
         "name": name,
         "base_url": base_url,
         "model": model,
@@ -49,7 +54,9 @@ async def update_custom_provider(
     }
     async with get_driver().session() as session:
         if api_key is None:
-            res = await session.run(_QUERIES["get_custom_provider_config"], {"id": provider_id})
+            res = await session.run(
+                _QUERIES["get_custom_provider_config"], {"id": provider_id, "owner_id": owner_id}
+            )
             current = await res.single()
             if current and current["api_key_encrypted"] and current["base_url"] != base_url:
                 raise ApiKeyRequiredError("Enter the API key again when changing the API address")
@@ -58,15 +65,25 @@ async def update_custom_provider(
 
 
 @translates_neo4j_errors
-async def delete_custom_provider(provider_id: str) -> bool:
+async def delete_custom_provider(owner_id: str, provider_id: str) -> bool:
+    params = {"id": provider_id, "owner_id": owner_id}
     async with get_driver().session() as session:
-        res = await session.run(_QUERIES["delete_custom_provider"], {"id": provider_id})
+        res = await session.run(_QUERIES["delete_custom_provider"], params)
         return (await res.single())["deleted"] > 0
 
 
-def custom_provider_config(provider_id: str) -> dict | None:
+@translates_neo4j_errors
+async def owns_custom_provider(owner_id: str, provider_id: str) -> bool:
+    params = {"id": provider_id, "owner_id": owner_id}
+    async with get_driver().session() as session:
+        res = await session.run(_QUERIES["get_custom_provider_config"], params)
+        return await res.single() is not None
+
+
+def custom_provider_config(provider_id: str, owner_id: str | None) -> dict | None:
+    params = {"id": provider_id, "owner_id": owner_id}
     with get_sync_driver().session() as session:
-        row = session.run(_QUERIES["get_custom_provider_config"], {"id": provider_id}).single()
+        row = session.run(_QUERIES["get_custom_provider_config"], params).single()
     if row is None:
         return None
     token = row["api_key_encrypted"]

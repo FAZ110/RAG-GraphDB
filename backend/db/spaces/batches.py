@@ -37,7 +37,8 @@ async def latest_batch(space_id: str) -> dict | None:
 
 
 @translates_neo4j_errors
-async def running_batches() -> list[dict]:
+async def running_batches(owner_id: str) -> list[dict]:
     async with get_driver().session() as session:
         await fail_stalled_articles(session, None)
-        return await _stats(session, await _ids(session, "running_batch_ids", {}))
+        ids = await _ids(session, "running_batch_ids", {"owner_id": owner_id})
+        return await _stats(session, ids)

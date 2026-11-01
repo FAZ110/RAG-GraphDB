@@ -9,6 +9,18 @@ from core.config import REDIS_URL
 _BLPOP_TIMEOUT = 30
 
 
+def job_owner_key(job_id: str) -> str:
+    return f"job:{job_id}:owner"
+
+
+async def job_owner(job_id: str) -> str | None:
+    r = aioredis.from_url(REDIS_URL, decode_responses=True)
+    try:
+        return await r.get(job_owner_key(job_id))
+    finally:
+        await r.aclose()
+
+
 async def job_events(job_id: str) -> AsyncIterator[str]:
     """SSE frames for a job: `start`, one `result` per article as it finishes, `done`."""
     r = aioredis.from_url(REDIS_URL, decode_responses=True, socket_timeout=_BLPOP_TIMEOUT + 5)

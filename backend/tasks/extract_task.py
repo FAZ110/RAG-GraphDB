@@ -34,7 +34,7 @@ from services.dedup import (
 from services.embedding_service import embedding_text, get_embedding_service
 from services.evidence import mentioning, numbered, split_sentences, to_spans
 from services.jobs.results import push_result
-from services.llm_service import LLMService
+from services.llm_service import CUSTOM_PROVIDER_PREFIX, LLMService
 
 
 @celery_app.task(
@@ -129,8 +129,11 @@ def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
     if article is None:
         return _error_result(article_id, None, "Article no longer exists")
     space_id, title, content = article["space_id"], article["title"] or "", article["content"]
+    # Checked again here: a retry reuses the article's last model, which may no longer be allowed.
+    if not provider.startswith(CUSTOM_PROVIDER_PREFIX) and not article["server_models"]:
+        return _error_result(article_id, title, "Model serwera nie jest dostępny dla tego konta")
     try:
-        llm = LLMService(provider=provider)
+        llm = LLMService(provider=provider, owner_id=article["owner_id"])
         sentences = split_sentences(content)
         raw_json = llm.generate_graph_json(
             title, numbered(content, sentences), article["rules"], article["labels"]

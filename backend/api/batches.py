@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from api.dependencies import existing_space
+from api.dependencies import CurrentUser, existing_space
 from db.spaces.batches import latest_batch, running_batches
 from schemas.batches import Batch
 
@@ -17,5 +17,5 @@ async def get_latest_batch(space_id: str):
 
 
 @router.get("/batches/running", response_model=list[Batch])
-async def get_running_batches():
-    return await running_batches()
+async def get_running_batches(user: CurrentUser):
+    return await running_batches(user["id"])

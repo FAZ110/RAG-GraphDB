@@ -134,7 +134,8 @@ def finish_article(
 
 
 @translates_neo4j_errors
-async def search_articles(q: str, limit: int) -> list[dict]:
+async def search_articles(q: str, limit: int, owner_id: str) -> list[dict]:
+    params = {"q": q, "limit": limit, "owner_id": owner_id}
     async with get_driver().session() as session:
-        res = await session.run(_QUERIES["search_articles"], {"q": q, "limit": limit})
+        res = await session.run(_QUERIES["search_articles"], params)
         return [dict(r) async for r in res]
