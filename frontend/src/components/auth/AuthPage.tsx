@@ -8,7 +8,7 @@ import { AtlasMark } from '@/components/nav/AtlasMark'
 import { ContourBackdrop } from '@/components/Spaces/map/ContourBackdrop'
 import { move } from '@/design/motion'
 import { cn } from '@/lib/utils'
-import { fetchAuthConfig, login, register } from '@/services/auth'
+import { devLogin, fetchAuthConfig, login, register } from '@/services/auth'
 import { ME_KEY } from './authContext'
 
 type Mode = 'login' | 'register'
@@ -120,6 +120,12 @@ export function AuthPage() {
   const [password, setPassword] = useState('')
   const [repeat, setRepeat] = useState('')
   const [mismatch, setMismatch] = useState(false)
+
+  const quickLogin = useMutation({
+    mutationFn: devLogin,
+    onSuccess: (user) => queryClient.setQueryData(ME_KEY, user),
+  })
+  const devAccounts = config.data?.dev_accounts ?? []
 
   const submit = useMutation({
     mutationFn: () => (mode === 'login' ? login(email, password) : register(email, password)),
@@ -289,6 +295,41 @@ export function AuthPage() {
             <p className="mt-6 border-t border-line-soft pt-4 text-sm text-fg-subtle">
               Rejestracja nowych kont jest obecnie wyłączona przez administratora.
             </p>
+          )}
+
+          {devAccounts.length > 0 && (
+            <div className="mt-6 border-t border-dashed border-line pt-4">
+              <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">
+                Konta testowe · tryb deweloperski
+              </p>
+              <div className="mt-3 flex flex-col gap-2">
+                {devAccounts.map((account) => (
+                  <Button
+                    key={account.email}
+                    variant="secondary"
+                    size="md"
+                    className="w-full justify-between"
+                    disabled={quickLogin.isPending}
+                    onClick={() => quickLogin.mutate(account.email)}
+                  >
+                    <span className="truncate">{account.email}</span>
+                    <span
+                      className={cn(
+                        'border px-1.5 py-0.5 text-[11px] tracking-wide uppercase',
+                        account.role === 'admin'
+                          ? 'border-fg bg-fg text-fg-inverse'
+                          : 'border-line text-fg-subtle'
+                      )}
+                    >
+                      {account.role === 'admin' ? 'Admin' : 'Użytkownik'}
+                    </span>
+                  </Button>
+                ))}
+              </div>
+              {quickLogin.error && (
+                <ErrorNote className="mt-3">{quickLogin.error.message}</ErrorNote>
+              )}
+            </div>
           )}
         </section>
       </div>

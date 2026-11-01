@@ -4,7 +4,7 @@ from fastapi import APIRouter, Cookie, HTTPException, Request, Response, status
 from starlette.concurrency import run_in_threadpool
 
 from api.dependencies import CurrentUser
-from core.config import COOKIE_SECURE
+from core.config import COOKIE_SECURE, DEV_ACCOUNTS
 from db.errors import EmailTakenError
 from db.users import (
     create_user,
@@ -14,7 +14,15 @@ from db.users import (
     touch_login,
     user_with_hash,
 )
-from schemas.auth import AppSettings, Credentials, PasswordChange, Registration, User
+from schemas.auth import (
+    AuthConfig,
+    Credentials,
+    DevLogin,
+    PasswordChange,
+    Registration,
+    User,
+)
+from services.auth.bootstrap import DEV_ACCOUNTS as DEV_ACCOUNT_LIST
 from services.auth.passwords import hash_password, needs_rehash, verify_password
 from services.auth.sessions import (
     SESSION_COOKIE,
@@ -65,9 +73,22 @@ async def _sign_in(response: Response, user_id: str) -> None:
     )
 
 
-@router.get("/config", response_model=AppSettings)
+@router.get("/config", response_model=AuthConfig)
 async def auth_config():
-    return await get_app_settings()
+    return {**await get_app_settings(), "dev_accounts": DEV_ACCOUNT_LIST if DEV_ACCOUNTS else []}
+
+
+@router.post("/dev-login", response_model=User)
+async def dev_login(body: DevLogin, response: Response):
+    if not DEV_ACCOUNTS or body.email not in {a["email"] for a in DEV_ACCOUNT_LIST}:
+        raise HTTPException(status_code=404, detail="Not Found")
+    found = await user_with_hash(body.email)
+    if found is None or found[0]["disabled"]:
+        raise HTTPException(status_code=403, detail="Konto testowe jest niedostępne")
+    user = found[0]
+    await touch_login(user["id"])
+    await _sign_in(response, user["id"])
+    return user
 
 
 @router.post("/register", response_model=User, status_code=status.HTTP_201_CREATED)

@@ -18,11 +18,11 @@ from api.jobs import router as jobs_router
 from api.search import router as search_router
 from api.settings import router as settings_router
 from api.spaces import router as spaces_router
-from core.config import ADMIN_EMAIL, ADMIN_PASSWORD, API_DOCS, CORS_ORIGINS
+from core.config import API_DOCS, CORS_ORIGINS, DEV_ACCOUNTS
 from db.driver import close_driver, get_driver
 from db.errors import GraphDatabaseError
 from db.schema import ensure_schema
-from services.auth.bootstrap import ensure_admin, log
+from services.auth.bootstrap import ensure_dev_accounts
 
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 _SECURITY_HEADERS = {
@@ -37,8 +37,7 @@ _SECURITY_HEADERS = {
 async def lifespan(app: FastAPI):
     get_driver()
     await ensure_schema()
-    if outcome := await ensure_admin(ADMIN_EMAIL, ADMIN_PASSWORD):
-        log.info("ADMIN_EMAIL: %s", outcome)
+    await ensure_dev_accounts(DEV_ACCOUNTS, CORS_ORIGINS)
     yield
     await close_driver()
 

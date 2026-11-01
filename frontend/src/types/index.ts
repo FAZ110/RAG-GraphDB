@@ -230,3 +230,7 @@ export interface AdminUser extends User {
 export interface AppSettings {
     registration_open: boolean;
 }
+
+export interface AuthConfig extends AppSettings {
+    dev_accounts: { email: string; role: Role }[];
+}

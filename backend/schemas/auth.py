@@ -67,3 +67,16 @@ class UserChanges(BaseModel):
 
 class AppSettings(BaseModel):
     registration_open: bool
+
+
+class DevAccount(BaseModel):
+    email: str
+    role: Role
+
+
+class AuthConfig(AppSettings):
+    dev_accounts: list[DevAccount]
+
+
+class DevLogin(BaseModel):
+    email: str

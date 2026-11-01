@@ -1,4 +1,4 @@
-import type { AdminUser, AppSettings, Role, User } from '../types'
+import type { AdminUser, AppSettings, AuthConfig, Role, User } from '../types'
 import { API_URL, readError } from './api'
 
 async function send<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
@@ -18,7 +18,9 @@ export const fetchMe = async (): Promise<User | null> => {
   return response.json()
 }
 
-export const fetchAuthConfig = () => send<AppSettings>('/auth/config')
+export const fetchAuthConfig = () => send<AuthConfig>('/auth/config')
+
+export const devLogin = (email: string) => send<User>('/auth/dev-login', 'POST', { email })
 
 export const login = (email: string, password: string) =>
   send<User>('/auth/login', 'POST', { email, password })

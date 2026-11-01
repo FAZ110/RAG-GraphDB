@@ -64,12 +64,6 @@ async def password_hash_of(user_id: str) -> str | None:
 
 
 @translates_neo4j_errors
-async def admin_exists() -> bool:
-    async with get_driver().session() as session:
-        return (await (await session.run(_QUERIES["admin_exists"])).single())["exists"]
-
-
-@translates_neo4j_errors
 async def touch_login(user_id: str) -> None:
     async with get_driver().session() as session:
         await (await session.run(_QUERIES["touch_login"], {"id": user_id})).consume()

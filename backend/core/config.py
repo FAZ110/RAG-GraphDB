@@ -53,9 +53,9 @@ CORS_ORIGINS = [
     for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
     if o.strip()
 ]
-ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 API_DOCS = os.getenv("API_DOCS", "false").lower() == "true"
+# Development only: test accounts with sign-in without a password.
+DEV_ACCOUNTS = os.getenv("DEV_ACCOUNTS", "false").lower() == "true"
 
 
 if not all([NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD]):

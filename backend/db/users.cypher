@@ -9,9 +9,6 @@ RETURN u
 MATCH (u:User {id: $id})
 RETURN u
 
-// name: admin_exists
-RETURN EXISTS { MATCH (:User {role: 'admin'}) } AS exists
-
 // name: user_by_email
 MATCH (u:User {email: $email})
 RETURN u

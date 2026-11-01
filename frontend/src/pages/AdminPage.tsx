@@ -68,7 +68,7 @@ function RegistrationSection() {
   const save = useMutation({
     mutationFn: (open: boolean) => saveAppSettings({ registration_open: open }),
     onSuccess: (saved) => {
-      queryClient.setQueryData(CONFIG_KEY, saved)
+      queryClient.setQueryData(CONFIG_KEY, (old: object | undefined) => ({ ...old, ...saved }))
       toast.success(saved.registration_open ? 'Rejestracja włączona' : 'Rejestracja wyłączona')
     },
     onError: (error) => toast.error(error.message),
