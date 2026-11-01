@@ -2,7 +2,24 @@
 CREATE CONSTRAINT space_id IF NOT EXISTS FOR (s:Space) REQUIRE s.id IS UNIQUE
 
 // name: space_name
-CREATE CONSTRAINT space_name IF NOT EXISTS FOR (s:Space) REQUIRE s.name IS UNIQUE
+// Names were unique across the app before accounts; now each owner has their own.
+DROP CONSTRAINT space_name IF EXISTS
+
+// name: space_owner_name
+CREATE CONSTRAINT space_owner_name IF NOT EXISTS
+FOR (s:Space) REQUIRE (s.owner_id, s.name) IS UNIQUE
+
+// name: space_owner
+CREATE INDEX space_owner IF NOT EXISTS FOR (s:Space) ON (s.owner_id)
+
+// name: user_id
+CREATE CONSTRAINT user_id IF NOT EXISTS FOR (u:User) REQUIRE u.id IS UNIQUE
+
+// name: user_email
+CREATE CONSTRAINT user_email IF NOT EXISTS FOR (u:User) REQUIRE u.email IS UNIQUE
+
+// name: provider_owner
+CREATE INDEX provider_owner IF NOT EXISTS FOR (p:LlmProvider) ON (p.owner_id)
 
 // name: article_id
 CREATE CONSTRAINT article_id IF NOT EXISTS FOR (a:Article) REQUIRE a.id IS UNIQUE
