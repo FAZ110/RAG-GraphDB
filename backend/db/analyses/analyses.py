@@ -63,10 +63,11 @@ async def list_analyses(space_id: str) -> list[dict]:
 
 
 @translates_neo4j_errors
-async def list_all_analyses(limit: int) -> list[dict]:
-    """The most recently changed analyses across every space."""
+async def list_all_analyses(limit: int, owner_id: str) -> list[dict]:
+    """The most recently changed analyses across every space of the owner."""
     async with get_driver().session() as session:
-        res = await session.run(_QUERIES["list_all_analyses"], {"limit": limit})
+        params = {"limit": limit, "owner_id": owner_id}
+        res = await session.run(_QUERIES["list_all_analyses"], params)
         return [_summary(r) async for r in res]
 
 
@@ -139,10 +140,11 @@ async def change_canvas(
 
 
 @translates_neo4j_errors
-async def reorder_analyses(analysis_ids: list[str]) -> None:
-    """Analyses in the order they were arranged in, across spaces; unknown ids are skipped."""
+async def reorder_analyses(analysis_ids: list[str], owner_id: str) -> None:
+    """Analyses in the order they were arranged in, across the owner's spaces;
+    unknown ids and other owners' analyses are skipped."""
     async with get_driver().session() as session:
-        params = {"analysis_ids": analysis_ids}
+        params = {"analysis_ids": analysis_ids, "owner_id": owner_id}
         await (await session.run(_QUERIES["reorder_analyses"], params)).consume()
 
 

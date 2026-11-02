@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from api.dependencies import ExistingSpace
+from api.dependencies import CurrentUser, ExistingSpace, existing_space
 from db.errors import SpaceNameTakenError
 from db.spaces.spaces import (
     create_space,
@@ -35,21 +35,21 @@ def _name_taken(name: str) -> HTTPException:
 
 
 @router.get("", response_model=list[Space])
-async def get_spaces():
-    return await list_spaces()
+async def get_spaces(user: CurrentUser):
+    return await list_spaces(user["id"])
 
 
 @router.post("", response_model=Space, status_code=status.HTTP_201_CREATED)
-async def post_space(body: SpaceCreate):
+async def post_space(body: SpaceCreate, user: CurrentUser):
     try:
-        return await create_space(body.name)
+        return await create_space(body.name, user["id"])
     except SpaceNameTakenError as e:
         raise _name_taken(body.name) from e
 
 
 @router.put("/order", status_code=status.HTTP_204_NO_CONTENT)
-async def put_space_order(body: SpaceOrder):
-    await reorder_spaces(body.space_ids)
+async def put_space_order(body: SpaceOrder, user: CurrentUser):
+    await reorder_spaces(body.space_ids, user["id"])
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -70,7 +70,11 @@ def _effective(settings: dict) -> dict:
     }
 
 
-@router.get("/{space_id}/extraction-settings", response_model=ExtractionSettings)
+@router.get(
+    "/{space_id}/extraction-settings",
+    response_model=ExtractionSettings,
+    dependencies=[Depends(existing_space)],
+)
 async def get_space_extraction_settings(space_id: str):
     settings = await get_extraction_settings(space_id)
     if settings is None:
@@ -78,7 +82,11 @@ async def get_space_extraction_settings(space_id: str):
     return _effective(settings)
 
 
-@router.put("/{space_id}/extraction-settings", response_model=ExtractionSettings)
+@router.put(
+    "/{space_id}/extraction-settings",
+    response_model=ExtractionSettings,
+    dependencies=[Depends(existing_space)],
+)
 async def put_space_extraction_settings(space_id: str, body: ExtractionSettingsUpdate):
     labels = list(dict.fromkeys(body.labels)) if body.labels else None
     settings = await set_extraction_settings(space_id, body.rules, labels)
@@ -87,7 +95,7 @@ async def put_space_extraction_settings(space_id: str, body: ExtractionSettingsU
     return _effective(settings)
 
 
-@router.patch("/{space_id}", response_model=Space)
+@router.patch("/{space_id}", response_model=Space, dependencies=[Depends(existing_space)])
 async def patch_space(space_id: str, body: SpaceUpdate):
     try:
         space = await rename_space(space_id, body.name)
@@ -98,7 +106,9 @@ async def patch_space(space_id: str, body: SpaceUpdate):
     return space
 
 
-@router.delete("/{space_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{space_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(existing_space)]
+)
 async def remove_space(space_id: str):
     if not await delete_space(space_id):
         raise _not_found()

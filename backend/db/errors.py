@@ -25,3 +25,7 @@ class ApiKeyRequiredError(ValueError):
 
 class RevisionConflictError(ValueError):
     """The analysis was saved elsewhere since the revision a save started from."""
+
+
+class EmailTakenError(ValueError):
+    """Another account already uses this e-mail address (`user_email` constraint)."""

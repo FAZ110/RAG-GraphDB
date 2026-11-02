@@ -8,7 +8,9 @@ import { PENCIL, inkFor } from '@/design/inks'
 import { slideFromEnd } from '@/design/motion'
 import { useAddArticles } from '@/hooks/useBatches'
 import { useSpaceArticles, useSpaces } from '@/hooks/useSpaces'
-import { DEFAULT_PROVIDER } from '@/lib/providers'
+import { useAuth } from '@/components/auth/authContext'
+import { useCustomProviders } from '@/hooks/useSettings'
+import { customProvider, DEFAULT_PROVIDER } from '@/lib/providers'
 import type { Provider } from '@/lib/providers'
 import { cn } from '@/lib/utils'
 import { SpaceSelect } from '../choice/SpaceSelect'
@@ -48,7 +50,12 @@ export function AddArticlesModal({
   const [chosen, setChosen] = useState<string | null>(null)
   const space = spaces.data && pickSpace(spaces.data, chosen ?? initialSpaceId ?? null)
   const ink = space ? inkFor(space.id) : PENCIL
-  const [provider, setProvider] = useState<Provider>(DEFAULT_PROVIDER)
+  const { user } = useAuth()
+  const firstCustom = useCustomProviders().data?.[0]
+  const [picked, setProvider] = useState<Provider | null>(null)
+  const provider =
+    picked ??
+    (user.server_models || !firstCustom ? DEFAULT_PROVIDER : customProvider(firstCustom.id))
   const [settingsOpen, setSettingsOpen] = useState(false)
   const add = useAddArticles()
 

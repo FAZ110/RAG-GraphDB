@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Response, status
 
+from api.dependencies import CurrentUser
 from core.secrets import SecretsKeyError
 from db.errors import ApiKeyRequiredError
 from db.settings import (
@@ -22,23 +23,25 @@ def _secrets_error(e: SecretsKeyError) -> HTTPException:
 
 
 @router.get("", response_model=list[CustomProvider])
-async def get_custom_providers():
-    return await list_custom_providers()
+async def get_custom_providers(user: CurrentUser):
+    return await list_custom_providers(user["id"])
 
 
 @router.post("", response_model=CustomProvider, status_code=status.HTTP_201_CREATED)
-async def post_custom_provider(body: CustomProviderIn):
+async def post_custom_provider(body: CustomProviderIn, user: CurrentUser):
     try:
-        return await create_custom_provider(body.name, body.base_url, body.model, body.api_key)
+        return await create_custom_provider(
+            user["id"], body.name, body.base_url, body.model, body.api_key
+        )
     except SecretsKeyError as e:
         raise _secrets_error(e) from e
 
 
 @router.put("/{provider_id}", response_model=CustomProvider)
-async def put_custom_provider(provider_id: str, body: CustomProviderIn):
+async def put_custom_provider(provider_id: str, body: CustomProviderIn, user: CurrentUser):
     try:
         provider = await update_custom_provider(
-            provider_id, body.name, body.base_url, body.model, body.api_key
+            user["id"], provider_id, body.name, body.base_url, body.model, body.api_key
         )
     except SecretsKeyError as e:
         raise _secrets_error(e) from e
@@ -50,7 +53,7 @@ async def put_custom_provider(provider_id: str, body: CustomProviderIn):
 
 
 @router.delete("/{provider_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_custom_provider(provider_id: str):
-    if not await delete_custom_provider(provider_id):
+async def remove_custom_provider(provider_id: str, user: CurrentUser):
+    if not await delete_custom_provider(user["id"], provider_id):
         raise _not_found()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

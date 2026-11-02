@@ -1,5 +1,6 @@
 import { ChevronDownIcon } from 'lucide-react'
 import { motion } from 'motion/react'
+import { useAuth } from '@/components/auth/authContext'
 import { focusRing, Select } from '@/components/deck'
 import type { Ink } from '@/design/inks'
 import { move } from '@/design/motion'
@@ -43,8 +44,9 @@ export const SETTINGS_HEIGHT = 61
 
 export function ProviderSettings({ value, onChange, ink }: Props) {
   const custom = useCustomProviders().data ?? []
+  const { user } = useAuth()
   const options = [
-    ...PROVIDERS.map((p) => ({
+    ...(user.server_models ? PROVIDERS : []).map((p) => ({
       value: p.value as Provider,
       label: p.label,
       hint: p.paid ? `${p.model}, płatny` : p.model,
@@ -71,14 +73,24 @@ export function ProviderSettings({ value, onChange, ink }: Props) {
         >
           Model językowy
         </span>
-        <Select
-          label="Model językowy"
-          options={options}
-          value={value}
-          onChange={onChange}
-          ink={ink}
-          className="w-48 min-w-0"
-        />
+        {options.length > 0 && (
+          <Select
+            label="Model językowy"
+            options={options}
+            value={value}
+            onChange={onChange}
+            ink={ink}
+            className="w-48 min-w-0"
+          />
+        )}
+        {!user.server_models && (
+          <p className="min-w-0 text-xs text-fg-subtle">
+            Administrator wyłączył Ci modele serwera.{' '}
+            {options.length > 0
+              ? 'Możesz korzystać z własnych modeli.'
+              : 'Dodaj własny model w Ustawieniach, aby przetwarzać artykuły.'}
+          </p>
+        )}
       </div>
     </motion.div>
   )

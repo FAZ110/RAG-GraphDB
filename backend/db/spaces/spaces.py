@@ -23,6 +23,7 @@ _CLEAR_SPACE_STEPS = (
 def _space_from_row(row: Mapping[str, Any]) -> dict:
     return {
         "id": row["id"],
+        "owner_id": row.get("owner_id"),
         "name": row["name"],
         "created_at": row["created_at"].to_native(),
         "article_count": row["article_count"],
@@ -37,9 +38,9 @@ async def _fetch_space(session: AsyncSession, space_id: str) -> dict | None:
 
 
 @translates_neo4j_errors
-async def list_spaces() -> list[dict]:
+async def list_spaces(owner_id: str) -> list[dict]:
     async with get_driver().session() as session:
-        res = await session.run(_QUERIES["list_spaces"])
+        res = await session.run(_QUERIES["list_spaces"], {"owner_id": owner_id})
         return [_space_from_row(r) async for r in res]
 
 
@@ -50,13 +51,12 @@ async def get_space(space_id: str) -> dict | None:
 
 
 @translates_neo4j_errors
-async def create_space(name: str) -> dict:
+async def create_space(name: str, owner_id: str) -> dict:
     space_id = str(uuid.uuid4())
+    params = {"space_id": space_id, "name": name, "owner_id": owner_id}
     async with get_driver().session() as session:
         try:
-            await (
-                await session.run(_QUERIES["create_space"], {"space_id": space_id, "name": name})
-            ).consume()
+            await (await session.run(_QUERIES["create_space"], params)).consume()
         except ConstraintError as e:
             raise SpaceNameTakenError(name) from e
         return await _fetch_space(session, space_id)
@@ -74,10 +74,11 @@ async def rename_space(space_id: str, name: str) -> dict | None:
 
 
 @translates_neo4j_errors
-async def reorder_spaces(space_ids: list[str]) -> None:
-    """Unknown ids are skipped."""
+async def reorder_spaces(space_ids: list[str], owner_id: str) -> None:
+    """Unknown ids and other owners' spaces are skipped."""
+    params = {"space_ids": space_ids, "owner_id": owner_id}
     async with get_driver().session() as session:
-        await (await session.run(_QUERIES["reorder_spaces"], {"space_ids": space_ids})).consume()
+        await (await session.run(_QUERIES["reorder_spaces"], params)).consume()
 
 
 async def _clear(session: AsyncSession, space_id: str) -> None:

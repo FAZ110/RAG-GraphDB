@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
-from api.dependencies import existing_space
+from api.dependencies import CurrentUser, existing_space
 from db.analyses.analyses import (
     change_canvas,
     create_analysis,
@@ -37,13 +37,13 @@ def _not_found() -> HTTPException:
 
 
 @all_router.get("", response_model=list[AnalysisListItem])
-async def get_all_analyses(limit: int = Query(100, ge=1, le=500)):
-    return await list_all_analyses(limit)
+async def get_all_analyses(user: CurrentUser, limit: int = Query(100, ge=1, le=500)):
+    return await list_all_analyses(limit, user["id"])
 
 
 @all_router.put("/order", status_code=status.HTTP_204_NO_CONTENT)
-async def put_analysis_order(body: AnalysisOrder):
-    await reorder_analyses(body.analysis_ids)
+async def put_analysis_order(body: AnalysisOrder, user: CurrentUser):
+    await reorder_analyses(body.analysis_ids, user["id"])
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

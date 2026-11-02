@@ -10,8 +10,8 @@ RETURN a.id AS id,
 ORDER BY a.position IS NOT NULL, a.position, a.updated_at DESC
 
 // name: list_all_analyses
-MATCH (a:Analysis)
-MATCH (s:Space {id: a.space_id})
+MATCH (s:Space {owner_id: $owner_id})
+MATCH (a:Analysis {space_id: s.id})
 RETURN a.id AS id,
        a.space_id AS space_id,
        s.name AS space_name,
@@ -101,6 +101,7 @@ MERGE (a)-[:CITES]->(ar)
 // name: reorder_analyses
 UNWIND range(0, size($analysis_ids) - 1) AS position
 MATCH (a:Analysis {id: $analysis_ids[position]})
+MATCH (:Space {id: a.space_id, owner_id: $owner_id})
 SET a.position = position
 
 // name: delete_analysis

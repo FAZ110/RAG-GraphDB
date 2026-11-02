@@ -1,5 +1,6 @@
-import { PanelLeftOpenIcon, SearchIcon, SettingsIcon } from 'lucide-react'
+import { LogOutIcon, PanelLeftOpenIcon, SearchIcon, SettingsIcon, ShieldIcon } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '@/components/auth/authContext'
 import { IconSwap, focusRing } from '@/components/deck'
 import { useOpenGlobalSearch } from '@/components/search/globalSearchContext'
 import { useSpaceListHidden } from '@/components/Spaces/list/spaceListHidden'
@@ -14,6 +15,7 @@ import { SpaceTile } from './SpaceTile'
 
 export function Rail({ space, spaces }: { space?: Space; spaces: Space[] }) {
   const { pathname } = useLocation()
+  const { user, signOut } = useAuth()
   const openSearch = useOpenGlobalSearch()
   const list = useSpaceListHidden()
   const togglesList = useMediaQuery('(min-width: 64rem)') && pathname.startsWith('/spaces')
@@ -74,14 +76,31 @@ export function Rail({ space, spaces }: { space?: Space; spaces: Space[] }) {
           )
         )}
 
-        <RailLink
-          to="/settings"
-          icon={<SettingsIcon />}
-          label="Ustawienia"
-          active={isActive('/settings', pathname)}
-          group="settings"
-          className="mt-auto"
-        />
+        <div className="mt-auto flex flex-col items-center gap-2">
+          {user.role === 'admin' && (
+            <RailLink
+              to="/admin"
+              icon={<ShieldIcon />}
+              label="Administracja"
+              active={isActive('/admin', pathname)}
+              group="settings"
+            />
+          )}
+          <RailLink
+            to="/settings"
+            icon={<SettingsIcon />}
+            label="Ustawienia"
+            active={isActive('/settings', pathname)}
+            group="settings"
+          />
+          <span className="h-px w-8 bg-line" />
+          <button type="button" onClick={signOut} aria-label="Wyloguj" className={pressable(false)}>
+            <LogOutIcon />
+            <Flyout>
+              Wyloguj <span className="font-normal text-fg-inverse-muted">{user.email}</span>
+            </Flyout>
+          </button>
+        </div>
       </nav>
     </header>
   )

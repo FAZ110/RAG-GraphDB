@@ -209,3 +209,28 @@ export interface SearchResults {
   entities: EntityHit[]
   articles: ArticleHit[]
 }
+
+export type Role = 'user' | 'admin';
+
+export interface User {
+    id: string;
+    email: string;
+    role: Role;
+    server_models: boolean;
+}
+
+export interface AdminUser extends User {
+    disabled: boolean;
+    created_at: string;
+    last_login_at: string | null;
+    space_count: number;
+    article_count: number;
+}
+
+export interface AppSettings {
+    registration_open: boolean;
+}
+
+export interface AuthConfig extends AppSettings {
+    dev_accounts: { email: string; role: Role }[];
+}

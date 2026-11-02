@@ -46,6 +46,17 @@ STALE_PROCESSING_MINUTES = int(os.getenv("STALE_PROCESSING_MINUTES", "15"))
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672//")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
+SESSION_TTL_HOURS = int(os.getenv("SESSION_TTL_HOURS", "168"))
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() == "true"
+CORS_ORIGINS = [
+    o.strip()
+    for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+    if o.strip()
+]
+API_DOCS = os.getenv("API_DOCS", "false").lower() == "true"
+# Development only: test accounts with sign-in without a password.
+DEV_ACCOUNTS = os.getenv("DEV_ACCOUNTS", "false").lower() == "true"
+
 
 if not all([NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD]):
     raise RuntimeError("Environmental variables missing: NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD")

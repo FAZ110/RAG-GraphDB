@@ -19,8 +19,11 @@ MATCH (a:Article {id: $article_id})
 SET a.status = 'processing', a.started_at = datetime()
 WITH a
 OPTIONAL MATCH (s:Space {id: a.space_id})
+OPTIONAL MATCH (u:User {id: s.owner_id})
 RETURN a.id AS id,
        a.space_id AS space_id,
+       s.owner_id AS owner_id,
+       coalesce(u.server_models AND NOT u.disabled, false) AS server_models,
        a.title AS title,
        a.content AS content,
        a.content_hash AS content_hash,
@@ -154,10 +157,10 @@ SET a.status = 'pending', a.error = null, a.queued_at = datetime()
 RETURN a.id AS id, a.title AS title, a.provider AS provider
 
 // name: search_articles
-MATCH (a:Article)
+MATCH (s:Space {owner_id: $owner_id})
+MATCH (a:Article {space_id: s.id})
 WHERE toLower(coalesce(a.title, '')) CONTAINS toLower($q)
    OR toLower(coalesce(a.url, '')) CONTAINS toLower($q)
-MATCH (s:Space {id: a.space_id})
 RETURN a.id AS id, a.title AS title, a.url AS url, a.space_id AS space_id, s.name AS space_name
 ORDER BY a.created_at DESC
 LIMIT $limit

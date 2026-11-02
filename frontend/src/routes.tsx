@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
+import { AdminPage } from './pages/AdminPage'
 import { AnalysesPage } from './pages/AnalysesPage'
 import { AnalysisEditorPage } from './pages/AnalysisEditorPage'
 import { GraphPage } from './pages/GraphPage'
@@ -39,6 +40,7 @@ export const appRoutes: AppRoute[] = [
     showInNavbar: false,
   },
   { path: '/settings', element: <SettingsPage />, label: 'Ustawienia', showInNavbar: false },
+  { path: '/admin', element: <AdminPage />, label: 'Administracja', showInNavbar: false },
   // Adding articles moved into the spaces; old links land there.
   {
     path: '/extract',

@@ -1,5 +1,6 @@
-import { SearchIcon, SettingsIcon } from 'lucide-react'
+import { LogOutIcon, SearchIcon, SettingsIcon, ShieldIcon } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '@/components/auth/authContext'
 import { DrawerContent, DrawerTitle } from '@/components/deck'
 import { useOpenGlobalSearch } from '@/components/search/globalSearchContext'
 import type { Space } from '@/types'
@@ -15,6 +16,7 @@ interface Props {
 
 export function MobileMenu({ space, spaces, onClose }: Props) {
   const { pathname } = useLocation()
+  const { user, signOut } = useAuth()
   const openSearch = useOpenGlobalSearch()
   const link = (path: string) => {
     const active = isActive(path, pathname)
@@ -66,13 +68,25 @@ export function MobileMenu({ space, spaces, onClose }: Props) {
         ))}
       </nav>
 
-      <Link
-        {...link('/settings')}
-        className={pressable(isActive('/settings', pathname), 'row', 'mt-auto')}
-      >
-        <SettingsIcon />
-        Ustawienia
-      </Link>
+      <div className="mt-auto flex flex-col gap-1">
+        {user.role === 'admin' && (
+          <Link {...link('/admin')} className={pressable(isActive('/admin', pathname), 'row')}>
+            <ShieldIcon />
+            Administracja
+          </Link>
+        )}
+        <Link {...link('/settings')} className={pressable(isActive('/settings', pathname), 'row')}>
+          <SettingsIcon />
+          Ustawienia
+        </Link>
+        <button type="button" onClick={signOut} className={pressable(false, 'row')}>
+          <LogOutIcon />
+          <span className="min-w-0 text-left">
+            Wyloguj
+            <span className="block truncate text-xs font-normal text-fg-subtle">{user.email}</span>
+          </span>
+        </button>
+      </div>
     </DrawerContent>
   )
 }

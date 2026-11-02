@@ -77,7 +77,7 @@ Treść: {content}\
 
 
 class LLMService:
-    def __init__(self, provider: str = "local") -> None:
+    def __init__(self, provider: str = "local", owner_id: str | None = None) -> None:
         self._extra: dict = {}
 
         if provider == "groq":
@@ -101,7 +101,7 @@ class LLMService:
             self._model = OPENAI_MODEL
             self._extra = {"response_format": {"type": "json_object"}}
         elif provider.startswith(CUSTOM_PROVIDER_PREFIX):
-            config = custom_provider_config(provider.removeprefix(CUSTOM_PROVIDER_PREFIX))
+            config = custom_provider_config(provider.removeprefix(CUSTOM_PROVIDER_PREFIX), owner_id)
             if config is None:
                 raise ValueError("Custom LLM provider no longer exists, pick another model")
             self._client = OpenAI(

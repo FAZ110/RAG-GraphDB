@@ -1,8 +1,11 @@
 import type { BulkExtractRequest, CustomProvider, CustomProviderInput, DuplicateSuggestion, ExpansionResponse, OverviewResponse, ExtractionSettings, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
 
-export const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
+export const API_URL = import.meta.env.VITE_API_URL ?? '/api';
+
+export const AUTH_EXPIRED = 'atlas:auth-expired';
 
 export const readError = async (response: Response): Promise<string> => {
+  if (response.status === 401) window.dispatchEvent(new Event(AUTH_EXPIRED));
   const body: unknown = await response.json().catch(() => null);
   const detail = (body as { detail?: unknown } | null)?.detail;
   if (typeof detail === 'string') return detail;

@@ -12,7 +12,8 @@ ORDER BY a.batch_at DESC
 LIMIT 1
 
 // name: running_batch_ids
-MATCH (a:Article)
+MATCH (s:Space {owner_id: $owner_id})
+MATCH (a:Article {space_id: s.id})
 WHERE a.status IN ['pending', 'processing'] AND a.batch_id IS NOT NULL
 RETURN DISTINCT a.batch_id AS id
 

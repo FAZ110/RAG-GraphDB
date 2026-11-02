@@ -13,6 +13,7 @@ from services.dedup import name_similarity, normalize_name
 
 _QUERIES = load_queries(__file__)
 _SEARCH_K_FACTOR = 20
+_SEARCH_ALL_K = 500
 _HIDDEN_PROPS = {"embedding", "space_id"}
 # How many nearest entities are checked for a duplicate by name.
 _DUPLICATE_POOL = 20
@@ -179,9 +180,12 @@ async def search_nodes(space_id: str, vec: list[float], top_k: int) -> list[dict
 
 
 @translates_neo4j_errors
-async def search_all_spaces(vec: list[float], top_k: int) -> list[dict]:
+async def search_all_spaces(vec: list[float], top_k: int, owner_id: str) -> list[dict]:
+    # shortcut: an owner whose entities rank below _SEARCH_ALL_K of others' gets fewer hits;
+    # move to a filtered vector search (Neo4j 2025+ SEARCH ... WHERE) when that shows.
+    params = {"vec": vec, "top_k": top_k, "search_k": _SEARCH_ALL_K, "owner_id": owner_id}
     async with get_driver().session() as session:
-        res = await session.run(_QUERIES["search_all"], {"vec": vec, "top_k": top_k})
+        res = await session.run(_QUERIES["search_all"], params)
         return [dict(r) async for r in res]
 
 

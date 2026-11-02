@@ -6,3 +6,4 @@ openai>=1.30.0
 celery[rabbitmq]>=5.4.0
 redis>=5.0.0
 cryptography>=44.0.0
+argon2-cffi>=23.1.0
