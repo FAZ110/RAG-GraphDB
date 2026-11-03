@@ -10,7 +10,13 @@ function initials(name: string): string {
   return letters.toLocaleUpperCase('pl-PL')
 }
 
-export function SpaceMark({ space, size = 'md' }: { space: Space; size?: 'sm' | 'md' }) {
+export function SpaceMark({
+  space,
+  size = 'md',
+}: {
+  space: Pick<Space, 'id' | 'name'>
+  size?: 'sm' | 'md'
+}) {
   const ink = inkFor(space.id)
   return (
     <span

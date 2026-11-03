@@ -4,7 +4,7 @@ import { AdminPage } from './pages/AdminPage'
 import { AnalysesPage } from './pages/AnalysesPage'
 import { AnalysisEditorPage } from './pages/AnalysisEditorPage'
 import { GraphPage } from './pages/GraphPage'
-import { HomePlaceholder } from './pages/HomePage'
+import { HomePage } from './pages/HomePage'
 import { SettingsPage } from './pages/SettingsPage'
 import { SpacesPage } from './pages/SpacesPage'
 
@@ -16,7 +16,7 @@ export interface AppRoute {
 }
 
 export const appRoutes: AppRoute[] = [
-  { path: '/', element: <HomePlaceholder />, label: 'Start', showInNavbar: true },
+  { path: '/', element: <HomePage />, label: 'Start', showInNavbar: true },
   { path: '/spaces', element: <SpacesPage />, label: 'Przestrzenie', showInNavbar: true },
   {
     path: '/spaces/:spaceId',
