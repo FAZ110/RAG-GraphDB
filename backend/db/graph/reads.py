@@ -91,6 +91,14 @@ async def overview_graph(space_id: str, limit: int) -> dict:
 
 
 @translates_neo4j_errors
+async def fresh_nodes(space_id: str, limit: int) -> list[dict]:
+    """The space's most recently extracted entities, newest first."""
+    async with get_driver().session() as session:
+        res = await session.run(_QUERIES["fresh_nodes"], {"space_id": space_id, "limit": limit})
+        return [dict(r) async for r in res]
+
+
+@translates_neo4j_errors
 async def node_details(space_id: str, node_id: str) -> dict | None:
     async with get_driver().session() as session:
         params = {"space_id": space_id, "node_id": node_id}
