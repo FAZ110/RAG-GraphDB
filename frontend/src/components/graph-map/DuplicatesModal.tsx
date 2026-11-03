@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, ErrorNote, Modal } from '@/components/deck'
+import { Button, ConfirmPopover, ErrorNote, Modal } from '@/components/deck'
 import { rejectDuplicate } from '@/services/api'
 import type { DuplicateSuggestion, LoadedNode } from '@/types'
 import type { MapEdits } from './useMapEdits'
@@ -22,11 +22,48 @@ export function DuplicatesModal({
   onShow: (nodeId: string) => void
 }) {
   const queryClient = useQueryClient()
+  const refresh = () => queryClient.invalidateQueries({ queryKey: duplicatesKey(spaceId) })
   const reject = useMutation({
     mutationFn: (id: string) => rejectDuplicate(spaceId, id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: duplicatesKey(spaceId) }),
+    onSuccess: refresh,
   })
-  const error = edits.merge.error ?? reject.error
+  // Pairs whose kept node was swapped from the default.
+  const [swapped, setSwapped] = useState<ReadonlySet<string>>(new Set())
+  const [confirming, setConfirming] = useState(false)
+
+  // The better-connected node is kept by default, as automatic dedup does.
+  const pair = (s: DuplicateSuggestion): [keep: LoadedNode, merge: LoadedNode] => {
+    const [a, b] = s.nodes
+    return a.degree >= b.degree !== swapped.has(s.id) ? [a, b] : [b, a]
+  }
+
+  const rejectAll = useMutation({
+    mutationFn: async () => {
+      for (const s of suggestions) await rejectDuplicate(spaceId, s.id)
+    },
+    onSettled: refresh,
+  })
+  const mergeAll = useMutation({
+    mutationFn: async () => {
+      // A node already folded into another is gone; its other pairs drop out on refetch.
+      const gone = new Set<string>()
+      for (const s of suggestions) {
+        const [keep, merge] = pair(s)
+        if (gone.has(keep.id) || gone.has(merge.id)) continue
+        await edits.merge.mutateAsync({ keepId: keep.id, mergeId: merge.id })
+        gone.add(merge.id)
+      }
+    },
+    onSuccess: () => setConfirming(false),
+    onSettled: refresh,
+  })
+
+  const busy =
+    edits.merge.isPending || reject.isPending || rejectAll.isPending || mergeAll.isPending
+  const error = mergeAll.error ?? rejectAll.error ?? edits.merge.error ?? reject.error
+  const resetErrors = () => {
+    for (const m of [edits.merge, reject, rejectAll, mergeAll]) m.reset()
+  }
 
   return (
     <Modal
@@ -41,6 +78,38 @@ export function DuplicatesModal({
         zamknij i wróć tu później przyciskiem „Duplikaty”.
       </p>
       {error && <ErrorNote>{error.message}</ErrorNote>}
+      {suggestions.length > 1 && (
+        <div className="mb-3 flex items-center justify-end gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={busy}
+            onClick={() => {
+              resetErrors()
+              rejectAll.mutate()
+            }}
+          >
+            Pomiń wszystkie
+          </Button>
+          <ConfirmPopover
+            open={confirming}
+            onOpenChange={(next) => {
+              resetErrors()
+              setConfirming(next)
+            }}
+            question={`Scalić wszystkie ${suggestions.length} par?`}
+            detail="W każdej parze zostaje węzeł po prawej. Tego nie da się cofnąć."
+            confirmLabel="Scal wszystkie"
+            error={mergeAll.error?.message ?? null}
+            pending={mergeAll.isPending}
+            onConfirm={() => mergeAll.mutate()}
+          >
+            <Button variant="primary" size="sm" disabled={busy}>
+              Scal wszystkie
+            </Button>
+          </ConfirmPopover>
+        </div>
+      )}
       {suggestions.length === 0 ? (
         <p className="text-sm text-fg-subtle">Brak sugestii do przejrzenia.</p>
       ) : (
@@ -49,13 +118,21 @@ export function DuplicatesModal({
             <SuggestionRow
               key={s.id}
               suggestion={s}
-              busy={edits.merge.isPending || reject.isPending}
+              pair={pair(s)}
+              busy={busy}
+              onSwap={() =>
+                setSwapped((prev) => {
+                  const next = new Set(prev)
+                  if (!next.delete(s.id)) next.add(s.id)
+                  return next
+                })
+              }
               onMerge={(keep, merge) => {
-                reject.reset()
+                resetErrors()
                 edits.merge.mutate({ keepId: keep.id, mergeId: merge.id })
               }}
               onReject={() => {
-                edits.merge.reset()
+                resetErrors()
                 reject.mutate(s.id)
               }}
               onShow={onShow}
@@ -69,22 +146,21 @@ export function DuplicatesModal({
 
 function SuggestionRow({
   suggestion,
+  pair: [keep, merge],
   busy,
+  onSwap,
   onMerge,
   onReject,
   onShow,
 }: {
   suggestion: DuplicateSuggestion
+  pair: [keep: LoadedNode, merge: LoadedNode]
   busy: boolean
+  onSwap: () => void
   onMerge: (keep: LoadedNode, merge: LoadedNode) => void
   onReject: () => void
   onShow: (nodeId: string) => void
 }) {
-  const [a, b] = suggestion.nodes
-  // The better-connected node is kept by default, as automatic dedup does.
-  const [keepFirst, setKeepFirst] = useState(a.degree >= b.degree)
-  const [keep, merge] = keepFirst ? [a, b] : [b, a]
-
   return (
     <li className="border border-line p-3">
       <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3">
@@ -94,7 +170,7 @@ function SuggestionRow({
           size="sm"
           className="mt-3 px-1"
           title="Zamień, który węzeł zostaje"
-          onClick={() => setKeepFirst(!keepFirst)}
+          onClick={onSwap}
         >
           → ⇄
         </Button>
