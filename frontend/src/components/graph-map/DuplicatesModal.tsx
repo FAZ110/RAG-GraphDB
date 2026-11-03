@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, ConfirmPopover, ErrorNote, Modal } from '@/components/deck'
-import { rejectDuplicate } from '@/services/api'
+import { SPACES_QUERY_KEY } from '@/hooks/useSpaces'
+import { mergeNodes, rejectDuplicate } from '@/services/api'
 import type { DuplicateSuggestion, LoadedNode } from '@/types'
 import type { MapEdits } from './useMapEdits'
 import { duplicatesKey } from './useDuplicates'
@@ -30,6 +31,8 @@ export function DuplicatesModal({
   // Pairs whose kept node was swapped from the default.
   const [swapped, setSwapped] = useState<ReadonlySet<string>>(new Set())
   const [confirming, setConfirming] = useState(false)
+  // Pairs handled so far by a bulk action.
+  const [done, setDone] = useState(0)
 
   // The better-connected node is kept by default, as automatic dedup does.
   const pair = (s: DuplicateSuggestion): [keep: LoadedNode, merge: LoadedNode] => {
@@ -39,23 +42,34 @@ export function DuplicatesModal({
 
   const rejectAll = useMutation({
     mutationFn: async () => {
-      for (const s of suggestions) await rejectDuplicate(spaceId, s.id)
+      setDone(0)
+      for (const s of suggestions) {
+        await rejectDuplicate(spaceId, s.id)
+        setDone((n) => n + 1)
+      }
     },
     onSettled: refresh,
   })
   const mergeAll = useMutation({
     mutationFn: async () => {
+      setDone(0)
       // A node already folded into another is gone; its other pairs drop out on refetch.
       const gone = new Set<string>()
       for (const s of suggestions) {
         const [keep, merge] = pair(s)
-        if (gone.has(keep.id) || gone.has(merge.id)) continue
-        await edits.merge.mutateAsync({ keepId: keep.id, mergeId: merge.id })
-        gone.add(merge.id)
+        if (!gone.has(keep.id) && !gone.has(merge.id)) {
+          await mergeNodes(spaceId, keep.id, merge.id)
+          gone.add(merge.id)
+        }
+        setDone((n) => n + 1)
       }
     },
-    onSuccess: () => setConfirming(false),
-    onSettled: refresh,
+    // Once at the end: refreshing the whole map after every pair is what made this slow.
+    onSettled: () => {
+      void refresh()
+      void queryClient.invalidateQueries({ queryKey: ['analysis', spaceId] })
+      return queryClient.invalidateQueries({ queryKey: SPACES_QUERY_KEY })
+    },
   })
 
   const busy =
@@ -78,6 +92,19 @@ export function DuplicatesModal({
         zamknij i wróć tu później przyciskiem „Duplikaty”.
       </p>
       {error && <ErrorNote>{error.message}</ErrorNote>}
+      {(mergeAll.isPending || rejectAll.isPending) && (
+        <div className="mb-3 flex flex-col gap-1.5" role="status">
+          <span className="text-sm text-fg-muted">
+            {mergeAll.isPending ? 'Scalanie' : 'Pomijanie'} par: {done} z {suggestions.length}
+          </span>
+          <span className="h-1.5 bg-line-soft">
+            <span
+              className="block h-full bg-fg transition-[width] spring-quick"
+              style={{ width: `${(done / suggestions.length) * 100}%` }}
+            />
+          </span>
+        </div>
+      )}
       {suggestions.length > 1 && (
         <div className="mb-3 flex items-center justify-end gap-2">
           <Button
@@ -100,9 +127,10 @@ export function DuplicatesModal({
             question={`Scalić wszystkie ${suggestions.length} par?`}
             detail="W każdej parze zostaje węzeł po prawej. Tego nie da się cofnąć."
             confirmLabel="Scal wszystkie"
-            error={mergeAll.error?.message ?? null}
-            pending={mergeAll.isPending}
-            onConfirm={() => mergeAll.mutate()}
+            onConfirm={() => {
+              setConfirming(false)
+              mergeAll.mutate()
+            }}
           >
             <Button variant="primary" size="sm" disabled={busy}>
               Scal wszystkie

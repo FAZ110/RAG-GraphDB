@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AnalysisCard } from '@/components/Analysis/list/AnalysisCard'
 import { useCurrentSpace } from '@/components/nav/useCurrentSpace'
@@ -16,33 +16,14 @@ import { FreshEntities } from './FreshEntities'
 import { LiveGraph } from './LiveGraph'
 import { Attention, RecentArticles, RecentSpaces } from './Lists'
 import { SectionLabel } from './SectionLabel'
+import { HomeSkeleton } from './HomeSkeleton'
 
-// shortcut: kept per browser and moved on every visit, so a reload shows the week instead; store it on the server if "since last time" must survive that.
-const LAST_VISIT = 'atlas:last-visit'
 const RECENT_ANALYSES = 4
 const dateFormat = new Intl.DateTimeFormat('pl-PL', {
   weekday: 'long',
   day: 'numeric',
   month: 'long',
 })
-
-function useLastVisit(): string | null {
-  const [since] = useState(() => {
-    try {
-      return localStorage.getItem(LAST_VISIT)
-    } catch {
-      return null
-    }
-  })
-  useEffect(() => {
-    try {
-      localStorage.setItem(LAST_VISIT, new Date().toISOString())
-    } catch {
-      /* storage unavailable: every visit is a first one */
-    }
-  }, [])
-  return since
-}
 
 const counted = (count: number, forms: Parameters<typeof pluralForm>[1]) =>
   `${count.toLocaleString('pl-PL')} ${pluralForm(count, forms)}`
@@ -53,27 +34,45 @@ function Summary({ totals, since }: { totals: HomeTotals; since: string | null }
       ? [totals.new_articles, totals.new_entities, 'Od ostatniej wizyty']
       : [totals.week_articles, totals.week_entities, 'W tym tygodniu']
   if (articles + entities === 0) return <>Wgraj artykuły, a model zbuduje z nich graf powiązań.</>
+  // Parts that are 0 are left out; the verb agrees with the first part named.
+  const parts = [
+    {
+      count: articles,
+      forms: ARTICLE_FORMS,
+      verb: { one: 'przybył', few: 'przybyły', many: 'przybyło' },
+    },
+    {
+      count: entities,
+      forms: ENTITY_FORMS,
+      verb: { one: 'przybyła', few: 'przybyły', many: 'przybyło' },
+    },
+  ].filter((p) => p.count > 0)
   return (
     <>
-      {when} przybyło <b className="text-fg">{counted(articles, ARTICLE_FORMS)}</b> i{' '}
-      <b className="text-fg">{counted(entities, ENTITY_FORMS)}</b>.
+      {when} {pluralForm(parts[0].count, parts[0].verb)}{' '}
+      {parts.map((p, i) => (
+        <span key={i}>
+          {i > 0 && ' i '}
+          <b className="text-fg">{counted(p.count, p.forms)}</b>
+        </span>
+      ))}
+      .
     </>
   )
 }
 
 export function HomePage() {
-  const since = useLastVisit()
   const { space } = useCurrentSpace()
   const [now] = useState(() => new Date())
   const home = useQuery({
-    queryKey: [...SPACES_QUERY_KEY, 'home', since],
-    queryFn: () => fetchHome(since),
+    queryKey: [...SPACES_QUERY_KEY, 'home'],
+    queryFn: fetchHome,
   })
   const analyses = useQuery({ queryKey: ['analyses', 'all'], queryFn: fetchAllAnalyses })
 
   if (home.error) return <ErrorNote>{home.error.message}</ErrorNote>
-  if (!home.data) return null
-  const { totals, recent_spaces, recent_articles, failed, activity } = home.data
+  if (!home.data) return <HomeSkeleton />
+  const { since, totals, recent_spaces, recent_articles, failed, activity } = home.data
 
   if (totals.spaces === 0) {
     return (

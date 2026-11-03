@@ -8,6 +8,7 @@ _QUERIES = load_queries(__file__)
 _RECENT_SPACES = 4
 _RECENT_ARTICLES = 6
 ACTIVITY_DAYS = 140
+_VISIT_GAP_MINUTES = 30
 
 
 def _native(row) -> dict:
@@ -15,7 +16,7 @@ def _native(row) -> dict:
 
 
 @translates_neo4j_errors
-async def home_overview(owner_id: str, since: datetime | None) -> dict:
+async def home_overview(owner_id: str) -> dict:
     """Everything the start page shows: totals, what was used lately and the daily activity."""
     now = datetime.now(UTC)
     # A datetime, not a date: Cypher's DateTime >= Date is null.
@@ -31,7 +32,8 @@ async def home_overview(owner_id: str, since: datetime | None) -> dict:
             return [_native(r) async for r in res]
 
         await fail_stalled_articles(session, None)
-        [totals] = await rows("totals", week=now - timedelta(days=7), since=since)
+        [visit] = await rows("visit", gap_minutes=_VISIT_GAP_MINUTES)
+        [totals] = await rows("totals", week=now - timedelta(days=7), since=visit["since"])
         spaces = await rows("recent_spaces", limit=_RECENT_SPACES)
         articles = await rows("recent_articles", limit=_RECENT_ARTICLES)
         failed = await rows("failed_articles")
@@ -45,6 +47,7 @@ async def home_overview(owner_id: str, since: datetime | None) -> dict:
         day[r["kind"]] = r["count"]
 
     return {
+        "since": visit["since"],
         "totals": totals,
         "recent_spaces": spaces,
         "recent_articles": articles,

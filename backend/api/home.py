@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from fastapi import APIRouter
 
 from api.dependencies import CurrentUser
@@ -10,6 +8,6 @@ router = APIRouter(prefix="/home", tags=["home"])
 
 
 @router.get("", response_model=Home)
-async def get_home(user: CurrentUser, since: datetime | None = None):
-    """The start page; `since` is the previous visit, to count what was added after it."""
-    return await home_overview(user["id"], since)
+async def get_home(user: CurrentUser):
+    """The start page; opening it also records the visit."""
+    return await home_overview(user["id"])

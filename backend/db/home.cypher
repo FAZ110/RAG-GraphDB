@@ -1,3 +1,15 @@
+// name: visit
+// A visit starts after a gap of `$gap_minutes`; reloads and refetches within one keep the
+// previous visit as the point the start page counts from.
+MATCH (u:User {id: $owner_id})
+SET u.previous_visit_at = CASE
+      WHEN u.last_visit_at IS NULL OR u.last_visit_at < datetime() - duration({minutes: $gap_minutes})
+      THEN u.last_visit_at
+      ELSE u.previous_visit_at
+    END,
+    u.last_visit_at = datetime()
+RETURN u.previous_visit_at AS since
+
 // name: totals
 // `$since` is null on a first visit; the counts after it are then 0.
 MATCH (s:Space {owner_id: $owner_id})

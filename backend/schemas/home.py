@@ -12,7 +12,7 @@ class HomeTotals(BaseModel):
     week_articles: int
     week_entities: int
     week_analyses: int
-    # Added since the `since` the page was asked with.
+    # Added since the previous visit.
     new_articles: int
     new_entities: int
 
@@ -50,6 +50,8 @@ class ActivityDay(BaseModel):
 
 
 class Home(BaseModel):
+    # The previous visit, null on the first one.
+    since: datetime | None
     totals: HomeTotals
     recent_spaces: list[RecentSpace]
     recent_articles: list[RecentArticle]

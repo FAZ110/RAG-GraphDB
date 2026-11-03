@@ -52,6 +52,8 @@ export interface ActivityDay {
 }
 
 export interface Home {
+  /** The previous visit, null on the first one. */
+  since: string | null
   totals: HomeTotals
   recent_spaces: RecentSpace[]
   recent_articles: RecentArticle[]
