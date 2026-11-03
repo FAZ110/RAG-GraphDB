@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { EyeIcon, EyeOffIcon, KeyRoundIcon, LockIcon, NetworkIcon } from 'lucide-react'
+import { EyeIcon, EyeOffIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Button, ErrorNote, focusRing, TextInput } from '@/components/deck'
+import { InteractiveGraph } from '@/components/graph-art/InteractiveGraph'
 import { AtlasMark } from '@/components/nav/AtlasMark'
-import { ContourBackdrop } from '@/components/Spaces/map/ContourBackdrop'
 import { move } from '@/design/motion'
 import { cn } from '@/lib/utils'
 import { devLogin, fetchAuthConfig, login, register } from '@/services/auth'
@@ -14,12 +14,6 @@ import { ME_KEY } from './authContext'
 type Mode = 'login' | 'register'
 
 const MIN_PASSWORD = 10
-
-const POINTS = [
-  { icon: <LockIcon />, text: 'Przestrzenie, artykuły i analizy widzisz tylko Ty.' },
-  { icon: <KeyRoundIcon />, text: 'Klucze API własnych modeli są przechowywane zaszyfrowane.' },
-  { icon: <NetworkIcon />, text: 'Graf wiedzy budowany z Twoich dokumentów.' },
-]
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -154,7 +148,6 @@ export function AuthPage() {
 
   return (
     <div className="relative grid min-h-dvh place-items-center overflow-hidden bg-page px-4 py-10 sm:px-8">
-      <ContourBackdrop color="var(--ink-steel)" />
       <div className="relative grid w-full max-w-5xl items-center gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
         <section className="flex flex-col gap-6">
           <div className="flex items-center gap-3">
@@ -172,16 +165,9 @@ export function AuthPage() {
               <br />
               <span className="text-fg-faint">Tylko dla Ciebie.</span>
             </h1>
-            <ul className="flex flex-col gap-3">
-              {POINTS.map((p) => (
-                <li key={p.text} className="flex items-center gap-3 text-fg-muted">
-                  <span className="grid size-8 shrink-0 place-items-center border border-line bg-surface text-fg [&_svg]:size-4">
-                    {p.icon}
-                  </span>
-                  {p.text}
-                </li>
-              ))}
-            </ul>
+            <div className="h-96">
+              <InteractiveGraph />
+            </div>
           </div>
         </section>
 
