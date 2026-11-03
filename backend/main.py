@@ -14,6 +14,7 @@ from api.batches import router as batches_router
 from api.debug import router as debug_router
 from api.dependencies import current_user, require_admin
 from api.graph import router as graph_router
+from api.home import router as home_router
 from api.jobs import router as jobs_router
 from api.search import router as search_router
 from api.settings import router as settings_router
@@ -87,6 +88,7 @@ app.include_router(analyses_router, dependencies=signed_in)
 app.include_router(all_analyses_router, dependencies=signed_in)
 app.include_router(jobs_router, dependencies=signed_in)
 app.include_router(batches_router, dependencies=signed_in)
+app.include_router(home_router, dependencies=signed_in)
 app.include_router(search_router, dependencies=signed_in)
 app.include_router(settings_router, dependencies=signed_in)
 app.include_router(admin_router)
