@@ -25,6 +25,7 @@ from db.graph.reads import (
     duplicate_suggestions,
     edge_sources,
     existing_like,
+    fresh_nodes,
     node_details,
     node_neighbours,
     node_sources,
@@ -59,6 +60,12 @@ _OVERVIEW_LIMIT = 20_000
 @router.get("")
 async def get_graph(space_id: str, limit: int = Query(25, ge=1, le=_MAX_PAGE)):
     return await top_graph(space_id, limit)
+
+
+@router.get("/fresh")
+async def get_fresh(space_id: str, limit: int = Query(24, ge=1, le=_MAX_PAGE)):
+    """The newest entities, for the start page."""
+    return await fresh_nodes(space_id, limit)
 
 
 @router.get("/overview")

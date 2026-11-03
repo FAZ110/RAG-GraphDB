@@ -125,3 +125,10 @@ RETURN n.id AS id, coalesce(n.name, '') AS name, n.label AS label, degree
 // name: space_edges
 MATCH (a:Entity {space_id: $space_id})-[r]->(b:Entity)
 RETURN elementId(r) AS edge_id, a.id AS edge_source, b.id AS edge_target, type(r) AS edge_type
+
+// name: fresh_nodes
+MATCH (n:Entity {space_id: $space_id})
+WHERE n.created_at IS NOT NULL
+RETURN n.id AS id, coalesce(n.name, '') AS name, n.label AS label
+ORDER BY n.created_at DESC
+LIMIT $limit
