@@ -1,0 +1,25 @@
+# Throwaway Neo4j and Redis for the backend tests, on their own ports so tests never touch dev data.
+# docker compose -f docker-compose.test.yml up -d --wait
+name: project-rag-test
+
+services:
+  neo4j-test:
+    image: neo4j:5
+    ports:
+      - "127.0.0.1:7688:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/testpassword
+      - NEO4J_server_memory_heap_initial__size=512m
+      - NEO4J_server_memory_heap_max__size=512m
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "wget", "-O", "/dev/null", "-q", "http://localhost:7474"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6380:6379"
