@@ -50,10 +50,17 @@ export function SpaceArticles({ spaceId, ink }: Props) {
           />
         }
         extraActions={
-          <RetryFailedButton
-            spaceId={spaceId}
-            articleIds={inTab.filter((a) => a.status === 'error').map((a) => a.id)}
-          />
+          <>
+            <RetryFailedButton
+              spaceId={spaceId}
+              status="cancelled"
+              articleIds={inTab.filter((a) => a.status === 'cancelled').map((a) => a.id)}
+            />
+            <RetryFailedButton
+              spaceId={spaceId}
+              articleIds={inTab.filter((a) => a.status === 'error').map((a) => a.id)}
+            />
+          </>
         }
         hasArticles={all.length > 0}
         query={query}

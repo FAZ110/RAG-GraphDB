@@ -13,5 +13,7 @@ class Batch(BaseModel):
     pending: int
     processing: int
     error: int
+    paused: int
+    cancelled: int
     nodes_count: int
     edges_count: int

@@ -11,16 +11,23 @@ SET a.url = $url,
     a.status = CASE WHEN unchanged THEN a.status ELSE 'pending' END,
     a.error = CASE WHEN unchanged THEN a.error ELSE null END,
     a.provider = CASE WHEN unchanged THEN a.provider ELSE $provider END,
-    a.queued_at = CASE WHEN unchanged THEN a.queued_at ELSE datetime() END
-RETURN a.id AS id, unchanged, a.nodes_count AS nodes_count, a.edges_count AS edges_count
+    a.queued_at = CASE WHEN unchanged THEN a.queued_at ELSE datetime() END,
+    a.queue_token = CASE WHEN unchanged THEN a.queue_token ELSE randomUUID() END
+RETURN a.id AS id, unchanged, a.nodes_count AS nodes_count, a.edges_count AS edges_count,
+       a.queue_token AS token
 
 // name: start_article
+// The token is the task's: a task left in the queue after a pause, cancel or newer upload no
+// longer matches, so it does nothing. `processing` is accepted for a task's own retries.
 MATCH (a:Article {id: $article_id})
-SET a.status = 'processing', a.started_at = datetime()
-WITH a
+WITH a, a.status IN ['pending', 'processing'] AND a.queue_token = $token AS runnable
+SET a.status = CASE WHEN runnable THEN 'processing' ELSE a.status END,
+    a.started_at = CASE WHEN runnable THEN datetime() ELSE a.started_at END
+WITH a, runnable
 OPTIONAL MATCH (s:Space {id: a.space_id})
 OPTIONAL MATCH (u:User {id: s.owner_id})
 RETURN a.id AS id,
+       runnable,
        a.space_id AS space_id,
        s.owner_id AS owner_id,
        coalesce(u.server_models AND NOT u.disabled, false) AS server_models,
@@ -41,9 +48,20 @@ SET a.processed_hash = $content_hash,
     a.error = null,
     a.status = CASE WHEN a.content_hash = $content_hash THEN 'ok' ELSE a.status END
 
-// name: fail_article
+// name: still_running
+// Taken under the article's write lock, so a pause or cancel lands either before the check
+// (the result is dropped) or after the write.
 MATCH (a:Article {id: $article_id})
-SET a.status = 'error', a.error = $error
+SET a._lock = true
+REMOVE a._lock
+RETURN a.status = 'processing' AND a.queue_token = $token AS running
+
+// name: fail_article
+// Reported when the task still owns the article, or when the article is gone.
+OPTIONAL MATCH (a:Article {id: $article_id})
+WITH a, a IS NOT NULL AND a.status = 'processing' AND a.queue_token = $token AS mine
+FOREACH (_ IN CASE WHEN mine THEN [1] ELSE [] END | SET a.status = 'error', a.error = $error)
+RETURN a IS NULL OR mine AS report
 
 // name: release_article_relationships
 // An article only connects entities it mentions, so its relationships are reached
@@ -148,13 +166,13 @@ SET a.error = CASE a.status
 // Taking the write lock first and checking the status again under it keeps two requests
 // from queueing the same article twice.
 MATCH (a:Article {space_id: $space_id})
-WHERE a.status = 'error' AND ($article_ids IS NULL OR a.id IN $article_ids)
+WHERE a.status = $status AND ($article_ids IS NULL OR a.id IN $article_ids)
 SET a._lock = true
 REMOVE a._lock
 WITH a
-WHERE a.status = 'error'
-SET a.status = 'pending', a.error = null, a.queued_at = datetime()
-RETURN a.id AS id, a.title AS title, a.provider AS provider
+WHERE a.status = $status
+SET a.status = 'pending', a.error = null, a.queued_at = datetime(), a.queue_token = randomUUID()
+RETURN a.id AS id, a.title AS title, a.provider AS provider, a.queue_token AS token
 
 // name: search_articles
 MATCH (s:Space {owner_id: $owner_id})

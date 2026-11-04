@@ -2,9 +2,10 @@
   "name": "rag-graphdb",
   "private": true,
   "scripts": {
-    "start": "docker compose --env-file backend/.env up -d --wait neo4j rabbitmq redis && concurrently -c blue,magenta,green npm:dev:*",
+    "start": "docker compose --env-file backend/.env up -d --wait neo4j rabbitmq redis && concurrently -c blue,magenta,yellow,green npm:dev:*",
     "dev:backend": "cd backend && node ../scripts/venv.mjs watchfiles --filter python --ignore-paths venv \"uvicorn main:app --port 8000\" .",
-    "dev:worker": "cd backend && node ../scripts/venv.mjs watchfiles --filter python --ignore-paths venv \"celery -A celery_app worker --loglevel=info --pool=threads --concurrency=2\" .",
+    "dev:worker": "cd backend && node ../scripts/venv.mjs watchfiles --filter python --ignore-paths venv \"celery -A celery_app worker -Q celery -n shared --loglevel=info --pool=threads --concurrency=2\" .",
+    "dev:worker-custom": "cd backend && node ../scripts/venv.mjs watchfiles --filter python --ignore-paths venv \"celery -A celery_app worker -Q custom -n custom --loglevel=info --pool=threads --concurrency=6\" .",
     "dev:frontend": "npm --prefix frontend run dev"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
@@ -61,6 +61,7 @@ class ArticlesRetry(BaseModel):
     article_ids: list[str] | None = None
     # The model each article was last sent to when left out.
     provider: str | None = None
+    status: Literal["error", "cancelled"] = "error"
 
 
 class ArticlesDelete(BaseModel):
