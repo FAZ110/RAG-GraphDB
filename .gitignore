@@ -12,3 +12,6 @@ frontend/.eslintcache
 
 # --- ROOT ---
 node_modules/
+# Playwright
+test-results/
+playwright-report/
