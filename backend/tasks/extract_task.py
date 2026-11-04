@@ -22,7 +22,13 @@ from core.config import (
 from db.graph.writer import GRAPH_WRITE_LOCK, build_statements
 from db.json_validator import validate_graph_json
 from db.query_loader import load_queries
-from db.spaces.articles import fail_article, finish_article, release_article, start_article
+from db.spaces.articles import (
+    fail_article,
+    finish_article,
+    release_article,
+    start_article,
+    still_running,
+)
 from services.dedup import (
     DEDUP_LOG_KEY,
     DEDUP_LOG_MAX,
@@ -36,19 +42,65 @@ from services.evidence import mentioning, numbered, split_sentences, to_spans
 from services.jobs.results import push_result
 from services.llm_service import CUSTOM_PROVIDER_PREFIX, LLMService
 
+CUSTOM_QUEUE = "custom"
 
-@celery_app.task(
-    bind=True,
-    rate_limit="10/m",
-    max_retries=5,
-    soft_time_limit=120,
-    time_limit=130,
-)
+_TASK_OPTIONS = {"bind": True, "max_retries": 5, "soft_time_limit": 120, "time_limit": 130}
+
+
+# Server models share one API key, so they share its rate limit.
+@celery_app.task(**_TASK_OPTIONS, rate_limit="10/m")
 def extract_article_task(
-    self, job_id: str, article_id: str, title: str | None, provider: str = "local"
+    self,
+    job_id: str,
+    article_id: str,
+    title: str | None,
+    provider: str = "local",
+    token: str | None = None,
+) -> None:
+    _extract(self, job_id, article_id, title, provider, token)
+
+
+# Users' own models run on their own keys: a separate queue and worker, no server limit,
+# so they never wait behind server-model jobs.
+@celery_app.task(**_TASK_OPTIONS, queue=CUSTOM_QUEUE)
+def extract_custom_article_task(
+    self, job_id: str, article_id: str, title: str | None, provider: str, token: str | None = None
+) -> None:
+    _extract(self, job_id, article_id, title, provider, token)
+
+
+def queue_extraction(
+    job_id: str, article_id: str, title: str | None, provider: str, token: str
+) -> None:
+    """The article's queue token doubles as the task id, so a pause or cancel can drop it."""
+    task = (
+        extract_custom_article_task
+        if provider.startswith(CUSTOM_PROVIDER_PREFIX)
+        else extract_article_task
+    )
+    task.apply_async(
+        kwargs={
+            "job_id": job_id,
+            "article_id": article_id,
+            "title": title,
+            "provider": provider,
+            "token": token,
+        },
+        task_id=token,
+    )
+
+
+def drop_queued(tokens: list[str]) -> None:
+    """Workers keep revoked ids in memory only; after a restart the token check skips them."""
+    if tokens:
+        celery_app.control.revoke(tokens)
+
+
+def _extract(
+    self, job_id: str, article_id: str, title: str | None, provider: str, token: str | None
 ) -> None:
     try:
-        result = _run_extraction(job_id, article_id, provider)
+        result = _run_extraction(job_id, article_id, provider, token)
     except SoftTimeLimitExceeded:
         result = _error_result(article_id, title, "Task timed out (120s) — article may be too long")
     except RateLimitError as exc:
@@ -60,8 +112,11 @@ def extract_article_task(
         except MaxRetriesExceededError:
             result = _error_result(article_id, title, "Rate limit exceeded - too much retries")
 
-    if result["status"] == "error":
-        fail_article(article_id, result["error"])
+    # None: the article was paused or cancelled, and whoever did that reports it.
+    if result is None:
+        return
+    if result["status"] == "error" and not fail_article(article_id, result["error"], token):
+        return
     push_result(job_id, result)
 
 
@@ -124,10 +179,12 @@ def _record_dedup_log(r: redis.Redis, job_id: str, title: str, entries: list[dic
     r.ltrim(DEDUP_LOG_KEY, -DEDUP_LOG_MAX, -1)
 
 
-def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
-    article = start_article(article_id)
+def _run_extraction(job_id: str, article_id: str, provider: str, token: str | None) -> dict | None:
+    article = start_article(article_id, token)
     if article is None:
         return _error_result(article_id, None, "Article no longer exists")
+    if not article["runnable"]:
+        return None
     space_id, title, content = article["space_id"], article["title"] or "", article["content"]
     # Checked again here: a retry reuses the article's last model, which may no longer be allowed.
     if not provider.startswith(CUSTOM_PROVIDER_PREFIX) and not article["server_models"]:
@@ -199,6 +256,8 @@ def _run_extraction(job_id: str, article_id: str, provider: str) -> dict:
                     for s in suggestions
                 ]
                 with session.begin_transaction() as tx:
+                    if not still_running(tx, article_id, token):
+                        return None
                     release_article(tx, article_id)
                     for cypher, params in statements:
                         tx.run(cypher, params)

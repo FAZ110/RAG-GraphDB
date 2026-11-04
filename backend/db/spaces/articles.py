@@ -41,12 +41,16 @@ async def fail_stalled_articles(session: AsyncSession, space_id: str | None) -> 
 
 
 @translates_neo4j_errors
-async def claim_for_retry(space_id: str, article_ids: list[str] | None) -> list[dict]:
-    """Queue the space's failed articles again, all of them when `article_ids` is None."""
+async def claim_for_retry(
+    space_id: str, article_ids: list[str] | None, status: str = "error"
+) -> list[dict]:
+    """Queue the space's failed (or cancelled) articles again, all of them when `article_ids`
+    is None."""
     async with get_driver().session() as session:
         await fail_stalled_articles(session, space_id)
         res = await session.run(
-            _QUERIES["claim_for_retry"], {"space_id": space_id, "article_ids": article_ids}
+            _QUERIES["claim_for_retry"],
+            {"space_id": space_id, "article_ids": article_ids, "status": status},
         )
         return [dict(r) async for r in res]
 
@@ -101,15 +105,27 @@ async def delete_articles(space_id: str, article_ids: list[str]) -> dict[str, li
         return await session.execute_write(work)
 
 
-def start_article(article_id: str) -> dict | None:
+def start_article(article_id: str, token: str) -> dict | None:
+    """None when the article is gone; `runnable` is false when this task no longer owns it."""
     with get_sync_driver().session() as session:
-        row = session.run(_QUERIES["start_article"], {"article_id": article_id}).single()
+        row = session.run(
+            _QUERIES["start_article"], {"article_id": article_id, "token": token}
+        ).single()
     return dict(row) if row else None
 
 
-def fail_article(article_id: str, error: str) -> None:
+def fail_article(article_id: str, error: str, token: str) -> bool:
+    """False when the article was paused or cancelled meanwhile: nothing to report."""
     with get_sync_driver().session() as session:
-        session.run(_QUERIES["fail_article"], {"article_id": article_id, "error": error}).consume()
+        row = session.run(
+            _QUERIES["fail_article"], {"article_id": article_id, "error": error, "token": token}
+        ).single(strict=True)
+    return row["report"]
+
+
+def still_running(tx: ManagedTransaction, article_id: str, token: str) -> bool:
+    row = tx.run(_QUERIES["still_running"], {"article_id": article_id, "token": token}).single()
+    return bool(row and row["running"])
 
 
 def release_article(tx: ManagedTransaction, article_id: str) -> None:

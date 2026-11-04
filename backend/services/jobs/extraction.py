@@ -4,10 +4,10 @@ import redis.asyncio as aioredis
 
 from core.config import REDIS_URL
 from db.spaces.articles import claim_for_retry, upsert_articles
-from db.spaces.batches import assign_batch
+from db.spaces.batches import assign_batch, cancel_batch, pause_batch, resume_batch
 from services.jobs.events import job_owner_key
-from services.jobs.results import push_result, unchanged_result
-from tasks.extract_task import extract_article_task
+from services.jobs.results import cancelled_result, push_result, unchanged_result
+from tasks.extract_task import drop_queued, queue_extraction
 
 _TTL_SECONDS = 86400
 
@@ -43,25 +43,45 @@ async def start_extraction(
                 ),
             )
         else:
-            extract_article_task.delay(
-                job_id=job_id, article_id=row["id"], title=title, provider=provider
-            )
+            queue_extraction(job_id, row["id"], title, provider, row["token"])
     return job_id
 
 
 async def retry_extraction(
-    space_id: str, article_ids: list[str] | None, provider: str | None, owner_id: str
+    space_id: str,
+    article_ids: list[str] | None,
+    provider: str | None,
+    owner_id: str,
+    status: str = "error",
 ) -> str | None:
-    """Queue the space's failed articles again as a new job; None when none had failed."""
-    claimed = await claim_for_retry(space_id, article_ids)
+    """Queue the space's failed (or cancelled) articles again as a new job; None when there
+    were none."""
+    claimed = await claim_for_retry(space_id, article_ids, status)
     if not claimed:
         return None
     job_id = await _start_job([row["id"] for row in claimed], owner_id)
     for row in claimed:
-        extract_article_task.delay(
-            job_id=job_id,
-            article_id=row["id"],
-            title=row["title"],
-            provider=provider or row["provider"] or "local",
+        queue_extraction(
+            job_id, row["id"], row["title"], provider or row["provider"] or "local", row["token"]
         )
     return job_id
+
+
+async def pause_extraction(space_id: str, batch_id: str) -> None:
+    paused = await pause_batch(space_id, batch_id)
+    drop_queued([row["token"] for row in paused])
+
+
+async def resume_extraction(space_id: str, batch_id: str) -> None:
+    for row in await resume_batch(space_id, batch_id):
+        queue_extraction(
+            batch_id, row["id"], row["title"], row["provider"] or "local", row["token"]
+        )
+
+
+async def cancel_extraction(space_id: str, batch_id: str) -> None:
+    """Cancelled articles are reported here, so the job's stream can end."""
+    cancelled = await cancel_batch(space_id, batch_id)
+    drop_queued([row["token"] for row in cancelled])
+    for row in cancelled:
+        push_result(batch_id, cancelled_result(row["id"], row["title"]))

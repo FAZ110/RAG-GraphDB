@@ -224,11 +224,15 @@ export const deleteArticles = async (spaceId: string, articleIds: string[]): Pro
   return response.json();
 }
 
-export const retryArticles = async (spaceId: string, articleIds: string[]): Promise<JobSubmitResponse> => {
+export const retryArticles = async (
+  spaceId: string,
+  articleIds: string[],
+  status: RetryStatus = 'error'
+): Promise<JobSubmitResponse> => {
   const response = await fetch(`${spaceUrl(spaceId)}/articles/retry`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ article_ids: articleIds }),
+    body: JSON.stringify({ article_ids: articleIds, status }),
   });
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
@@ -238,6 +242,16 @@ export const fetchLatestBatch = async (spaceId: string): Promise<Batch | null> =
   const response = await fetch(`${spaceUrl(spaceId)}/batches/latest`);
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
+}
+
+export type RetryStatus = 'error' | 'cancelled'
+export type BatchAction = 'pause' | 'resume' | 'cancel'
+
+export const changeBatch = async (spaceId: string, batchId: string, action: BatchAction): Promise<void> => {
+  const response = await fetch(`${spaceUrl(spaceId)}/batches/${encodeURIComponent(batchId)}/${action}`, {
+    method: 'POST',
+  });
+  if (!response.ok) throw new Error(await readError(response));
 }
 
 export const fetchRunningBatches = async (): Promise<Batch[]> => {

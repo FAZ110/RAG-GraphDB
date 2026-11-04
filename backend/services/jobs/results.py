@@ -30,3 +30,16 @@ def unchanged_result(
         "edges_count": edges_count,
         "error": None,
     }
+
+
+def cancelled_result(article_id: str, title: str | None) -> dict:
+    return {
+        "article_id": article_id,
+        "title": title,
+        "status": "cancelled",
+        "nodes": [],
+        "edges": [],
+        "nodes_count": 0,
+        "edges_count": 0,
+        "error": None,
+    }

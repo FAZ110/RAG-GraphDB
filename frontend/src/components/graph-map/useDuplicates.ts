@@ -36,7 +36,7 @@ export function useDuplicates(spaceId: string) {
 
   return {
     suggestions: data,
-    open: opened || data.some((s) => !seen.includes(s.id)),
+    open: data.length > 0 && (opened || data.some((s) => !seen.includes(s.id))),
     setOpen,
   }
 }

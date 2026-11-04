@@ -42,3 +42,24 @@ async def running_batches(owner_id: str) -> list[dict]:
         await fail_stalled_articles(session, None)
         ids = await _ids(session, "running_batch_ids", {"owner_id": owner_id})
         return await _stats(session, ids)
+
+
+async def _change(query: str, space_id: str, batch_id: str) -> list[dict]:
+    async with get_driver().session() as session:
+        res = await session.run(_QUERIES[query], {"space_id": space_id, "batch_id": batch_id})
+        return [dict(r) async for r in res]
+
+
+@translates_neo4j_errors
+async def pause_batch(space_id: str, batch_id: str) -> list[dict]:
+    return await _change("pause_batch", space_id, batch_id)
+
+
+@translates_neo4j_errors
+async def resume_batch(space_id: str, batch_id: str) -> list[dict]:
+    return await _change("resume_batch", space_id, batch_id)
+
+
+@translates_neo4j_errors
+async def cancel_batch(space_id: str, batch_id: str) -> list[dict]:
+    return await _change("cancel_batch", space_id, batch_id)

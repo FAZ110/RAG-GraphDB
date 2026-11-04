@@ -119,7 +119,7 @@ export interface ExtractionSettings {
 }
 
 export interface SpaceStats {
-  articles: { total: number; by_status: Record<'ok' | 'pending' | 'processing' | 'error', number> }
+  articles: { total: number; by_status: Record<Article['status'], number> }
   entities: { total: number; by_label: { label: string; count: number }[] }
   relationships: number
 }
@@ -128,7 +128,7 @@ export interface Article {
   id: string
   url: string | null
   title: string | null
-  status: 'pending' | 'processing' | 'ok' | 'error'
+  status: 'pending' | 'processing' | 'ok' | 'error' | 'paused' | 'cancelled'
   error: string | null
   nodes_count: number | null
   edges_count: number | null
@@ -184,6 +184,8 @@ export interface Batch {
   pending: number
   processing: number
   error: number
+  paused: number
+  cancelled: number
   nodes_count: number
   edges_count: number
 }

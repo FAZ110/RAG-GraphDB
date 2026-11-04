@@ -3,20 +3,23 @@ import { RotateCwIcon } from 'lucide-react'
 import { IconButton } from '@/components/deck'
 import { leave, move } from '@/design/motion'
 import { useRetryArticles } from '@/hooks/useBatches'
+import type { RetryStatus } from '@/services/api'
 import { cn } from '@/lib/utils'
 
 interface Props {
   spaceId: string
-  /** The failed articles of the tab on screen. */
+  /** The failed (or cancelled) articles of the tab on screen. */
   articleIds: string[]
+  status?: RetryStatus
 }
 
 // Grows from nothing so the buttons before it slide aside; the negative margin cancels the
 // toolbar's gap while closed. Not clipped, which would cut off its offset shadow.
 const hidden = { width: 0, marginLeft: -8, opacity: 0, transition: leave.quick }
 
-export function RetryFailedButton({ spaceId, articleIds }: Props) {
-  const retry = useRetryArticles(spaceId)
+export function RetryFailedButton({ spaceId, articleIds, status = 'error' }: Props) {
+  const retry = useRetryArticles(spaceId, status)
+  const cancelled = status === 'cancelled'
 
   return (
     <AnimatePresence initial={false}>
@@ -27,13 +30,18 @@ export function RetryFailedButton({ spaceId, articleIds }: Props) {
           exit={hidden}
         >
           <IconButton
-            variant="danger-outline"
+            variant={cancelled ? 'secondary' : 'danger-outline'}
             size="icon-lg"
-            label={retry.error?.message ?? 'Ponów nieudane artykuły'}
+            label={
+              retry.error?.message ??
+              (cancelled ? 'Ponów anulowane artykuły' : 'Ponów nieudane artykuły')
+            }
             disabled={retry.isPending}
             onClick={() => retry.mutate(articleIds)}
           >
-            <RotateCwIcon className={cn(retry.isPending && 'animate-spin')} />
+            <RotateCwIcon
+              className={cn(cancelled && 'text-status-cancelled', retry.isPending && 'animate-spin')}
+            />
           </IconButton>
         </motion.div>
       )}

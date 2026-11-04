@@ -49,9 +49,11 @@ async def upload_articles(space_id: str, body: ArticlesUpload, user: CurrentUser
 @router.post("/retry", response_model=JobStarted, status_code=status.HTTP_202_ACCEPTED)
 async def retry_articles(space_id: str, body: ArticlesRetry, user: CurrentUser):
     await _check_provider(user, body.provider)
-    job_id = await retry_extraction(space_id, body.article_ids, body.provider, user["id"])
+    job_id = await retry_extraction(
+        space_id, body.article_ids, body.provider, user["id"], body.status
+    )
     if job_id is None:
-        raise HTTPException(status_code=409, detail="No failed articles to retry")
+        raise HTTPException(status_code=409, detail="No articles to retry")
     return JobStarted(job_id=job_id)
 
 

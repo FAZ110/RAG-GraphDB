@@ -1,17 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import {
+  changeBatch,
   fetchLatestBatch,
   fetchRunningBatches,
   retryArticles,
   submitExtract,
 } from '../services/api'
+import type { BatchAction, RetryStatus } from '../services/api'
 import type { ArticleRequest, Batch } from '../types'
 import { SPACES_QUERY_KEY } from './useSpaces'
 
 export const BATCHES_QUERY_KEY = ['batches']
 
 export const isRunning = (batch: Batch) => batch.pending + batch.processing > 0
+export const isPaused = (batch: Batch) => !isRunning(batch) && batch.paused > 0
 
 export function useLatestBatch(spaceId: string) {
   return useQuery({
@@ -49,11 +52,19 @@ export function useAddArticles() {
   })
 }
 
-/** Queues failed articles again as a new upload. */
-export function useRetryArticles(spaceId: string) {
+/** Queues failed (or cancelled) articles again as a new upload. */
+export function useRetryArticles(spaceId: string, status: RetryStatus = 'error') {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (articleIds: string[]) => retryArticles(spaceId, articleIds),
+    mutationFn: (articleIds: string[]) => retryArticles(spaceId, articleIds, status),
+    onSuccess: () => refreshAfterUpload(queryClient),
+  })
+}
+
+export function useBatchAction(batch: Batch) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (action: BatchAction) => changeBatch(batch.space_id, batch.id, action),
     onSuccess: () => refreshAfterUpload(queryClient),
   })
 }

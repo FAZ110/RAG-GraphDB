@@ -3,7 +3,7 @@ from db.query_loader import load_queries
 from db.spaces.articles import fail_stalled_articles
 
 _QUERIES = load_queries(__file__)
-_STATUSES = ("ok", "pending", "processing", "error")
+_STATUSES = ("ok", "pending", "processing", "error", "paused", "cancelled")
 
 
 @translates_neo4j_errors

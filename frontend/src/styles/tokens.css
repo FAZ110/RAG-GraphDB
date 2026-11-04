@@ -31,6 +31,8 @@
   --status-processing: var(--fg-subtle);
   --status-pending: var(--line);
   --status-error: var(--danger);
+  --status-paused: var(--fg-faint);
+  --status-cancelled: var(--ink-ochre);
 
   --deck-offset: 4px;
   --deck-offset-lg: 6px;
@@ -106,6 +108,8 @@
   --color-status-processing: var(--status-processing);
   --color-status-pending: var(--status-pending);
   --color-status-error: var(--status-error);
+  --color-status-paused: var(--status-paused);
+  --color-status-cancelled: var(--status-cancelled);
 }
 
 @theme {

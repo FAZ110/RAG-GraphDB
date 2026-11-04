@@ -32,6 +32,27 @@ RETURN id,
        size([a IN articles WHERE a.status = 'pending']) AS pending,
        size([a IN articles WHERE a.status = 'processing']) AS processing,
        size([a IN articles WHERE a.status = 'error']) AS error,
+       size([a IN articles WHERE a.status = 'paused']) AS paused,
+       size([a IN articles WHERE a.status = 'cancelled']) AS cancelled,
        reduce(n = 0, a IN articles | n + coalesce(a.nodes_count, 0)) AS nodes_count,
        reduce(n = 0, a IN articles | n + coalesce(a.edges_count, 0)) AS edges_count
 ORDER BY created_at DESC
+
+// name: pause_batch
+// The article in progress is paused too; its task drops the result before writing it.
+MATCH (a:Article {batch_id: $batch_id, space_id: $space_id})
+WHERE a.status IN ['pending', 'processing']
+SET a.status = 'paused'
+RETURN a.queue_token AS token
+
+// name: resume_batch
+MATCH (a:Article {batch_id: $batch_id, space_id: $space_id})
+WHERE a.status = 'paused'
+SET a.status = 'pending', a.queued_at = datetime(), a.queue_token = randomUUID()
+RETURN a.id AS id, a.title AS title, a.provider AS provider, a.queue_token AS token
+
+// name: cancel_batch
+MATCH (a:Article {batch_id: $batch_id, space_id: $space_id})
+WHERE a.status IN ['pending', 'processing', 'paused']
+SET a.status = 'cancelled', a.error = null
+RETURN a.id AS id, a.title AS title, a.queue_token AS token

@@ -36,7 +36,20 @@ services:
 
   worker:
     build: ./backend
-    command: celery -A celery_app worker --loglevel=info --concurrency=2
+    command: celery -A celery_app worker -Q celery -n shared --loglevel=info --concurrency=2
+    env_file:
+      - ./backend/.env
+    depends_on:
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_started
+      neo4j:
+        condition: service_healthy
+
+  worker-custom:
+    build: ./backend
+    command: celery -A celery_app worker -Q custom -n custom --loglevel=info --concurrency=6
     env_file:
       - ./backend/.env
     depends_on:
