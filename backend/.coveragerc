@@ -1,0 +1,12 @@
+# Coverage of the app's own code: `npm run test:coverage` from the repo root.
+[run]
+source = .
+omit =
+    tests/*
+    venv/*
+# Measurement data goes to the system temp folder, so nothing is left in the project.
+data_file = ${TEMP-/tmp}/project-rag.coverage
+
+[report]
+skip_covered = true
+show_missing = true
