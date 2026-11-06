@@ -30,19 +30,21 @@ import { SourcesPanel } from './panels/SourcesPanel'
 import { CHROME_INSET } from './layout'
 import { relationGroupKey } from './proposal/proposal'
 import { useAnalysisEditor } from './useAnalysisEditor'
+import type { Fragment } from './fragment'
 import { useEditorKeys } from './useEditorKeys'
 import { useToolPicking } from './useToolPicking'
 
 interface Props {
   space: Space
   initial: Analysis | null
+  fragment?: Fragment
   onCreated: (analysis: Analysis) => void
   onReload: () => void
 }
 
-export function AnalysisEditor({ space, initial, onCreated, onReload }: Props) {
+export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }: Props) {
   const canvas = useRef<CanvasHandle>(null)
-  const editor = useAnalysisEditor(space.id, initial, canvas, onCreated)
+  const editor = useAnalysisEditor(space.id, initial, canvas, onCreated, fragment)
   const search = useRef<HTMLInputElement>(null)
   const frame = useRef<HTMLDivElement>(null)
   const top = useRef<HTMLDivElement>(null)

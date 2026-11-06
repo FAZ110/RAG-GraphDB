@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import type { RefObject } from 'react'
 import { freeSpot } from '@/components/canvas/placement'
 import type {
@@ -29,6 +30,8 @@ import {
 import type { Placed } from './state/canvasDoc'
 import { useAutosave } from './state/useAutosave'
 import { useCanvasEdges } from './state/useCanvasEdges'
+import { fragmentHub, fragmentSpots } from './fragment'
+import type { Fragment } from './fragment'
 
 const DEFAULT_NAME = 'Nowa analiza'
 const NO_ROUTE: ReadonlySet<string> = new Set()
@@ -42,7 +45,8 @@ export function useAnalysisEditor(
   spaceId: string,
   initial: Analysis | null,
   canvas: RefObject<CanvasHandle | null>,
-  onCreated: (a: Analysis) => void
+  onCreated: (a: Analysis) => void,
+  fragment?: Fragment
 ) {
   const queryClient = useQueryClient()
   const [doc, setDoc] = useState(() => loadedDoc(initial?.entities ?? []))
@@ -56,12 +60,44 @@ export function useAnalysisEditor(
   const ids = useMemo(() => [...doc.entities.keys()], [doc.entities])
   // Entities just added, settled into place once the canvas shows them.
   const toSettle = useRef<string[] | null>(null)
+  const fitSettled = useRef(false)
   useEffect(() => {
     const added = toSettle.current
     if (!added) return
     toSettle.current = null
-    void canvas.current?.arrange(added).then((moves) => setDoc((d) => settled(d, moves)))
+    void canvas.current?.arrange(added).then((moves) => {
+      setDoc((d) => settled(d, moves))
+      if (!fitSettled.current) return
+      fitSettled.current = false
+      requestAnimationFrame(() => canvas.current?.fit())
+    })
   }, [doc.entities, canvas])
+
+  // Lands once, though StrictMode runs the effect twice.
+  const seeded = useRef(false)
+  useEffect(() => {
+    if (seeded.current || !fragment?.length || initial) return
+    seeded.current = true
+    const spots = fragmentSpots(fragment)
+    fetchSubgraph(spaceId, [...spots.keys()])
+      .then(({ nodes, edges }) => {
+        if (!nodes.length) return
+        setName(fragmentHub(nodes, edges).name)
+        toSettle.current = nodes.map((n) => n.id)
+        fitSettled.current = true
+        setDoc((d) =>
+          changed(
+            d,
+            addition(
+              nodes,
+              nodes.map((n) => spots.get(n.id)!)
+            ),
+            `Dodano: ${names(nodes)}`
+          )
+        )
+      })
+      .catch((error: Error) => toast.error(error.message))
+  }, [fragment, initial, spaceId])
   const edges = useCanvasEdges(spaceId, ids)
   const firstName = doc.entities.values().next().value?.node.name
   const proposal = useProposal(spaceId, () => ({

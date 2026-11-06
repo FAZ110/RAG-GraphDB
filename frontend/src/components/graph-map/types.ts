@@ -28,4 +28,6 @@ export interface MapHandle {
   zoomBy: (factor: number) => void
   focus: (id: string) => void
   tidy: () => void
+  /** Where these entities sit on the map, in graph coordinates. */
+  positions: (ids: readonly string[]) => { id: string; x: number; y: number }[]
 }
