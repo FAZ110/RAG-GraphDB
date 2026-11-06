@@ -35,6 +35,18 @@ def test_base_url_must_be_an_http_address(client, alice, base_url):
     assert cypher("MATCH (p:LlmProvider) RETURN p") == []
 
 
+@pytest.mark.parametrize(
+    "base_url", ["http://127.0.0.1:7474/v1", "http://localhost:15672", "http://169.254.169.254/v1"]
+)
+def test_base_url_cannot_reach_our_network(client, alice, provider, base_url):
+    r = client.post(
+        "/settings/providers", json={**BASE, "base_url": base_url}, headers=alice.headers
+    )
+    assert r.status_code == 422
+    assert put(client, alice, provider["id"], **{**BASE, "base_url": base_url}).status_code == 422
+    assert cypher("MATCH (p:LlmProvider) RETURN p.base_url AS u") == [{"u": BASE["base_url"]}]
+
+
 @pytest.mark.parametrize("field", ["name", "model"])
 def test_blank_name_or_model_rejected(client, alice, field):
     r = client.post("/settings/providers", json={**BASE, field: "   "}, headers=alice.headers)

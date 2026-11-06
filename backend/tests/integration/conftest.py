@@ -74,8 +74,12 @@ def make_user(client):
         assert r.status_code == 201, r.text
         client.cookies.clear()
         user_id = r.json()["id"]
-        if role != "user":
-            cypher("MATCH (u:User {id: $id}) SET u.role = $role", id=user_id, role=role)
+        # As if an admin had granted the server models, which most tests extract with.
+        cypher(
+            "MATCH (u:User {id: $id}) SET u.role = $role, u.server_models = true",
+            id=user_id,
+            role=role,
+        )
         return TestUser(user_id, email, password, session_token(r))
 
     return make
