@@ -21,6 +21,8 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://127.0.0.1:1234/v1")
 LLM_MODEL = os.getenv("LLM_MODEL", "local-model")
 
 SECRETS_KEY = os.getenv("SECRETS_KEY")
+# Development only: lets users' own models point at localhost or the private network.
+ALLOW_PRIVATE_PROVIDER_URLS = os.getenv("ALLOW_PRIVATE_PROVIDER_URLS", "false").lower() == "true"
 
 EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", LLM_PROVIDER)
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")

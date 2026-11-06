@@ -18,6 +18,15 @@ def test_register_sets_httponly_cookie_and_lowercases_email(client):
     assert "httponly" in r.headers["set-cookie"].lower()
 
 
+def test_new_account_has_no_server_models_until_admin_grants(client, admin):
+    r = client.post("/auth/register", json={"email": "n@example.com", "password": "dlugie-haslo-1"})
+    client.cookies.clear()
+    assert r.json()["server_models"] is False
+    user_id = r.json()["id"]
+    r = client.patch(f"/admin/users/{user_id}", json={"server_models": True}, headers=admin.headers)
+    assert r.status_code == 200 and r.json()["server_models"] is True
+
+
 def test_register_duplicate_email_409(client, alice):
     r = client.post("/auth/register", json={"email": alice.email, "password": "inne-haslo-12"})
     assert r.status_code == 409

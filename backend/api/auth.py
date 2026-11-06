@@ -102,7 +102,8 @@ async def register(body: Registration, request: Request, response: Response):
         raise HTTPException(status_code=422, detail="Hasło nie może być adresem e-mail")
     password_hash = await run_in_threadpool(hash_password, body.password)
     try:
-        user = await create_user(body.email, password_hash, "user", server_models=True)
+        # Server models spend the app's own API keys: an admin grants them.
+        user = await create_user(body.email, password_hash, "user", server_models=False)
     except EmailTakenError as e:
         raise HTTPException(status_code=409, detail="Konto z tym adresem już istnieje") from e
     await touch_login(user["id"])

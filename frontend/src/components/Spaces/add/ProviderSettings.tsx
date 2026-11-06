@@ -85,7 +85,7 @@ export function ProviderSettings({ value, onChange, ink }: Props) {
         )}
         {!user.server_models && (
           <p className="min-w-0 text-xs text-fg-subtle">
-            Administrator wyłączył Ci modele serwera.{' '}
+            Nie masz dostępu do modeli serwera, może go włączyć administrator.{' '}
             {options.length > 0
               ? 'Możesz korzystać z własnych modeli.'
               : 'Dodaj własny model w Ustawieniach, aby przetwarzać artykuły.'}

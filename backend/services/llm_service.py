@@ -1,7 +1,7 @@
 import json
 import re
 
-from openai import OpenAI
+from openai import DefaultHttpxClient, OpenAI
 
 from core.config import (
     GROQ_API_KEY,
@@ -12,6 +12,7 @@ from core.config import (
     OPENAI_API_KEY,
     OPENAI_MODEL,
 )
+from core.public_url import ensure_public_url
 from db.settings import custom_provider_config
 
 _GROQ_MAX_COMPLETION_TOKENS = 8000
@@ -78,7 +79,7 @@ Treść: {content}\
 
 class LLMService:
     def __init__(self, provider: str = "local", owner_id: str | None = None) -> None:
-        self._extra: dict = {}
+        self._extra: dict = {"temperature": 0.1}
 
         if provider == "groq":
             if not GROQ_API_KEY:
@@ -89,7 +90,7 @@ class LLMService:
                 max_retries=0,
             )
             self._model = GROQ_MODEL
-            self._extra = {
+            self._extra |= {
                 "max_completion_tokens": _GROQ_MAX_COMPLETION_TOKENS,
                 "reasoning_effort": "low",
                 "response_format": {"type": "json_object"},
@@ -99,15 +100,23 @@ class LLMService:
                 raise ValueError("No OPENAI_API_KEY in environmental variables")
             self._client = OpenAI(api_key=OPENAI_API_KEY, max_retries=0)
             self._model = OPENAI_MODEL
-            self._extra = {"response_format": {"type": "json_object"}}
+            self._extra |= {"response_format": {"type": "json_object"}}
         elif provider.startswith(CUSTOM_PROVIDER_PREFIX):
             config = custom_provider_config(provider.removeprefix(CUSTOM_PROVIDER_PREFIX), owner_id)
             if config is None:
                 raise ValueError("Custom LLM provider no longer exists, pick another model")
+            # Checked again on every call: the host's DNS may have changed since it was saved,
+            # and no redirects, which could lead back into our network.
+            ensure_public_url(config["base_url"])
             self._client = OpenAI(
-                base_url=config["base_url"], api_key=config["api_key"] or "none", max_retries=0
+                base_url=config["base_url"],
+                api_key=config["api_key"] or "none",
+                max_retries=0,
+                http_client=DefaultHttpxClient(follow_redirects=False),
             )
             self._model = config["model"]
+            # No temperature: reasoning models (GPT-5, o-series, Claude 4.7+) reject anything but the default.
+            self._extra = {}
         else:
             self._client = OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY, max_retries=0)
             self._model = LLM_MODEL
@@ -132,7 +141,6 @@ class LLMService:
         response = self._client.chat.completions.create(
             model=self._model,
             messages=messages,
-            temperature=0.1,
             **self._extra,
         )
         if not response.choices:

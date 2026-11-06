@@ -54,6 +54,22 @@ def test_rules_go_first_as_system_message():
     assert messages[0]["role"] == "system" and "Tylko osoby" in messages[0]["content"]
 
 
+def test_server_model_gets_low_temperature():
+    svc, fake = service("{}")
+    svc.generate_graph_json("T", "x")
+    assert fake.calls[0]["temperature"] == 0.1
+
+
+def test_custom_model_sends_no_temperature(monkeypatch):
+    config = {"base_url": "https://llm.example/v1", "model": "m", "api_key": "k"}
+    monkeypatch.setattr("services.llm_service.custom_provider_config", lambda pid, owner: config)
+    svc = LLMService("custom:p1", owner_id="u1")
+    fake = FakeCompletions("{}")
+    svc._client = SimpleNamespace(chat=SimpleNamespace(completions=fake))
+    svc.generate_graph_json("T", "x")
+    assert "temperature" not in fake.calls[0]
+
+
 def test_labels_and_content_reach_the_prompt():
     svc, fake = service("{}")
     svc.generate_graph_json("Tytuł", "[S1] treść", labels=["KLUB"])
