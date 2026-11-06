@@ -99,6 +99,8 @@ export function GraphCanvas({
       boxSelectionEnabled: true,
     })
     cyRef.current = cy
+    // A fresh instance (StrictMode mounts twice) has no viewport yet, so it is placed again.
+    placedOnce.current = false
     let routing = 0
     reroute.current = () => {
       clearTimeout(routing)

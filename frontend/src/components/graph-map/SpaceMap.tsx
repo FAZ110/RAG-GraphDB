@@ -1,4 +1,11 @@
-import { CopyIcon, PlusIcon, Wand2Icon, XIcon } from 'lucide-react'
+import {
+  CopyIcon,
+  MicroscopeIcon,
+  PlusIcon,
+  SquareDashedMousePointerIcon,
+  Wand2Icon,
+  XIcon,
+} from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -41,6 +48,8 @@ import { useMapEdits } from './useMapEdits'
 
 const NONE: ReadonlySet<string> = new Set()
 const REVEAL_NEIGHBOURS = 50
+// shortcut: a bigger fragment is cut to this many, raise it once the analysis canvas copes with more.
+const MAX_FRAGMENT = 300
 
 const without = (set: ReadonlySet<string>, item: string | undefined) => {
   if (!item || !set.has(item)) return set
@@ -85,6 +94,7 @@ export function SpaceMap({ space, spaces, focus }: Props) {
   const [pick, setPick] = useState<{ kind: PickKind; from: string; to: string | null } | null>(null)
   const [creating, setCreating] = useState(false)
   const [statsOpen, setStatsOpen] = useState(false)
+  const [boxing, setBoxing] = useState(false)
   const edits = useMapEdits(space.id)
   const duplicates = useDuplicates(space.id)
 
@@ -261,11 +271,21 @@ export function SpaceMap({ space, spaces, focus }: Props) {
     if (key === 'tidy') return tidy()
     if (key === 'escape') {
       if (pick) return endPick()
+      if (boxing) return setBoxing(false)
       if (!selectedId && !selectedEdgeId && !highlighted.size) return false
       return clear()
     }
     return false
   })
+
+  const analyse = () => {
+    const ids = [...highlighted].slice(0, MAX_FRAGMENT)
+    if (highlighted.size > MAX_FRAGMENT)
+      toast(`Do analizy trafia pierwsze ${MAX_FRAGMENT} z ${highlighted.size} encji`)
+    navigate(`/analyses/${space.id}/new`, {
+      state: { fragment: map.current?.positions(ids) ?? [] },
+    })
+  }
 
   const relationCount = (type: string) => relations.find((r) => r.type === type)?.count ?? 0
 
@@ -299,10 +319,16 @@ export function SpaceMap({ space, spaces, focus }: Props) {
                     ? `Wyróżniono relacje „${relationName(relation)}”: ${relationCount(relation)}`
                     : `Wyróżniono ${highlighted.size} ${pluralForm(highlighted.size, ENTITY_FORMS)}`}
                 </span>
-                <Button size="sm" variant="ghost" onClick={() => setHighlighted(NONE)}>
-                  <XIcon />
-                  Wyczyść
-                </Button>
+                <span className="flex items-center gap-1">
+                  <Button size="sm" variant="primary" onClick={analyse}>
+                    <MicroscopeIcon />
+                    Analizuj
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setHighlighted(NONE)}>
+                    <XIcon />
+                    Wyczyść
+                  </Button>
+                </span>
               </div>
             ),
           }
@@ -337,6 +363,13 @@ export function SpaceMap({ space, spaces, focus }: Props) {
               if (pick) return
               setSelectedId(null)
               setSelectedEdgeId(id)
+            }}
+            boxing={boxing && !pick}
+            onBoxSelect={(ids) => {
+              setBoxing(false)
+              setSelectedId(null)
+              setSelectedEdgeId(null)
+              setHighlighted(new Set(ids))
             }}
             onLayout={onLayout}
             insets={insets}
@@ -486,6 +519,14 @@ export function SpaceMap({ space, spaces, focus }: Props) {
               onClick={tidy}
             >
               <Wand2Icon />
+            </ToolButton>
+            <ToolButton
+              label="Zaznacz obszar"
+              hotkey="Shift + przeciągnij"
+              active={boxing}
+              onClick={() => setBoxing((on) => !on)}
+            >
+              <SquareDashedMousePointerIcon />
             </ToolButton>
             {duplicates.suggestions.length > 0 && (
               <Button

@@ -1,16 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { AnalysisEditor } from '@/components/Analysis/AnalysisEditor'
 import { Button, EmptyState } from '@/components/deck'
 import { useSpaces } from '@/hooks/useSpaces'
 import { fetchAnalysis } from '@/services/analyses'
+import type { Fragment } from '@/components/Analysis/fragment'
 
 const NEW = 'new'
 
 export function AnalysisEditorPage() {
   const { spaceId = '', analysisId = NEW } = useParams()
   const navigate = useNavigate()
+  const fragment = (useLocation().state as { fragment?: Fragment } | null)?.fragment
   const spaces = useSpaces()
   // Set once a new analysis is saved, so its address can change without reopening it.
   const [createdId, setCreatedId] = useState<string | null>(null)
@@ -62,6 +64,7 @@ export function AnalysisEditorPage() {
       key={`${space.id}:${opened ?? NEW}:${reloads}`}
       space={space}
       initial={analysis.data ?? null}
+      fragment={opened ? undefined : fragment}
       onCreated={(created) => {
         setCreatedId(created.id)
         navigate(`/analyses/${space.id}/${created.id}`, { replace: true })

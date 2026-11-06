@@ -7,11 +7,13 @@ import type { Coordinates, EdgeDisplayData, NodeDisplayData } from 'sigma/types'
 import { canvasMotion } from '@/components/canvas/motion'
 import { relationName } from '@/components/canvas/relationName'
 import type { Insets } from '@/components/canvas/types'
+import { cn } from '@/lib/utils'
 import type { OverviewResponse } from '@/types'
 import { buildGraph, CURVED, syncGraph } from './buildGraph'
 import type { MapGraph } from './buildGraph'
 import { runLayout } from './layout'
 import { followPaper } from './paper'
+import { selectionBox } from './selectionBox'
 import { communityInk, labelDrawers, mix, paperColors } from './style'
 import type { ColorBy, MapEdgeAttributes, MapHandle, MapNodeAttributes } from './types'
 
@@ -25,6 +27,9 @@ interface Props {
   selectedEdgeId: string | null
   onSelect: (id: string | null) => void
   onSelectEdge: (id: string) => void
+  /** Plain drag draws a selection box instead of panning; Shift+drag always does. */
+  boxing?: boolean
+  onBoxSelect?: (ids: string[]) => void
   onLayout?: (running: boolean, interrupted?: boolean) => void
   insets?: () => Insets
   ref?: Ref<MapHandle>
@@ -135,11 +140,18 @@ export function GraphMap({
   selectedEdgeId,
   onSelect,
   onSelectEdge,
+  boxing = false,
+  onBoxSelect,
   onLayout,
   insets,
   ref,
 }: Props) {
   const container = useRef<HTMLDivElement>(null)
+  const boxEl = useRef<HTMLDivElement>(null)
+  const boxingRef = useRef(boxing)
+  useEffect(() => {
+    boxingRef.current = boxing
+  }, [boxing])
   const sigmaRef = useRef<Sigma<MapNodeAttributes, MapEdgeAttributes> | null>(null)
   const view = useRef<View>({
     colorBy,
@@ -155,6 +167,7 @@ export function GraphMap({
 
   const emitSelect = useEffectEvent((id: string | null) => onSelect(id))
   const emitSelectEdge = useEffectEvent((id: string) => onSelectEdge(id))
+  const emitBoxSelect = useEffectEvent((ids: string[]) => onBoxSelect?.(ids))
   const initialData = useEffectEvent(() => data)
   const emitLayout = useEffectEvent((running: boolean, interrupted = false) =>
     onLayout?.(running, interrupted)
@@ -306,7 +319,34 @@ export function GraphMap({
       relight()
       sigma.refresh({ skipIndexation: true })
     })
+    let boxFrom: Coordinates | null = null
+    let boxTo: Coordinates | null = null
+    const drawBox = () => {
+      const el = boxEl.current!
+      if (!boxFrom || !boxTo) return void (el.style.display = 'none')
+      Object.assign(el.style, {
+        display: 'block',
+        left: `${Math.min(boxFrom.x, boxTo.x)}px`,
+        top: `${Math.min(boxFrom.y, boxTo.y)}px`,
+        width: `${Math.abs(boxTo.x - boxFrom.x)}px`,
+        height: `${Math.abs(boxTo.y - boxFrom.y)}px`,
+      })
+    }
+    sigma.on('downStage', ({ event }) => {
+      if (!boxingRef.current && !event.original.shiftKey) return
+      boxFrom = { x: event.x, y: event.y }
+      boxTo = boxFrom
+      event.preventSigmaDefault()
+    })
     sigma.on('moveBody', ({ event }) => {
+      if (boxFrom) {
+        boxTo = { x: event.x, y: event.y }
+        moved = true
+        drawBox()
+        event.preventSigmaDefault()
+        event.original.preventDefault()
+        return
+      }
       if (!dragged) return
       const { x, y } = sigma.viewportToGraph(event)
       graph.mergeNodeAttributes(dragged, { x, y })
@@ -320,8 +360,26 @@ export function GraphMap({
       dragged = null
       hover(under)
     }
+    const endBox = () => {
+      if (!boxFrom || !boxTo) return
+      const contains = selectionBox(boxFrom, boxTo)
+      boxFrom = boxTo = null
+      drawBox()
+      if (!contains) return
+      const inside: string[] = []
+      graph.forEachNode((id) => {
+        const shown = sigma.getNodeDisplayData(id)
+        if (!shown || shown.hidden) return
+        if (contains(sigma.framedGraphToViewport(shown))) inside.push(id)
+      })
+      emitBoxSelect(inside)
+    }
     sigma.on('upNode', drop)
-    sigma.on('upStage', drop)
+    sigma.on('upStage', () => {
+      endBox()
+      drop()
+    })
+    sigma.on('upNode', endBox)
 
     sigma.on('clickNode', ({ node }) => {
       if (moved) return void (moved = false)
@@ -429,8 +487,26 @@ export function GraphMap({
         frame(node.x, node.y, Math.min(sigma.getCamera().getState().ratio, FOCUS_RATIO))
       },
       tidy: () => tidyRef.current(),
+      positions: (ids) => {
+        const graph = sigmaRef.current?.getGraph()
+        if (!graph) return []
+        return ids.flatMap((id) =>
+          graph.hasNode(id)
+            ? [{ id, x: graph.getNodeAttribute(id, 'x'), y: graph.getNodeAttribute(id, 'y') }]
+            : []
+        )
+      },
     }
   }, [])
 
-  return <div ref={container} className="h-full w-full" />
+  return (
+    <div className={cn('relative h-full w-full', boxing && '[&_canvas]:cursor-crosshair')}>
+      <div ref={container} className="h-full w-full" />
+      <div
+        ref={boxEl}
+        aria-hidden="true"
+        className="pointer-events-none absolute hidden border border-dashed border-fg bg-fg/5"
+      />
+    </div>
+  )
 }
