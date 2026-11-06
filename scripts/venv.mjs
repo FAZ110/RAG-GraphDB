@@ -16,7 +16,7 @@ for (const line of readFileSync(path.join(backend, '.env'), 'utf8').split(/\r?\n
   if (!match) continue
   const url = new URL(match[2].trim())
   if (!DOCKER_HOSTS.has(url.hostname)) continue
-  url.hostname = 'localhost'
+  url.hostname = '127.0.0.1'
   local[match[1]] = url.href
 }
 
