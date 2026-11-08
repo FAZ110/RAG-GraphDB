@@ -2,13 +2,14 @@ import { motion } from 'motion/react'
 import { LandingNav } from './LandingNav'
 import { Backdrop } from './story/Backdrop'
 import { Hero } from './story/Hero'
+import { Story } from './story/Story'
 import { LAST_STEP } from './story/timeline'
 import { useSteps } from './useSteps'
 
 const SCENES = Array.from({ length: LAST_STEP + 1 }, (_, i) => i)
 
 export function LandingPage() {
-  const { step, progress, stage, goTo, scroller } = useSteps(LAST_STEP)
+  const { step, progress, heading, stage, goTo, scroller } = useSteps(LAST_STEP)
   return (
     <div
       ref={scroller}
@@ -25,6 +26,7 @@ export function LandingPage() {
           <motion.main className="will-change-[opacity]" style={{ opacity: stage }}>
             <Backdrop progress={progress} />
             <Hero progress={progress} />
+            <Story progress={progress} heading={heading} />
           </motion.main>
         </div>
         <div aria-hidden="true" style={{ height: `${LAST_STEP * 100}dvh` }} />
