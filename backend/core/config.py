@@ -1,0 +1,64 @@
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+NEO4J_URI = os.getenv("NEO4J_URI")
+NEO4J_USER = os.getenv("NEO4J_USER")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
+
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "local")
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+LLM_API_KEY = os.getenv("LLM_API_KEY", "lm-studio")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://127.0.0.1:1234/v1")
+LLM_MODEL = os.getenv("LLM_MODEL", "local-model")
+
+SECRETS_KEY = os.getenv("SECRETS_KEY")
+# Development only: lets users' own models point at localhost or the private network.
+ALLOW_PRIVATE_PROVIDER_URLS = os.getenv("ALLOW_PRIVATE_PROVIDER_URLS", "false").lower() == "true"
+
+EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", LLM_PROVIDER)
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "1536"))
+EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", LLM_BASE_URL)
+EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY", LLM_API_KEY)
+
+DEDUP_ENABLED = os.getenv("DEDUP_ENABLED", "true").lower() == "true"
+# Every dedup score is plain cosine similarity of the entities' embeddings.
+DEDUP_THRESHOLD = float(os.getenv("DEDUP_THRESHOLD", "0.75"))
+DEDUP_NAME_MIN_SCORE = float(os.getenv("DEDUP_NAME_MIN_SCORE", "0.5"))
+DEDUP_LEXICAL_MIN = float(os.getenv("DEDUP_LEXICAL_MIN", "0.85"))
+DEDUP_SUGGEST_MIN = float(os.getenv("DEDUP_SUGGEST_MIN", "0.5"))
+# A saved suggestion is shown when the names are alike, or the embedding alone is near certain:
+# it is dominated by label and description, so any two players otherwise score high.
+DEDUP_SUGGEST_LEXICAL_MIN = float(os.getenv("DEDUP_SUGGEST_LEXICAL_MIN", "0.8"))
+DEDUP_SUGGEST_ANY_NAME_MIN = float(os.getenv("DEDUP_SUGGEST_ANY_NAME_MIN", "0.9"))
+DEDUP_TOP_K = int(os.getenv("DEDUP_TOP_K", "5"))
+
+# Longer than a task can take: its 130 s time limit plus the countdowns of rate-limit retries.
+STALE_PROCESSING_MINUTES = int(os.getenv("STALE_PROCESSING_MINUTES", "15"))
+
+RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672//")
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+SESSION_TTL_HOURS = int(os.getenv("SESSION_TTL_HOURS", "168"))
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() == "true"
+CORS_ORIGINS = [
+    o.strip()
+    for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+    if o.strip()
+]
+API_DOCS = os.getenv("API_DOCS", "false").lower() == "true"
+# Development only: test accounts with sign-in without a password.
+DEV_ACCOUNTS = os.getenv("DEV_ACCOUNTS", "false").lower() == "true"
+
+
+if not all([NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD]):
+    raise RuntimeError("Environmental variables missing: NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD")
