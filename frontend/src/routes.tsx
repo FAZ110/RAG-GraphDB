@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
+import { AfterSignIn } from './components/auth/AfterSignIn'
 import { AdminPage } from './pages/AdminPage'
 import { AnalysesPage } from './pages/AnalysesPage'
 import { AnalysisEditorPage } from './pages/AnalysisEditorPage'
@@ -41,6 +42,9 @@ export const appRoutes: AppRoute[] = [
   },
   { path: '/settings', element: <SettingsPage />, label: 'Ustawienia', showInNavbar: false },
   { path: '/admin', element: <AdminPage />, label: 'Administracja', showInNavbar: false },
+  // The addresses of the signed-out pages; signing in on one of them goes on to its `next`.
+  { path: '/login', element: <AfterSignIn />, label: 'Logowanie', showInNavbar: false },
+  { path: '/register', element: <AfterSignIn />, label: 'Rejestracja', showInNavbar: false },
   // Adding articles moved into the spaces; old links land there.
   {
     path: '/extract',

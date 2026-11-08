@@ -3,9 +3,11 @@ import type { FormEvent, ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { EyeIcon, EyeOffIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { Button, ErrorNote, focusRing, TextInput } from '@/components/deck'
-import { InteractiveGraph } from '@/components/graph-art/InteractiveGraph'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Button, ErrorNote, focusRing, Marked, TextInput } from '@/components/deck'
+import { AtlasLandmark } from '@/components/nav/AtlasLandmark'
 import { AtlasMark } from '@/components/nav/AtlasMark'
+import { ContourBackdrop } from '@/components/Spaces/map/ContourBackdrop'
 import { move } from '@/design/motion'
 import { cn } from '@/lib/utils'
 import { devLogin, fetchAuthConfig, login, register } from '@/services/auth'
@@ -105,11 +107,12 @@ function Strength({ password }: { password: string }) {
   )
 }
 
-export function AuthPage() {
+export function AuthPage({ initialMode = 'login' }: { initialMode?: Mode }) {
   const queryClient = useQueryClient()
   const config = useQuery({ queryKey: ['auth', 'config'], queryFn: fetchAuthConfig })
   const registrationOpen = config.data?.registration_open ?? false
-  const [mode, setMode] = useState<Mode>('login')
+  const [chosenMode, setMode] = useState<Mode>(initialMode)
+  const mode = config.isSuccess && !registrationOpen ? 'login' : chosenMode
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [repeat, setRepeat] = useState('')
@@ -126,7 +129,12 @@ export function AuthPage() {
     onSuccess: (user) => queryClient.setQueryData(ME_KEY, user),
   })
 
+  const navigate = useNavigate()
+  const { search } = useLocation()
+
+  // The address follows the tab, keeping where to go after signing in.
   const switchTo = (next: Mode) => {
+    navigate({ pathname: next === 'login' ? '/login' : '/register', search }, { replace: true })
     setMode(next)
     setRepeat('')
     setMismatch(false)
@@ -147,27 +155,48 @@ export function AuthPage() {
     !email.trim() || !password || (registering && (password.length < MIN_PASSWORD || !repeat))
 
   return (
-    <div className="relative grid min-h-dvh place-items-center overflow-hidden bg-page px-4 py-10 sm:px-8">
-      <div className="relative grid w-full max-w-5xl items-center gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
-        <section className="flex flex-col gap-6">
-          <div className="flex items-center gap-3">
+    <div className="relative grid min-h-dvh place-items-center overflow-hidden bg-(--pastel-sky) px-4 py-10 sm:px-8">
+      <ContourBackdrop color="var(--ink-steel)" className="absolute inset-0" />
+      {/* The same mark that closes the landing, laid over the lines. */}
+      <AtlasLandmark
+        className="top-[40%] -left-[40vw] sm:-left-[20vw] lg:top-[-10vh] lg:-left-[18vw] [&_svg]:size-[120vw] lg:[&_svg]:size-[120vh]"
+        ground="var(--pastel-sky)"
+        tint="text-surface opacity-45"
+      />
+      <div className="relative grid w-full max-w-6xl items-center gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-16">
+        <section className="flex flex-col gap-8">
+          <Link to="/" className={cn('flex items-center gap-3 self-start', focusRing)}>
             <span className="deck grid size-12 place-items-center border border-fg bg-fg text-fg-inverse [--deck-shadow:var(--ink-steel)]">
               <AtlasMark size={28} />
             </span>
             <span className="text-2xl font-extrabold tracking-tight text-fg">Atlas</span>
-          </div>
-          <div className="hidden flex-col gap-6 lg:flex">
-            <p className="text-[11px] font-semibold tracking-[0.22em] text-fg-faint uppercase">
-              Inteligentna eksploracja dokumentów
-            </p>
-            <h1 className="text-display-xl text-fg">
+          </Link>
+          <div className="hidden flex-col gap-10 lg:flex">
+            <h1 className="isolate text-poster text-fg [font-size:clamp(3rem,4.4vw,4.75rem)]">
               Twoja mapa wiedzy.
               <br />
-              <span className="text-fg-faint">Tylko dla Ciebie.</span>
+              <span className="mt-[0.12em] inline-block">
+                <Marked
+                  ink="cobalt"
+                  frame={{
+                    initial: { scaleX: 0 },
+                    animate: { scaleX: 1 },
+                    transition: { ...move.panel, delay: 0.25 },
+                  }}
+                >
+                  Tylko dla Ciebie.
+                </Marked>
+              </span>
             </h1>
-            <div className="h-96">
-              <InteractiveGraph />
-            </div>
+            <Link
+              to="/"
+              className={cn(
+                'self-start text-sm font-semibold text-fg underline decoration-fg-faint underline-offset-4 hover:decoration-fg',
+                focusRing
+              )}
+            >
+              Zobacz, jak działa Atlas
+            </Link>
           </div>
         </section>
 
@@ -285,8 +314,8 @@ export function AuthPage() {
 
           {devAccounts.length > 0 && (
             <div className="mt-6 border-t border-dashed border-line pt-4">
-              <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">
-                Konta testowe · tryb deweloperski
+              <p className="text-sm font-semibold text-fg-subtle">
+                Konta testowe do pracy lokalnej
               </p>
               <div className="mt-3 flex flex-col gap-2">
                 {devAccounts.map((account) => (
@@ -301,7 +330,7 @@ export function AuthPage() {
                     <span className="truncate">{account.email}</span>
                     <span
                       className={cn(
-                        'border px-1.5 py-0.5 text-[11px] tracking-wide uppercase',
+                        'border px-1.5 py-0.5 text-xs',
                         account.role === 'admin'
                           ? 'border-fg bg-fg text-fg-inverse'
                           : 'border-line text-fg-subtle'

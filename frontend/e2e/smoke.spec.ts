@@ -4,6 +4,7 @@ test('dev account signs in, creates a space and opens a new analysis', async ({ 
   const name = `e2e-${Date.now()}`
 
   await page.goto('/')
+  await page.getByRole('link', { name: 'Zaloguj się' }).first().click()
   await expect(page.getByRole('heading', { name: 'Zaloguj się' })).toBeVisible()
   await page.getByRole('button', { name: /anna@atlas\.test/ }).click()
   await expect(page.getByRole('button', { name: 'Wyloguj' })).toBeVisible()

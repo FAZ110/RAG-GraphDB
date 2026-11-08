@@ -1,12 +1,15 @@
 import { useEffect, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Route, Routes } from 'react-router-dom'
 import { AtlasMark } from '@/components/nav/AtlasMark'
 import { Button, ErrorNote } from '@/components/deck'
 import { AUTH_EXPIRED } from '@/services/api'
 import { fetchMe, logout } from '@/services/auth'
 import { AuthContext, leaveSession, ME_KEY } from './authContext'
 import { AuthPage } from './AuthPage'
+import { SignInRedirect } from './SignInRedirect'
+import { LandingPage } from '@/pages/LandingPage'
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const me = useQuery({ queryKey: ME_KEY, queryFn: fetchMe, staleTime: Infinity, retry: false })
@@ -51,6 +54,15 @@ export function AuthGate({ children }: { children: ReactNode }) {
       </div>
     )
   }
-  if (!auth) return <AuthPage />
+  if (!auth) {
+    return (
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/register" element={<AuthPage initialMode="register" />} />
+        <Route path="*" element={<SignInRedirect />} />
+      </Routes>
+    )
+  }
   return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>
 }

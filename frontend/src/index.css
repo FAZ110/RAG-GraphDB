@@ -141,6 +141,16 @@
   }
 }
 
+/* A veil of the slide's own colour behind text, so the map's lines fade out under the words;
+   its edges fade too, so it has no outline. A slide names its colour in --slide. */
+@utility haze {
+  background-color: color-mix(in oklab, var(--slide, var(--page)) 80%, transparent);
+  mask-image:
+    linear-gradient(to right, transparent, black 2.5rem, black calc(100% - 2.5rem), transparent),
+    linear-gradient(to bottom, transparent, black 2rem, black calc(100% - 2rem), transparent);
+  mask-composite: intersect;
+}
+
 @utility room-for-confirm {
   padding-right: 7.5rem;
 }
