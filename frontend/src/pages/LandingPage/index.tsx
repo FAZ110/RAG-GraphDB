@@ -2,6 +2,7 @@ import { motion } from 'motion/react'
 import { LandingNav } from './LandingNav'
 import { Capabilities } from './sections/capabilities/Capabilities'
 import { FinalCall } from './sections/FinalCall'
+import { Manual } from './sections/manual/Manual'
 import { Backdrop } from './story/Backdrop'
 import { Hero } from './story/Hero'
 import { Story } from './story/Story'
@@ -30,6 +31,7 @@ export function LandingPage() {
             <Hero progress={progress} />
             <Story progress={progress} heading={heading} />
             <Capabilities progress={progress} step={step} />
+            <Manual progress={progress} step={step} />
             <FinalCall progress={progress} />
           </motion.main>
         </div>
