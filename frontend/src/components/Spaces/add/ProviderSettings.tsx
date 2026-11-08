@@ -46,7 +46,11 @@ export function ProviderSettings({ value, onChange, ink }: Props) {
   const custom = useCustomProviders().data ?? []
   const { user } = useAuth()
   const options = [
-    ...(user.server_models ? PROVIDERS : []).map((p) => ({
+    // LM Studio runs on the developer's machine, so a built app has no local model to reach.
+    ...(user.server_models
+      ? PROVIDERS.filter((p) => import.meta.env.DEV || p.value !== 'local')
+      : []
+    ).map((p) => ({
       value: p.value as Provider,
       label: p.label,
       hint: p.paid ? `${p.model}, płatny` : p.model,
