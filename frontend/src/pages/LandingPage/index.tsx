@@ -1,5 +1,6 @@
 import { motion } from 'motion/react'
 import { LandingNav } from './LandingNav'
+import { FinalCall } from './sections/FinalCall'
 import { Backdrop } from './story/Backdrop'
 import { Hero } from './story/Hero'
 import { Story } from './story/Story'
@@ -27,6 +28,7 @@ export function LandingPage() {
             <Backdrop progress={progress} />
             <Hero progress={progress} />
             <Story progress={progress} heading={heading} />
+            <FinalCall progress={progress} />
           </motion.main>
         </div>
         <div aria-hidden="true" style={{ height: `${LAST_STEP * 100}dvh` }} />
