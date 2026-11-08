@@ -10,6 +10,14 @@ export {
   step,
   swap,
 } from './presets'
-export { EFFECT_SHARE, EXIT_SHARE, SPRINGS, SPRING_NAMES, STAGGER } from './springs'
+export {
+  EFFECT_SHARE,
+  EXIT_SHARE,
+  SPRINGS,
+  SPRING_NAMES,
+  STAGGER,
+  STAGED_STEP,
+  STAGED_STEP_BACK,
+} from './springs'
 export type { SpringName } from './springs'
 export { dragSettle, leave, move, staggerDelay } from './transitions'

@@ -10,6 +10,8 @@ damped, no bounce unless a gesture threw the thing.
 | `panel`   | 360 ms        | 0      | drawers, columns opening, a modal resizing                   |
 | `release` | 300 ms        | 0.15   | only after a drag or flick, where momentum carries it        |
 
+`STAGED_STEP` is a fifth, slow spring for scroll-staged stories such as the landing: one scene takes about a second, and a new gesture retargets it without a stop. `STAGED_STEP_BACK` plays a scene backwards in about half that time.
+
 Leaving takes 0.8 of arriving (`EXIT_SHARE`); opacity takes 0.6 of the move it rides on
 (`EFFECT_SHARE`), so content reads before it lands.
 

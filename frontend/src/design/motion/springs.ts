@@ -21,4 +21,10 @@ export const EXIT_SHARE = 0.8
 /** Opacity takes this share of the move it rides on, so content reads before it lands. */
 export const EFFECT_SHARE = 0.6
 
+/** One scene of a staged story; a spring, so the next scene takes over without a stop. */
+export const STAGED_STEP = { type: 'spring', visualDuration: 1.05, bounce: 0 } as const
+
+/** A scene played backwards: the reader has seen it, so it only needs to find its place again. */
+export const STAGED_STEP_BACK = { type: 'spring', visualDuration: 0.6, bounce: 0 } as const
+
 export const STAGGER = { gap: 0.04, upTo: 6 } as const
