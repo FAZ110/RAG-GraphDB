@@ -41,6 +41,14 @@ export const appRoutes: AppRoute[] = [
   },
   { path: '/settings', element: <SettingsPage />, label: 'Ustawienia', showInNavbar: false },
   { path: '/admin', element: <AdminPage />, label: 'Administracja', showInNavbar: false },
+  // The addresses of the signed-out pages; signing in on one of them lands on the start page.
+  { path: '/login', element: <Navigate to="/" replace />, label: 'Logowanie', showInNavbar: false },
+  {
+    path: '/register',
+    element: <Navigate to="/" replace />,
+    label: 'Rejestracja',
+    showInNavbar: false,
+  },
   // Adding articles moved into the spaces; old links land there.
   {
     path: '/extract',
