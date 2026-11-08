@@ -3,7 +3,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { EyeIcon, EyeOffIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Button, ErrorNote, focusRing, Marked, TextInput } from '@/components/deck'
 import { AtlasLandmark } from '@/components/nav/AtlasLandmark'
 import { AtlasMark } from '@/components/nav/AtlasMark'
@@ -129,7 +129,12 @@ export function AuthPage({ initialMode = 'login' }: { initialMode?: Mode }) {
     onSuccess: (user) => queryClient.setQueryData(ME_KEY, user),
   })
 
+  const navigate = useNavigate()
+  const { search } = useLocation()
+
+  // The address follows the tab, keeping where to go after signing in.
   const switchTo = (next: Mode) => {
+    navigate({ pathname: next === 'login' ? '/login' : '/register', search }, { replace: true })
     setMode(next)
     setRepeat('')
     setMismatch(false)

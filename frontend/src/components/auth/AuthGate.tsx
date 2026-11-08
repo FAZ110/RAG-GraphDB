@@ -8,6 +8,7 @@ import { AUTH_EXPIRED } from '@/services/api'
 import { fetchMe, logout } from '@/services/auth'
 import { AuthContext, leaveSession, ME_KEY } from './authContext'
 import { AuthPage } from './AuthPage'
+import { SignInRedirect } from './SignInRedirect'
 import { LandingPage } from '@/pages/LandingPage'
 
 export function AuthGate({ children }: { children: ReactNode }) {
@@ -55,11 +56,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
   if (!auth) {
     return (
-      // Any other address keeps its URL, so signing in lands on the page that was asked for.
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<AuthPage />} />
         <Route path="/register" element={<AuthPage initialMode="register" />} />
-        <Route path="*" element={<AuthPage />} />
+        <Route path="*" element={<SignInRedirect />} />
       </Routes>
     )
   }
