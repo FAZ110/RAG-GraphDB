@@ -41,6 +41,12 @@
   /* The springs come from src/design/motion; this is the moment a press goes down. */
   --motion-press: 60ms;
 
+  --pastel-sky: #dce8f4;
+  --pastel-lilac: #e7e3f3;
+  --pastel-sand: #f4ead8;
+  --pastel-rose: #f3e1e7;
+  --pastel-sage: #dfecdf;
+
   --ink-cherry: #8c3843;
   --ink-cherry-field: #f8eded;
   --ink-brick: #9c503e;
@@ -136,4 +142,12 @@
   --text-figure--line-height: 1;
   --text-figure--letter-spacing: -0.02em;
   --text-figure--font-weight: 800;
+  --text-chapter: clamp(1.875rem, 3.4vw, 3.25rem);
+  --text-chapter--line-height: 1.12;
+  --text-chapter--letter-spacing: -0.015em;
+  --text-chapter--font-weight: 600;
+  --text-poster: clamp(2.75rem, 10.5vw, 10rem);
+  --text-poster--line-height: 1.08;
+  --text-poster--letter-spacing: -0.015em;
+  --text-poster--font-weight: 600;
 }
