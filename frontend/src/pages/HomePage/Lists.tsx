@@ -1,16 +1,28 @@
+import { useQuery } from '@tanstack/react-query'
 import { RotateCwIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Button, Swatch, focusRing, surface } from '@/components/deck'
+import { Button, Swatch, focusRing } from '@/components/deck'
 import { SpaceMark } from '@/components/nav/SpaceMark'
 import { ARTICLE_STATUS } from '@/components/Spaces/articles/articleStatus'
 import type { ArticleStatus } from '@/components/Spaces/articles/articleStatus'
-import { ARTICLE_FORMS, ENTITY_FORMS, formatDate, pluralForm } from '@/components/Spaces/spaceText'
+import {
+  ARTICLE_FORMS,
+  ENTITY_FORMS,
+  formatDate,
+  pluralForm,
+  typeName,
+} from '@/components/Spaces/spaceText'
 import { inkFor } from '@/design/inks'
-import { useRetryArticles, useRunningBatches } from '@/hooks/useBatches'
+import { useRetryArticles } from '@/hooks/useBatches'
+import { SPACES_QUERY_KEY } from '@/hooks/useSpaces'
+import { fetchFreshEntities } from '@/services/home'
+import type { Batch } from '@/types'
 import { cn } from '@/lib/utils'
 import type { FailedArticles, RecentArticle, RecentSpace } from '@/types/home'
 import { SectionLabel } from './SectionLabel'
+
+const SHOWN_FRESH = 5
 
 const rowLink = cn(
   'flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-surface-sunken',
@@ -18,7 +30,8 @@ const rowLink = cn(
 )
 
 function Rows({ children }: { children: ReactNode }) {
-  return <ul className={cn(surface, 'divide-y divide-line-soft')}>{children}</ul>
+  // Bleeds over the card's padding, so the dividers run its full width.
+  return <ul className="-mx-4 divide-y divide-line-soft">{children}</ul>
 }
 
 const counted = (count: number, forms: Parameters<typeof pluralForm>[1]) =>
@@ -26,16 +39,8 @@ const counted = (count: number, forms: Parameters<typeof pluralForm>[1]) =>
 
 export function RecentSpaces({ spaces }: { spaces: RecentSpace[] }) {
   return (
-    <section className="flex flex-col gap-2">
-      <SectionLabel
-        action={
-          <Link to="/spaces" className={cn('text-xs text-fg-subtle hover:text-fg', focusRing)}>
-            Wszystkie →
-          </Link>
-        }
-      >
-        Ostatnie przestrzenie
-      </SectionLabel>
+    <section className="flex min-w-0 flex-col gap-2">
+      <SectionLabel>Ostatnie przestrzenie</SectionLabel>
       <Rows>
         {spaces.map((s) => (
           <li key={s.id}>
@@ -57,6 +62,33 @@ export function RecentSpaces({ spaces }: { spaces: RecentSpace[] }) {
   )
 }
 
+export function FreshEntities({ spaceId }: { spaceId: string }) {
+  const entities =
+    useQuery({
+      queryKey: [...SPACES_QUERY_KEY, spaceId, 'fresh'],
+      queryFn: () => fetchFreshEntities(spaceId),
+    }).data ?? []
+  if (entities.length === 0) return null
+  return (
+    <section className="flex min-w-0 flex-col gap-2">
+      <SectionLabel>Świeżo wydobyte</SectionLabel>
+      <Rows>
+        {entities.slice(0, SHOWN_FRESH).map((e) => (
+          <li key={e.id}>
+            <Link to={`/graph/${spaceId}?focus=${encodeURIComponent(e.id)}`} className={rowLink}>
+              <Swatch color={inkFor(e.label).color} />
+              <span className="min-w-0 flex-1 truncate text-fg">{e.name}</span>
+              <span className="max-w-[40%] shrink-0 truncate text-xs text-fg-subtle">
+                {typeName(e.label)}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </Rows>
+    </section>
+  )
+}
+
 function articleNote(a: RecentArticle) {
   if (a.status === 'ok' && a.nodes_count !== null) return counted(a.nodes_count, ENTITY_FORMS)
   return ARTICLE_STATUS[a.status as ArticleStatus]?.label ?? a.status
@@ -64,8 +96,7 @@ function articleNote(a: RecentArticle) {
 
 export function RecentArticles({ articles }: { articles: RecentArticle[] }) {
   return (
-    <section className="flex flex-col gap-2">
-      <SectionLabel>Ostatnio wgrane artykuły</SectionLabel>
+    <div className="min-w-0">
       <Rows>
         {articles.map((a) => (
           <li key={a.id}>
@@ -86,7 +117,7 @@ export function RecentArticles({ articles }: { articles: RecentArticle[] }) {
           </li>
         ))}
       </Rows>
-    </section>
+    </div>
   )
 }
 
@@ -97,7 +128,7 @@ function RetryRow({ failed }: { failed: FailedArticles }) {
     <li className="flex items-center gap-3 px-4 py-3 text-sm">
       <Swatch color="var(--status-error)" />
       <span className="min-w-0 flex-1 truncate text-fg">
-        {counted(count, ARTICLE_FORMS)} z błędem · {failed.space_name}
+        <b className="tabular-nums">{count}</b> w {failed.space_name}
       </span>
       <Button
         size="sm"
@@ -113,12 +144,9 @@ function RetryRow({ failed }: { failed: FailedArticles }) {
   )
 }
 
-export function Attention({ failed }: { failed: FailedArticles[] }) {
-  const running = useRunningBatches().data ?? []
-  if (running.length === 0 && failed.length === 0) return null
+export function ReadingList({ running, failed }: { running: Batch[]; failed: FailedArticles[] }) {
   return (
-    <section className="flex flex-col gap-2">
-      <SectionLabel>Na żywo</SectionLabel>
+    <div className="min-w-0">
       <Rows>
         {running.map((b) => {
           const done = b.ok + b.error
@@ -144,6 +172,6 @@ export function Attention({ failed }: { failed: FailedArticles[] }) {
           <RetryRow key={f.space_id} failed={f} />
         ))}
       </Rows>
-    </section>
+    </div>
   )
 }

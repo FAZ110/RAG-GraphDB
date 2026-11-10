@@ -1,6 +1,7 @@
 import type { ActivityDay } from '@/types/home'
 
-export const WEEKS = 20
+// As many as fit in one of four columns on a 1280 px screen without scrolling.
+export const WEEKS = 16
 const DAY_MS = 24 * 60 * 60 * 1000
 
 export interface CalendarDay {
@@ -37,16 +38,4 @@ export function calendar(activity: ActivityDay[], now: Date): CalendarDay[] {
 /** 0 for an empty day, then 1–4 by the share of the busiest day. */
 export function level(work: number, busiest: number): number {
   return work === 0 ? 0 : Math.max(1, Math.ceil((work / busiest) * 4))
-}
-
-/** The entity count at the end of each past day, from today's total backwards. */
-export function growth(days: CalendarDay[], total: number): number[] {
-  const past = days.filter((d) => !d.future)
-  let count = total
-  const counts: number[] = []
-  for (let i = past.length - 1; i >= 0; i--) {
-    counts.push(count)
-    count -= past[i].entities
-  }
-  return counts.reverse()
 }

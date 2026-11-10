@@ -52,12 +52,20 @@ export function useAddArticles() {
   })
 }
 
+export const RETRY_MUTATION_KEY = ['retry-articles']
+
 /** Queues failed (or cancelled) articles again as a new upload. */
 export function useRetryArticles(spaceId: string, status: RetryStatus = 'error') {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: RETRY_MUTATION_KEY,
     mutationFn: (articleIds: string[]) => retryArticles(spaceId, articleIds, status),
-    onSuccess: () => refreshAfterUpload(queryClient),
+    // Stays pending until both lists are fresh, so a page can wait and show them in one step.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: SPACES_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: BATCHES_QUERY_KEY }),
+      ]),
   })
 }
 

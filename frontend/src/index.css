@@ -204,22 +204,3 @@
     grid-template-columns var(--motion-panel) var(--ease-panel),
     column-gap var(--motion-panel) var(--ease-panel);
 }
-
-/* A row that keeps sliding left; its content is doubled so the loop has no seam. Stops under
-   the pointer and, under reduced motion, stays put and scrolls by hand instead. */
-@utility marquee {
-  animation: marquee 60s linear infinite;
-  &:hover,
-  &:focus-within {
-    animation-play-state: paused;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-  }
-}
-
-@keyframes marquee {
-  to {
-    transform: translateX(-50%);
-  }
-}
