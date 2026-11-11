@@ -46,6 +46,9 @@ DEDUP_SUGGEST_LEXICAL_MIN = float(os.getenv("DEDUP_SUGGEST_LEXICAL_MIN", "0.8"))
 DEDUP_SUGGEST_ANY_NAME_MIN = float(os.getenv("DEDUP_SUGGEST_ANY_NAME_MIN", "0.9"))
 DEDUP_TOP_K = int(os.getenv("DEDUP_TOP_K", "5"))
 
+# Calls per minute to the server's model, counted across all workers: its API key's limit.
+SERVER_LLM_PER_MINUTE = int(os.getenv("SERVER_LLM_PER_MINUTE", "10"))
+
 # Longer than a task can take: its 130 s time limit plus the countdowns of rate-limit retries.
 STALE_PROCESSING_MINUTES = int(os.getenv("STALE_PROCESSING_MINUTES", "15"))
 
