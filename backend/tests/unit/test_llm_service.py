@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from db.access.scopes import SpaceScope
 from services.llm_service import LLMService
 
 
@@ -62,8 +63,8 @@ def test_server_model_gets_low_temperature():
 
 def test_custom_model_sends_no_temperature(monkeypatch):
     config = {"base_url": "https://llm.example/v1", "model": "m", "api_key": "k"}
-    monkeypatch.setattr("services.llm_service.custom_provider_config", lambda pid, owner: config)
-    svc = LLMService("custom:p1", owner_id="u1")
+    monkeypatch.setattr("services.llm_service.custom_provider_config", lambda scope, pid: config)
+    svc = LLMService("custom:p1", scope=SpaceScope(space_id="s1", owner_id="u1"))
     fake = FakeCompletions("{}")
     svc._client = SimpleNamespace(chat=SimpleNamespace(completions=fake))
     svc.generate_graph_json("T", "x")

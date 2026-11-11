@@ -8,9 +8,6 @@ MergeLog = list[dict] | None
 Suggestions = list[dict] | None
 OnMerge = Callable[[dict, dict], None] | None
 
-DEDUP_LOG_KEY = "debug:dedup:log"
-DEDUP_LOG_MAX = 5000
-
 
 def normalize_name(name: str) -> str:
     name = name.replace("ł", "l").replace("Ł", "L")

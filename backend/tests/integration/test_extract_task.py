@@ -20,7 +20,7 @@ GRAPH = {
 @pytest.fixture
 def llm(monkeypatch) -> FakeLLM:
     fake = FakeLLM(GRAPH)
-    monkeypatch.setattr("tasks.extract_task.LLMService", lambda provider, owner_id: fake)
+    monkeypatch.setattr("tasks.extract_task.LLMService", lambda provider, scope: fake)
     return fake
 
 
