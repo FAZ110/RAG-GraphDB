@@ -1,5 +1,6 @@
-"""Every query of a user's data, run in Alice's scope with Bob's ids, must neither return nor
-change anything of Bob's. New queries are picked up on their own and need sample parameters."""
+"""Every query of a user's data, picked up on its own: run in Alice's scope with Bob's ids it
+must neither return nor change anything of Bob's, and its plan must use an index. A new query
+needs sample parameters here."""
 
 import importlib
 import json
@@ -31,6 +32,14 @@ _MODULES = (
     "tasks.extract_task",
 )
 _BOBS_ONLY = "Bobowo"
+_FULL_SCANS = {
+    "AllNodesScan",
+    "NodeByLabelScan",
+    "DirectedAllRelationshipsScan",
+    "UndirectedAllRelationshipsScan",
+    "DirectedRelationshipTypeScan",
+    "UndirectedRelationshipTypeScan",
+}
 # Queries that create a node take its new id from the app, never from the request.
 _FRESH = {
     "create_analysis": {"analysis_id": "new-analysis"},
@@ -153,18 +162,25 @@ def alices_scopes(client, alice, extract, space) -> tuple[SpaceScope, UserScope]
     return SpaceScope(space_id=space, owner_id=alice.id), UserScope(user_id=alice.id)
 
 
+def _bound(query: Query, scopes: tuple[SpaceScope, UserScope], bob: dict) -> dict | str:
+    """The query's parameters as an attacker would send them, or what sample is missing."""
+    in_space, as_owner = scopes
+    scope = in_space if query.kind == "space" else as_owner
+    samples = _sample_params(bob) | _FRESH.get(query.name, {})
+    wanted = set(re.findall(r"\$(\w+)", query.text)) - scope.params().keys()
+    if missing := wanted - samples.keys():
+        return f"{query.name}: no sample for {sorted(missing)}"
+    return bind(scope, query, {k: samples[k] for k in wanted})
+
+
 def test_no_query_reaches_another_users_data(bobs_world, alices_scopes):
-    in_space, as_owner = alices_scopes
     leaks = []
     for query in _user_queries():
-        samples = _sample_params(bobs_world) | _FRESH.get(query.name, {})
-        scope = in_space if query.kind == "space" else as_owner
-        wanted = set(re.findall(r"\$(\w+)", query.text)) - scope.params().keys()
-        if missing := wanted - samples.keys():
-            leaks.append(f"{query.name}: no sample for {sorted(missing)}")
+        params = _bound(query, alices_scopes, bobs_world)
+        if isinstance(params, str):
+            leaks.append(params)
             continue
         before = _bobs_data(bobs_world)
-        params = bind(scope, query, {k: samples[k] for k in wanted})
         try:
             with get_sync_driver().session() as session:
                 rows = [r.data() for r in session.run(query.text, params)]
@@ -177,3 +193,24 @@ def test_no_query_reaches_another_users_data(bobs_world, alices_scopes):
         if _bobs_data(bobs_world) != before:
             leaks.append(f"{query.name}: changed Bob's data")
     assert not leaks, "\n".join(leaks)
+
+
+def _operators(plan: dict) -> list[str]:
+    own = plan["operatorType"].split("@")[0]
+    return [own, *(o for child in plan.get("children", []) for o in _operators(child))]
+
+
+def test_every_query_of_users_data_uses_an_index(bobs_world, alices_scopes):
+    """Reading every node of a label or every relationship grows with all users' data,
+    so one query without an index slows everyone down."""
+    scans = []
+    for query in _user_queries():
+        params = _bound(query, alices_scopes, bobs_world)
+        if isinstance(params, str):
+            scans.append(params)
+            continue
+        with get_sync_driver().session() as session:
+            plan = session.run("EXPLAIN " + query.text, params).consume().plan
+        if found := sorted(set(_operators(plan)) & _FULL_SCANS):
+            scans.append(f"{query.name}: {found}")
+    assert not scans, "\n".join(scans)
