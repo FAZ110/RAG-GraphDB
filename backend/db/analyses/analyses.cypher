@@ -1,4 +1,5 @@
 // name: list_analyses
+// scope: space
 MATCH (a:Analysis {space_id: $space_id})
 RETURN a.id AS id,
        a.space_id AS space_id,
@@ -10,6 +11,7 @@ RETURN a.id AS id,
 ORDER BY a.position IS NOT NULL, a.position, a.updated_at DESC
 
 // name: list_all_analyses
+// scope: owner
 MATCH (s:Space {owner_id: $owner_id})
 MATCH (a:Analysis {space_id: s.id})
 RETURN a.id AS id,
@@ -23,6 +25,7 @@ ORDER BY a.position IS NOT NULL, a.position, a.updated_at DESC
 LIMIT $limit
 
 // name: analysis
+// scope: space
 MATCH (a:Analysis {space_id: $space_id, id: $analysis_id})
 RETURN a.id AS id,
        a.space_id AS space_id,
@@ -37,6 +40,7 @@ RETURN a.id AS id,
        [(a)-[:CITES]->(ar:Article) | ar.id] AS article_ids
 
 // name: analysis_entities
+// scope: space
 MATCH (:Analysis {space_id: $space_id, id: $analysis_id})-[i:INCLUDES]->(n:Entity)
 RETURN n.id AS id,
        n.label AS label,
@@ -46,12 +50,14 @@ RETURN n.id AS id,
        i.y AS y
 
 // name: analysis_edges
+// scope: space
 // Traversed from the analysis, so a canvas of hundreds needs no list lookups.
 MATCH (an:Analysis {space_id: $space_id, id: $analysis_id})-[:INCLUDES]->(a:Entity)-[r]->(b:Entity)
 WHERE (an)-[:INCLUDES]->(b)
 RETURN elementId(r) AS edge_id, a.id AS edge_source, b.id AS edge_target, type(r) AS edge_type
 
 // name: create_analysis
+// scope: space
 CREATE (:Analysis {
   id: $analysis_id,
   space_id: $space_id,
@@ -62,11 +68,13 @@ CREATE (:Analysis {
 })
 
 // name: update_analysis
+// scope: space
 MATCH (a:Analysis {space_id: $space_id, id: $analysis_id})
 SET a += $changes, a.updated_at = datetime()
 RETURN a.id AS id
 
 // name: claim_revision
+// scope: space
 // Only the tab that saw the latest revision may save; another gets `current` false.
 MATCH (a:Analysis {space_id: $space_id, id: $analysis_id})
 WITH a, a.revision = $revision AS current
@@ -75,16 +83,19 @@ SET a.revision = CASE WHEN current THEN a.revision + 1 ELSE a.revision END,
 RETURN current, a.revision AS revision, a.updated_at AS updated_at
 
 // name: remove_entities
+// scope: space
 MATCH (:Analysis {space_id: $space_id, id: $analysis_id})-[i:INCLUDES]->(n:Entity)
 WHERE n.id IN $ids
 DELETE i
 
 // name: uncite_articles
+// scope: space
 MATCH (:Analysis {space_id: $space_id, id: $analysis_id})-[c:CITES]->(ar:Article)
 WHERE ar.id IN $ids
 DELETE c
 
 // name: place_entities
+// scope: space
 // Adds or moves; entities deleted since the canvas was loaded are skipped.
 MATCH (a:Analysis {space_id: $space_id, id: $analysis_id})
 UNWIND $entities AS placed
@@ -93,18 +104,21 @@ MERGE (a)-[i:INCLUDES]->(n)
 SET i.x = placed.x, i.y = placed.y
 
 // name: cite_articles
+// scope: space
 MATCH (a:Analysis {space_id: $space_id, id: $analysis_id})
 UNWIND $article_ids AS article_id
 MATCH (ar:Article {space_id: $space_id, id: article_id})
 MERGE (a)-[:CITES]->(ar)
 
 // name: reorder_analyses
+// scope: owner
 UNWIND range(0, size($analysis_ids) - 1) AS position
 MATCH (a:Analysis {id: $analysis_ids[position]})
 MATCH (:Space {id: a.space_id, owner_id: $owner_id})
 SET a.position = position
 
 // name: delete_analysis
+// scope: space
 MATCH (a:Analysis {space_id: $space_id, id: $analysis_id})
 DETACH DELETE a
 RETURN count(*) AS deleted
