@@ -1,4 +1,5 @@
 // name: upsert_article
+// scope: space
 MERGE (a:Article {space_id: $space_id, source_key: $source_key})
 ON CREATE SET a.id = randomUUID(), a.created_at = datetime()
 WITH a, coalesce(a.processed_hash = $content_hash AND a.status = 'ok', false) AND NOT $force
@@ -17,6 +18,7 @@ RETURN a.id AS id, unchanged, a.nodes_count AS nodes_count, a.edges_count AS edg
        a.queue_token AS token
 
 // name: start_article
+// scope: system
 // The token is the task's: a task left in the queue after a pause, cancel or newer upload no
 // longer matches, so it does nothing. `processing` is accepted for a task's own retries.
 MATCH (a:Article {id: $article_id})
@@ -38,9 +40,10 @@ RETURN a.id AS id,
        s.extraction_labels AS labels
 
 // name: finish_article
+// scope: space
 // A newer text may have been uploaded while this one was processing; the article then
 // stays pending for the task that handles the newer text.
-MATCH (a:Article {id: $article_id})
+MATCH (a:Article {id: $article_id, space_id: $space_id})
 SET a.processed_hash = $content_hash,
     a.processed_at = datetime(),
     a.nodes_count = $nodes_count,
@@ -49,14 +52,16 @@ SET a.processed_hash = $content_hash,
     a.status = CASE WHEN a.content_hash = $content_hash THEN 'ok' ELSE a.status END
 
 // name: still_running
+// scope: space
 // Taken under the article's write lock, so a pause or cancel lands either before the check
 // (the result is dropped) or after the write.
-MATCH (a:Article {id: $article_id})
+MATCH (a:Article {id: $article_id, space_id: $space_id})
 SET a._lock = true
 REMOVE a._lock
 RETURN a.status = 'processing' AND a.queue_token = $token AS running
 
 // name: fail_article
+// scope: system
 // Reported when the task still owns the article, or when the article is gone.
 OPTIONAL MATCH (a:Article {id: $article_id})
 WITH a, a IS NOT NULL AND a.status = 'processing' AND a.queue_token = $token AS mine
@@ -64,9 +69,10 @@ FOREACH (_ IN CASE WHEN mine THEN [1] ELSE [] END | SET a.status = 'error', a.er
 RETURN a IS NULL OR mine AS report
 
 // name: release_article_relationships
+// scope: space
 // An article only connects entities it mentions, so its relationships are reached
 // through its MENTIONS instead of scanning the whole space.
-MATCH (:Article {id: $article_id})-[:MENTIONS]->(:Entity)-[r]-(:Entity)
+MATCH (:Article {id: $article_id, space_id: $space_id})-[:MENTIONS]->(:Entity)-[r]-(:Entity)
 WHERE $article_id IN coalesce(r.article_ids, [])
 WITH DISTINCT r
 SET r.article_ids = [i IN r.article_ids WHERE i <> $article_id],
@@ -77,7 +83,8 @@ WHERE size(r.article_ids) = 0 AND NOT coalesce(r.manual, false)
 DELETE r
 
 // name: release_article_mentions
-MATCH (:Article {id: $article_id})-[m:MENTIONS]->(e:Entity)
+// scope: space
+MATCH (:Article {id: $article_id, space_id: $space_id})-[m:MENTIONS]->(e:Entity)
 DELETE m
 WITH DISTINCT e
 // Entities made, edited or linked by hand stay without mentions.
@@ -87,6 +94,7 @@ WHERE NOT (:Article)-[:MENTIONS]->(e)
 DETACH DELETE e
 
 // name: list_articles
+// scope: space
 MATCH (a:Article {space_id: $space_id})
 RETURN a.id AS id,
        a.url AS url,
@@ -101,15 +109,18 @@ RETURN a.id AS id,
 ORDER BY a.created_at DESC
 
 // name: article_statuses
+// scope: space
 MATCH (a:Article {space_id: $space_id})
 WHERE a.id IN $article_ids
 RETURN a.id AS id, a.status AS status
 
 // name: delete_article
-MATCH (a:Article {id: $article_id})
+// scope: space
+MATCH (a:Article {id: $article_id, space_id: $space_id})
 DETACH DELETE a
 
 // name: get_article
+// scope: space
 // Relationships are this article's when it is among the articles backing them.
 MATCH (a:Article {id: $article_id, space_id: $space_id})
 CALL (a) {
@@ -148,12 +159,25 @@ RETURN a.id AS id,
        entities,
        relationships
 
-// name: fail_stalled_articles
+// name: fail_stalled_in_space
+// scope: space
 // A task that died (worker, broker or Redis down) never reports back, so an article waiting or
 // processing longer than any task takes is marked failed and can be retried.
-MATCH (a:Article)
-WHERE ($space_id IS NULL OR a.space_id = $space_id)
-  AND ((a.status = 'pending' AND a.queued_at < datetime() - duration({minutes: $stale_minutes}))
+MATCH (a:Article {space_id: $space_id})
+WHERE ((a.status = 'pending' AND a.queued_at < datetime() - duration({minutes: $stale_minutes}))
+    OR (a.status = 'processing'
+      AND a.started_at < datetime() - duration({minutes: $stale_minutes})))
+SET a.error = CASE a.status
+                WHEN 'pending' THEN 'Article was never picked up by a worker'
+                ELSE 'Processing took too long, the worker probably died'
+              END,
+    a.status = 'error'
+
+// name: fail_stalled_of_owner
+// scope: owner
+MATCH (s:Space {owner_id: $owner_id})
+MATCH (a:Article {space_id: s.id})
+WHERE ((a.status = 'pending' AND a.queued_at < datetime() - duration({minutes: $stale_minutes}))
     OR (a.status = 'processing'
       AND a.started_at < datetime() - duration({minutes: $stale_minutes})))
 SET a.error = CASE a.status
@@ -163,6 +187,7 @@ SET a.error = CASE a.status
     a.status = 'error'
 
 // name: claim_for_retry
+// scope: space
 // Taking the write lock first and checking the status again under it keeps two requests
 // from queueing the same article twice.
 MATCH (a:Article {space_id: $space_id})
@@ -175,6 +200,7 @@ SET a.status = 'pending', a.error = null, a.queued_at = datetime(), a.queue_toke
 RETURN a.id AS id, a.title AS title, a.provider AS provider, a.queue_token AS token
 
 // name: search_articles
+// scope: owner
 MATCH (s:Space {owner_id: $owner_id})
 MATCH (a:Article {space_id: s.id})
 WHERE toLower(coalesce(a.title, '')) CONTAINS toLower($q)

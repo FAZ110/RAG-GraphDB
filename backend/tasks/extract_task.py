@@ -1,8 +1,5 @@
-import json
-
 import redis
 from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
-from neo4j import GraphDatabase
 from neo4j.exceptions import Neo4jError
 from openai import RateLimitError
 
@@ -14,14 +11,14 @@ from core.config import (
     DEDUP_SUGGEST_MIN,
     DEDUP_THRESHOLD,
     DEDUP_TOP_K,
-    NEO4J_PASSWORD,
-    NEO4J_URI,
-    NEO4J_USER,
     REDIS_URL,
 )
+from db.access import sync_gate
+from db.access.queries import load_queries
+from db.access.runner import SyncRunner
+from db.access.scopes import SpaceScope
 from db.graph.writer import GRAPH_WRITE_LOCK, build_statements
 from db.json_validator import validate_graph_json
-from db.query_loader import load_queries
 from db.spaces.articles import (
     fail_article,
     finish_article,
@@ -30,8 +27,6 @@ from db.spaces.articles import (
     still_running,
 )
 from services.dedup import (
-    DEDUP_LOG_KEY,
-    DEDUP_LOG_MAX,
     MatchConfig,
     match_existing,
     merge_same_key,
@@ -133,8 +128,6 @@ def _error_result(article_id: str, title: str | None, error: str) -> dict:
     }
 
 
-driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
-
 _LOCK_TIMEOUT = 60
 _LOCK_WAIT = 90
 
@@ -148,13 +141,11 @@ _MATCH_CONFIG = MatchConfig(
 
 _SEARCH_K = max(DEDUP_TOP_K * 20, 100)
 _QUERIES = load_queries(__file__)
-_SIMILAR_IN_SPACE_CYPHER = _QUERIES["similar_in_space"]
 
 
-def _find_candidates(session, space_id: str, vec: list[float]) -> list[dict]:
-    res = session.run(
-        _SIMILAR_IN_SPACE_CYPHER,
-        {"space_id": space_id, "search_k": _SEARCH_K, "top_k": DEDUP_TOP_K, "vec": vec},
+def _find_candidates(db: SyncRunner, vec: list[float]) -> list[dict]:
+    rows = db.rows(
+        _QUERIES["similar_in_space"], {"search_k": _SEARCH_K, "top_k": DEDUP_TOP_K, "vec": vec}
     )
     return [
         {
@@ -165,18 +156,8 @@ def _find_candidates(session, space_id: str, vec: list[float]) -> list[dict]:
             "aliases": r["aliases"],
             "score": 2 * r["score"] - 1,
         }
-        for r in res
+        for r in rows
     ]
-
-
-def _record_dedup_log(r: redis.Redis, job_id: str, title: str, entries: list[dict]) -> None:
-    if not entries:
-        return
-    r.rpush(
-        DEDUP_LOG_KEY,
-        *(json.dumps({**e, "job_id": job_id, "title": title}) for e in entries),
-    )
-    r.ltrim(DEDUP_LOG_KEY, -DEDUP_LOG_MAX, -1)
 
 
 def _run_extraction(job_id: str, article_id: str, provider: str, token: str | None) -> dict | None:
@@ -185,12 +166,16 @@ def _run_extraction(job_id: str, article_id: str, provider: str, token: str | No
         return _error_result(article_id, None, "Article no longer exists")
     if not article["runnable"]:
         return None
-    space_id, title, content = article["space_id"], article["title"] or "", article["content"]
+    title, content = article["title"] or "", article["content"]
+    if article["owner_id"] is None:
+        return _error_result(article_id, title, "Article's space no longer exists")
+    # The article's own space, read under the task's queue token: the one scope a task gets.
+    space = SpaceScope(space_id=article["space_id"], owner_id=article["owner_id"])
     # Checked again here: a retry reuses the article's last model, which may no longer be allowed.
     if not provider.startswith(CUSTOM_PROVIDER_PREFIX) and not article["server_models"]:
         return _error_result(article_id, title, "Model serwera nie jest dostępny dla tego konta")
     try:
-        llm = LLMService(provider=provider, owner_id=article["owner_id"])
+        llm = LLMService(provider=provider, scope=space)
         sentences = split_sentences(content)
         raw_json = llm.generate_graph_json(
             title, numbered(content, sentences), article["rules"], article["labels"]
@@ -231,17 +216,17 @@ def _run_extraction(job_id: str, article_id: str, provider: str, token: str | No
 
         r = redis.from_url(REDIS_URL)
         lock = r.lock(
-            GRAPH_WRITE_LOCK.format(space_id=space_id),
+            GRAPH_WRITE_LOCK.format(space_id=space.space_id),
             timeout=_LOCK_TIMEOUT,
             blocking_timeout=_LOCK_WAIT,
         )
         try:
-            with lock, driver.session() as session:
+            with lock:
                 if DEDUP_ENABLED:
                     match_existing(
                         nodes_dicts,
                         embeddings_map,
-                        lambda vec: _find_candidates(session, space_id, vec),
+                        lambda vec: sync_gate.read(space, lambda db: _find_candidates(db, vec)),
                         _MATCH_CONFIG,
                         dedup_log,
                         suggestions,
@@ -249,30 +234,25 @@ def _run_extraction(job_id: str, article_id: str, provider: str, token: str | No
                     nodes_dicts, edges_dicts = merge_same_key(nodes_dicts, edges_dicts)
 
                 statements = build_statements(
-                    nodes_dicts, edges_dicts, space_id, article_id, embeddings=embeddings_map
+                    nodes_dicts, edges_dicts, article_id, embeddings=embeddings_map
                 )
-                statements += [
-                    (_QUERIES["suggest_duplicate"], {**s, "space_id": space_id})
-                    for s in suggestions
-                ]
-                with session.begin_transaction() as tx:
-                    if not still_running(tx, article_id, token):
-                        return None
-                    release_article(tx, article_id)
-                    for cypher, params in statements:
-                        tx.run(cypher, params)
+                statements += [(_QUERIES["suggest_duplicate"], s) for s in suggestions]
+
+                def write(db: SyncRunner) -> bool:
+                    if not still_running(db, article_id, token):
+                        return False
+                    release_article(db, article_id)
+                    for query, params in statements:
+                        db.run(query, params)
                     finish_article(
-                        tx,
-                        article_id,
-                        article["content_hash"],
-                        len(nodes_dicts),
-                        len(edges_dicts),
+                        db, article_id, article["content_hash"], len(nodes_dicts), len(edges_dicts)
                     )
-                    tx.commit()
+                    return True
+
+                if not sync_gate.write(space, write):
+                    return None
         except Neo4jError as e:
             raise RuntimeError(f"Neo4j error: {e.message}") from e
-
-        _record_dedup_log(r, job_id, title, dedup_log)
 
         return {
             "article_id": article_id,

@@ -1,8 +1,11 @@
 from datetime import UTC, datetime, timedelta
 
-from db.driver import get_driver, translates_neo4j_errors
-from db.query_loader import load_queries
-from db.spaces.articles import fail_stalled_articles
+from db.access import gate
+from db.access.queries import load_queries
+from db.access.runner import Runner
+from db.access.scopes import UserScope
+from db.driver import translates_neo4j_errors
+from db.spaces.articles import fail_stalled_of_owner
 
 _QUERIES = load_queries(__file__)
 _RECENT_SPACES = 4
@@ -16,28 +19,29 @@ def _native(row) -> dict:
 
 
 @translates_neo4j_errors
-async def home_overview(owner_id: str) -> dict:
+async def home_overview(scope: UserScope) -> dict:
     """Everything the start page shows: totals, what was used lately and the daily activity."""
     now = datetime.now(UTC)
     # A datetime, not a date: Cypher's DateTime >= Date is null.
     start = (now - timedelta(days=ACTIVITY_DAYS - 1)).replace(
         hour=0, minute=0, second=0, microsecond=0
     )
-    params = {"owner_id": owner_id}
+    await fail_stalled_of_owner(scope)
 
-    async with get_driver().session() as session:
+    async def work(db: Runner) -> tuple:
+        async def rows(query: str, **params) -> list[dict]:
+            return [_native(r) for r in await db.rows(_QUERIES[query], params)]
 
-        async def rows(query: str, **extra) -> list[dict]:
-            res = await session.run(_QUERIES[query], params | extra)
-            return [_native(r) async for r in res]
-
-        await fail_stalled_articles(session, None)
+        # The visit is recorded, so this runs as a write.
         [visit] = await rows("visit", gap_minutes=_VISIT_GAP_MINUTES)
         [totals] = await rows("totals", week=now - timedelta(days=7), since=visit["since"])
         spaces = await rows("recent_spaces", limit=_RECENT_SPACES)
         articles = await rows("recent_articles", limit=_RECENT_ARTICLES)
         failed = await rows("failed_articles")
         counts = await rows("activity", start=start)
+        return visit, totals, spaces, articles, failed, counts
+
+    visit, totals, spaces, articles, failed, counts = await gate.write(scope, work)
 
     days: dict = {}
     for r in counts:

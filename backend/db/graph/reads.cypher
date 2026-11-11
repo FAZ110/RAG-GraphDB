@@ -1,4 +1,5 @@
 // name: top_nodes
+// scope: space
 // Degree counts links to other entities only, not the MENTIONS from articles.
 MATCH (n:Entity {space_id: $space_id})
 WITH n, COUNT { (n)--(:Entity) } AS degree
@@ -7,24 +8,29 @@ LIMIT $limit
 RETURN n.id AS id, n.label AS label, properties(n) AS props, degree
 
 // name: edges_between
+// scope: space
 MATCH (a:Entity {space_id: $space_id})-[r]->(b:Entity)
 WHERE a.id IN $ids AND b.id IN $ids
 RETURN elementId(r) AS edge_id, a.id AS edge_source, b.id AS edge_target, type(r) AS edge_type
 
 // name: nodes_by_id
+// scope: space
 MATCH (n:Entity {space_id: $space_id})
 WHERE n.id IN $ids
 RETURN n.id AS id, n.label AS label, properties(n) AS props, COUNT { (n)--(:Entity) } AS degree
 
 // name: count_nodes
+// scope: space
 MATCH (n:Entity {space_id: $space_id})
 RETURN count(n) AS total
 
 // name: node
+// scope: space
 MATCH (n:Entity {space_id: $space_id, id: $node_id})
 RETURN n.id AS id, n.label AS label, properties(n) AS props, COUNT { (n)--(:Entity) } AS degree
 
 // name: neighbours
+// scope: space
 // Optionally only one group of them: one relationship type, direction or entity type.
 MATCH (n:Entity {space_id: $space_id, id: $node_id})-[r]-(m:Entity)
 WHERE ($type IS NULL OR type(r) = $type)
@@ -43,6 +49,7 @@ RETURN m.id AS id,
        endNode(r).id AS edge_target
 
 // name: search
+// scope: space
 // The vector index cannot filter by space, so it is asked for more neighbours than
 // needed and those from other spaces are dropped.
 CALL db.index.vector.queryNodes('entity_embeddings', $search_k, $vec)
@@ -53,6 +60,7 @@ ORDER BY score DESC
 LIMIT $top_k
 
 // name: search_all
+// scope: owner
 // The index cannot filter, so it is asked for more than top_k and other owners' hits dropped.
 CALL db.index.vector.queryNodes('entity_embeddings', $search_k, $vec)
 YIELD node, score
@@ -67,6 +75,7 @@ ORDER BY score DESC
 LIMIT $top_k
 
 // name: node_sources
+// scope: space
 MATCH (a:Article)-[m:MENTIONS]->(:Entity {space_id: $space_id, id: $node_id})
 WITH a, [s IN coalesce(m.spans, []) | [x IN split(s, ':') | toInteger(x)]] AS spans
 RETURN a.id AS article_id,
@@ -76,6 +85,7 @@ RETURN a.id AS article_id,
 ORDER BY a.created_at DESC
 
 // name: edge_sources
+// scope: space
 MATCH (s:Entity {space_id: $space_id})-[r]->(:Entity)
 WHERE elementId(r) = $edge_id
 UNWIND r.article_ids AS article_id
@@ -89,6 +99,7 @@ RETURN a.id AS article_id,
 ORDER BY a.created_at DESC
 
 // name: nearest_entities
+// scope: space
 // Nearest entities of the space to a vector; names are compared in Python.
 CALL db.index.vector.queryNodes('entity_embeddings', $search_k, $vec)
 YIELD node, score
@@ -102,6 +113,7 @@ ORDER BY score DESC
 LIMIT $search_top
 
 // name: duplicate_suggestions
+// scope: space
 // A pair whose entity was since merged, renamed or deleted no longer matches and is skipped.
 // The thresholds apply again here, so suggestions saved under looser ones drop out.
 MATCH (s:DuplicateSuggestion {space_id: $space_id, rejected: false})
@@ -116,6 +128,7 @@ RETURN s.id AS id,
 ORDER BY s.score DESC
 
 // name: overview_nodes
+// scope: space
 MATCH (n:Entity {space_id: $space_id})
 WITH n, COUNT { (n)--(:Entity) } AS degree
 ORDER BY degree DESC, n.id
@@ -123,10 +136,12 @@ LIMIT $limit
 RETURN n.id AS id, coalesce(n.name, '') AS name, n.label AS label, degree
 
 // name: space_edges
+// scope: space
 MATCH (a:Entity {space_id: $space_id})-[r]->(b:Entity)
 RETURN elementId(r) AS edge_id, a.id AS edge_source, b.id AS edge_target, type(r) AS edge_type
 
 // name: fresh_nodes
+// scope: space
 MATCH (n:Entity {space_id: $space_id})
 WHERE n.created_at IS NOT NULL
 RETURN n.id AS id, coalesce(n.name, '') AS name, n.label AS label

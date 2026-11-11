@@ -3,12 +3,13 @@ from collections import Counter
 from collections.abc import Mapping
 from typing import Any
 
-from neo4j import AsyncManagedTransaction
-
-from db.driver import get_driver, translates_neo4j_errors
+from db.access import gate
+from db.access.queries import load_queries
+from db.access.runner import Runner
+from db.access.scopes import SpaceScope, UserScope
+from db.driver import translates_neo4j_errors
 from db.errors import RevisionConflictError
 from db.graph.reads import _edge, _node
-from db.query_loader import load_queries
 
 _QUERIES = load_queries(__file__)
 # The entity types named on an analysis card.
@@ -39,118 +40,104 @@ def _viewport(row: Mapping[str, Any]) -> dict | None:
     return {"x": row["viewport_x"], "y": row["viewport_y"], "zoom": row["viewport_zoom"]}
 
 
-async def _run(tx: AsyncManagedTransaction, query: str, params: dict) -> None:
-    await (await tx.run(_QUERIES[query], params)).consume()
-
-
-async def _apply(tx: AsyncManagedTransaction, params: dict, changes: dict) -> None:
+async def _apply(db: Runner, analysis_id: str, changes: dict) -> None:
     """Changes to a canvas: entities placed (added or moved) or removed, articles cited or not."""
+    params = {"analysis_id": analysis_id}
     if changes.get("remove"):
-        await _run(tx, "remove_entities", {**params, "ids": changes["remove"]})
+        await db.run(_QUERIES["remove_entities"], {**params, "ids": changes["remove"]})
     if changes.get("place"):
-        await _run(tx, "place_entities", {**params, "entities": changes["place"]})
+        await db.run(_QUERIES["place_entities"], {**params, "entities": changes["place"]})
     if changes.get("uncite"):
-        await _run(tx, "uncite_articles", {**params, "ids": changes["uncite"]})
+        await db.run(_QUERIES["uncite_articles"], {**params, "ids": changes["uncite"]})
     if changes.get("cite"):
-        await _run(tx, "cite_articles", {**params, "article_ids": changes["cite"]})
+        await db.run(_QUERIES["cite_articles"], {**params, "article_ids": changes["cite"]})
 
 
 @translates_neo4j_errors
-async def list_analyses(space_id: str) -> list[dict]:
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["list_analyses"], {"space_id": space_id})
-        return [_summary(r) async for r in res]
+async def list_analyses(scope: SpaceScope) -> list[dict]:
+    return [_summary(r) for r in await gate.rows(scope, _QUERIES["list_analyses"])]
 
 
 @translates_neo4j_errors
-async def list_all_analyses(limit: int, owner_id: str) -> list[dict]:
+async def list_all_analyses(scope: UserScope, limit: int) -> list[dict]:
     """The most recently changed analyses across every space of the owner."""
-    async with get_driver().session() as session:
-        params = {"limit": limit, "owner_id": owner_id}
-        res = await session.run(_QUERIES["list_all_analyses"], params)
-        return [_summary(r) async for r in res]
+    rows = await gate.rows(scope, _QUERIES["list_all_analyses"], {"limit": limit})
+    return [_summary(r) for r in rows]
 
 
 @translates_neo4j_errors
-async def get_analysis(space_id: str, analysis_id: str) -> dict | None:
+async def get_analysis(scope: SpaceScope, analysis_id: str) -> dict | None:
     """The analysis with its entities where they stand on the canvas and the edges among them."""
-    params = {"space_id": space_id, "analysis_id": analysis_id}
-    async with get_driver().session() as session:
-        row = await (await session.run(_QUERIES["analysis"], params)).single()
+    params = {"analysis_id": analysis_id}
+
+    async def work(db: Runner) -> dict | None:
+        row = await db.single(_QUERIES["analysis"], params)
         if row is None:
             return None
-        res = await session.run(_QUERIES["analysis_entities"], params)
-        entities = [{**_node(r), "x": r["x"], "y": r["y"]} async for r in res]
-        res = await session.run(_QUERIES["analysis_edges"], params)
-        edges = [_edge(r) async for r in res]
-    return {
-        **_summary(row),
-        "revision": row["revision"],
-        "viewport": _viewport(row),
-        "article_ids": row["article_ids"],
-        "entities": entities,
-        "edges": edges,
-    }
+        rows = await db.rows(_QUERIES["analysis_entities"], params)
+        entities = [{**_node(r), "x": r["x"], "y": r["y"]} for r in rows]
+        edges = [_edge(r) for r in await db.rows(_QUERIES["analysis_edges"], params)]
+        return {
+            **_summary(row),
+            "revision": row["revision"],
+            "viewport": _viewport(row),
+            "article_ids": row["article_ids"],
+            "entities": entities,
+            "edges": edges,
+        }
+
+    return await gate.read(scope, work)
 
 
 @translates_neo4j_errors
 async def create_analysis(
-    space_id: str, name: str, entities: list[dict], article_ids: list[str]
+    scope: SpaceScope, name: str, entities: list[dict], article_ids: list[str]
 ) -> dict:
-    params = {"space_id": space_id, "analysis_id": str(uuid.uuid4())}
+    analysis_id = str(uuid.uuid4())
 
-    async def work(tx: AsyncManagedTransaction) -> None:
-        await _run(tx, "create_analysis", {**params, "name": name})
-        await _apply(tx, params, {"place": entities, "cite": article_ids})
+    async def work(db: Runner) -> None:
+        await db.run(_QUERIES["create_analysis"], {"analysis_id": analysis_id, "name": name})
+        await _apply(db, analysis_id, {"place": entities, "cite": article_ids})
 
-    async with get_driver().session() as session:
-        await session.execute_write(work)
-    return await get_analysis(space_id, params["analysis_id"])
+    await gate.write(scope, work)
+    return await get_analysis(scope, analysis_id)
 
 
 @translates_neo4j_errors
-async def update_analysis(space_id: str, analysis_id: str, changes: dict) -> bool:
+async def update_analysis(scope: SpaceScope, analysis_id: str, changes: dict) -> bool:
     """Rename it or remember its viewport; the canvas revision stays."""
-    params = {"space_id": space_id, "analysis_id": analysis_id, "changes": changes}
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["update_analysis"], params)
-        return await res.single() is not None
+    params = {"analysis_id": analysis_id, "changes": changes}
+    return bool(await gate.change(scope, _QUERIES["update_analysis"], params))
 
 
 @translates_neo4j_errors
 async def change_canvas(
-    space_id: str, analysis_id: str, revision: int, changes: dict
+    scope: SpaceScope, analysis_id: str, revision: int, changes: dict
 ) -> dict | None:
     """Apply what changed on the canvas since `revision`. None if there is no such analysis;
     raises RevisionConflictError when it was saved elsewhere since `revision`."""
-    params = {"space_id": space_id, "analysis_id": analysis_id}
 
-    async def work(tx: AsyncManagedTransaction) -> dict | None:
-        res = await tx.run(_QUERIES["claim_revision"], {**params, "revision": revision})
-        claim = await res.single()
+    async def work(db: Runner) -> dict | None:
+        params = {"analysis_id": analysis_id, "revision": revision}
+        claim = await db.single(_QUERIES["claim_revision"], params)
         if claim is None:
             return None
         if not claim["current"]:
             raise RevisionConflictError(f"Analysis is at revision {claim['revision']}")
-        await _apply(tx, params, changes)
+        await _apply(db, analysis_id, changes)
         return {"revision": claim["revision"], "updated_at": claim["updated_at"].to_native()}
 
-    async with get_driver().session() as session:
-        return await session.execute_write(work)
+    return await gate.write(scope, work)
 
 
 @translates_neo4j_errors
-async def reorder_analyses(analysis_ids: list[str], owner_id: str) -> None:
+async def reorder_analyses(scope: UserScope, analysis_ids: list[str]) -> None:
     """Analyses in the order they were arranged in, across the owner's spaces;
     unknown ids and other owners' analyses are skipped."""
-    async with get_driver().session() as session:
-        params = {"analysis_ids": analysis_ids, "owner_id": owner_id}
-        await (await session.run(_QUERIES["reorder_analyses"], params)).consume()
+    await gate.change(scope, _QUERIES["reorder_analyses"], {"analysis_ids": analysis_ids})
 
 
 @translates_neo4j_errors
-async def delete_analysis(space_id: str, analysis_id: str) -> bool:
-    params = {"space_id": space_id, "analysis_id": analysis_id}
-    async with get_driver().session() as session:
-        row = await (await session.run(_QUERIES["delete_analysis"], params)).single()
-        return row["deleted"] > 0
+async def delete_analysis(scope: SpaceScope, analysis_id: str) -> bool:
+    rows = await gate.change(scope, _QUERIES["delete_analysis"], {"analysis_id": analysis_id})
+    return rows[0]["deleted"] > 0

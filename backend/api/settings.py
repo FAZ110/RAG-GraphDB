@@ -2,7 +2,7 @@ import asyncio
 
 from fastapi import APIRouter, HTTPException, Response, status
 
-from api.dependencies import CurrentUser
+from api.dependencies import Owner
 from core.public_url import PrivateUrlError, ensure_public_url
 from core.secrets import SecretsKeyError
 from db.errors import ApiKeyRequiredError
@@ -33,27 +33,27 @@ async def _check_url(url: str) -> None:
 
 
 @router.get("", response_model=list[CustomProvider])
-async def get_custom_providers(user: CurrentUser):
-    return await list_custom_providers(user["id"])
+async def get_custom_providers(owner: Owner):
+    return await list_custom_providers(owner)
 
 
 @router.post("", response_model=CustomProvider, status_code=status.HTTP_201_CREATED)
-async def post_custom_provider(body: CustomProviderIn, user: CurrentUser):
+async def post_custom_provider(body: CustomProviderIn, owner: Owner):
     await _check_url(body.base_url)
     try:
         return await create_custom_provider(
-            user["id"], body.name, body.base_url, body.model, body.api_key
+            owner, body.name, body.base_url, body.model, body.api_key
         )
     except SecretsKeyError as e:
         raise _secrets_error(e) from e
 
 
 @router.put("/{provider_id}", response_model=CustomProvider)
-async def put_custom_provider(provider_id: str, body: CustomProviderIn, user: CurrentUser):
+async def put_custom_provider(provider_id: str, body: CustomProviderIn, owner: Owner):
     await _check_url(body.base_url)
     try:
         provider = await update_custom_provider(
-            user["id"], provider_id, body.name, body.base_url, body.model, body.api_key
+            owner, provider_id, body.name, body.base_url, body.model, body.api_key
         )
     except SecretsKeyError as e:
         raise _secrets_error(e) from e
@@ -65,7 +65,7 @@ async def put_custom_provider(provider_id: str, body: CustomProviderIn, user: Cu
 
 
 @router.delete("/{provider_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_custom_provider(provider_id: str, user: CurrentUser):
-    if not await delete_custom_provider(user["id"], provider_id):
+async def remove_custom_provider(provider_id: str, owner: Owner):
+    if not await delete_custom_provider(owner, provider_id):
         raise _not_found()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
