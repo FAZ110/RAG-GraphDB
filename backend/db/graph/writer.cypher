@@ -8,7 +8,7 @@ SET n:$($label),
     n.type = coalesce(n.type, $type),
     n.aliases = coalesce(n.aliases, []) + [a IN $aliases WHERE NOT a IN coalesce(n.aliases, [])]
 WITH n
-MATCH (article:Article {id: $article_id})
+MATCH (article:Article {id: $article_id, space_id: $space_id})
 MERGE (article)-[m:MENTIONS]->(n)
 SET m.spans = coalesce(m.spans, []) + [s IN $spans WHERE NOT s IN coalesce(m.spans, [])]
 
