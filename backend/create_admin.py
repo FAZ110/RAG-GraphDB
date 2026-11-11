@@ -10,6 +10,7 @@ import sys
 
 from pydantic import TypeAdapter, ValidationError
 
+from db.access.scopes import AdminScope
 from db.driver import close_driver
 from db.schema import ensure_schema
 from db.users import claim_orphans, create_user, update_user, user_with_hash
@@ -21,7 +22,9 @@ async def main(email: str) -> None:
     await ensure_schema()
     found = await user_with_hash(email)
     if found:
-        user = await update_user(found[0]["id"], {"role": "admin", "disabled": False})
+        # Whoever runs this on the server is the admin here.
+        cli = AdminScope(user_id=found[0]["id"])
+        user = await update_user(cli, found[0]["id"], {"role": "admin", "disabled": False})
         print(f"{email} is now an admin")
     else:
         password = getpass.getpass("Password: ")
