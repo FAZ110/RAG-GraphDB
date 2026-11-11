@@ -3,19 +3,19 @@ from typing import Any
 
 from neo4j import ManagedTransaction, Record, unit_of_work
 
+from core.config import TASK_QUERY_TIMEOUT_SECONDS
 from db.access.queries import Query
 from db.access.runner import SyncRunner
 from db.access.scopes import Scope
 from db.driver import get_sync_driver
 
 # The Celery workers' way to Neo4j, the same rules as the API's gate.
-_TIMEOUT_SECONDS = 60
 
 type Work[R] = Callable[[SyncRunner], R]
 
 
 def _in_transaction[R](scope: Scope, work: Work[R]):
-    @unit_of_work(timeout=_TIMEOUT_SECONDS)
+    @unit_of_work(timeout=TASK_QUERY_TIMEOUT_SECONDS)
     def run(tx: ManagedTransaction) -> R:
         return work(SyncRunner(scope, tx))
 

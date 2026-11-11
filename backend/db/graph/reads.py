@@ -78,12 +78,9 @@ async def overview_graph(scope: SpaceScope, limit: int) -> dict:
     async def work(db: Runner) -> dict:
         nodes = [dict(r) for r in await db.rows(_QUERIES["overview_nodes"], {"limit": limit})]
         total = (await db.single(_QUERIES["count_nodes"], strict=True))["total"]
-        ids = {n["id"] for n in nodes}
-        edges = [
-            _edge(r)
-            for r in await db.rows(_QUERIES["space_edges"])
-            if r["edge_source"] in ids and r["edge_target"] in ids
-        ]
+        # Filtered in the query, so a capped map does not pull every edge of the space.
+        ids = [n["id"] for n in nodes]
+        edges = [_edge(r) for r in await db.rows(_QUERIES["edges_between"], {"ids": ids})]
         return {
             "nodes": nodes,
             "edges": edges,

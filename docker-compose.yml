@@ -9,8 +9,11 @@ services:
     environment:
       # Applies when the data volume is created; to change it later use ALTER CURRENT USER.
       - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:?set NEO4J_PASSWORD in backend/.env}
-      - NEO4J_server_memory_heap_initial__size=512m
-      - NEO4J_server_memory_heap_max__size=1G
+      # On a bigger server raise these in backend/.env; `neo4j-admin server memory-recommendation`
+      # suggests the split. The page cache should fit the whole store.
+      - NEO4J_server_memory_heap_initial__size=${NEO4J_HEAP:-1G}
+      - NEO4J_server_memory_heap_max__size=${NEO4J_HEAP:-1G}
+      - NEO4J_server_memory_pagecache_size=${NEO4J_PAGECACHE:-512m}
     volumes:
       - neo4j_data:/data
     healthcheck:
@@ -36,7 +39,8 @@ services:
 
   worker:
     build: ./backend
-    command: celery -A celery_app worker -Q celery -n shared --loglevel=info --concurrency=2
+    # More workers: raise the concurrency, or run copies with --scale worker=N; %h keeps names apart.
+    command: celery -A celery_app worker -Q celery -n shared@%h --loglevel=info --concurrency=${WORKER_CONCURRENCY:-2}
     env_file:
       - ./backend/.env
     depends_on:
@@ -49,7 +53,7 @@ services:
 
   worker-custom:
     build: ./backend
-    command: celery -A celery_app worker -Q custom -n custom --loglevel=info --concurrency=6
+    command: celery -A celery_app worker -Q custom -n custom@%h --loglevel=info --concurrency=${CUSTOM_WORKER_CONCURRENCY:-6}
     env_file:
       - ./backend/.env
     depends_on:
