@@ -104,6 +104,7 @@ export interface CustomProvider {
     model: string;
     has_api_key: boolean;
     api_key_hint: string | null;
+    max_parallel: number;
 }
 
 export interface CustomProviderInput {
@@ -111,6 +112,12 @@ export interface CustomProviderInput {
     base_url: string;
     model: string;
     api_key: string | null;
+    max_parallel: number;
+}
+
+export interface ProviderCheck {
+    ok: boolean;
+    message: string;
 }
 
 export interface ExtractionSettings {

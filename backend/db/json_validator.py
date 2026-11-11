@@ -20,6 +20,22 @@ class NodeSchema(BaseModel):
 
     _evidence_as_list = field_validator("evidence", mode="before")(_ids_as_list)
 
+    @model_validator(mode="before")
+    @classmethod
+    def name_from_alias(cls, data):
+        """Small local models sometimes leave the name out but list it among the aliases."""
+        if not isinstance(data, dict) or not isinstance(data.get("properties"), dict):
+            return data
+        props, aliases = data["properties"], data.get("aliases")
+        if isinstance(aliases, str):
+            aliases = [aliases]
+        name = props.get("name")
+        if not (isinstance(name, str) and name.strip()) and isinstance(aliases, list):
+            alias = next((a for a in aliases if isinstance(a, str) and a.strip()), None)
+            if alias:
+                data = {**data, "properties": {**props, "name": alias}}
+        return data
+
     @field_validator("type", mode="before")
     @classmethod
     def known_type_or_none(cls, v):

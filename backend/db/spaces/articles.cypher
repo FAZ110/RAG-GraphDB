@@ -16,6 +16,13 @@ SET a.url = $url,
 RETURN a.id AS id, unchanged, a.nodes_count AS nodes_count, a.edges_count AS edges_count,
        a.queue_token AS token
 
+// name: keep_waiting
+// An article waiting for a free slot of its model is not stalled: its clock is set back.
+MATCH (a:Article {id: $article_id, queue_token: $token})
+WHERE a.status IN ['pending', 'processing']
+SET a.queued_at = datetime(),
+    a.started_at = CASE WHEN a.status = 'processing' THEN datetime() ELSE a.started_at END
+
 // name: start_article
 // The token is the task's: a task left in the queue after a pause, cancel or newer upload no
 // longer matches, so it does nothing. `processing` is accepted for a task's own retries.

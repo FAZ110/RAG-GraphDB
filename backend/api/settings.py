@@ -8,11 +8,13 @@ from core.secrets import SecretsKeyError
 from db.errors import ApiKeyRequiredError
 from db.settings import (
     create_custom_provider,
+    custom_provider_config,
     delete_custom_provider,
     list_custom_providers,
     update_custom_provider,
 )
-from schemas.settings import CustomProvider, CustomProviderIn
+from schemas.settings import CustomProvider, CustomProviderIn, ProviderCheck, ProviderTestIn
+from services.llm_service import check_model
 
 router = APIRouter(prefix="/settings/providers", tags=["settings"])
 
@@ -42,10 +44,26 @@ async def post_custom_provider(body: CustomProviderIn, user: CurrentUser):
     await _check_url(body.base_url)
     try:
         return await create_custom_provider(
-            user["id"], body.name, body.base_url, body.model, body.api_key
+            user["id"], body.name, body.base_url, body.model, body.api_key, body.max_parallel
         )
     except SecretsKeyError as e:
         raise _secrets_error(e) from e
+
+
+@router.post("/test", response_model=ProviderCheck)
+async def test_custom_provider(body: ProviderTestIn, user: CurrentUser):
+    await _check_url(body.base_url)
+    api_key = body.api_key
+    if not api_key and body.provider_id:
+        try:
+            saved = await asyncio.to_thread(custom_provider_config, body.provider_id, user["id"])
+        except SecretsKeyError as e:
+            raise _secrets_error(e) from e
+        # A saved key only goes to the address it was saved for.
+        if saved and saved["base_url"] == body.base_url:
+            api_key = saved["api_key"]
+    ok, message = await asyncio.to_thread(check_model, body.base_url, body.model, api_key)
+    return {"ok": ok, "message": message}
 
 
 @router.put("/{provider_id}", response_model=CustomProvider)
@@ -53,7 +71,13 @@ async def put_custom_provider(provider_id: str, body: CustomProviderIn, user: Cu
     await _check_url(body.base_url)
     try:
         provider = await update_custom_provider(
-            user["id"], provider_id, body.name, body.base_url, body.model, body.api_key
+            user["id"],
+            provider_id,
+            body.name,
+            body.base_url,
+            body.model,
+            body.api_key,
+            body.max_parallel,
         )
     except SecretsKeyError as e:
         raise _secrets_error(e) from e

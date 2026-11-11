@@ -117,3 +117,60 @@ def test_own_provider_goes_to_the_custom_queue(client, alice, space, provider, q
     body = {"articles": [{"content": "Tekst."}], "provider": f"custom:{provider['id']}"}
     assert client.post(f"/spaces/{space}/articles", json=body, headers=alice.headers).is_success
     assert queued[0]["provider"] == f"custom:{provider['id']}"
+
+
+@pytest.fixture
+def checked(monkeypatch) -> list:
+    calls = []
+
+    def fake_check(base_url, model, api_key):
+        calls.append((base_url, model, api_key))
+        return True, "ok"
+
+    monkeypatch.setattr("api.settings.check_model", fake_check)
+    return calls
+
+
+def check_conn(client, user, **body):
+    return client.post("/settings/providers/test", json=body, headers=user.headers)
+
+
+def test_connection_test_refuses_our_network(client, alice, checked):
+    r = check_conn(client, alice, base_url="http://127.0.0.1:7474/v1", model="m")
+    assert r.status_code == 422 and checked == []
+
+
+def test_connection_test_uses_saved_key_only_for_its_address(client, alice, bob, provider, checked):
+    pid = provider["id"]
+    assert check_conn(client, alice, **BASE, provider_id=pid).json() == {
+        "ok": True,
+        "message": "ok",
+    }
+    check_conn(client, alice, **{**BASE, "base_url": "https://inny.example/v1"}, provider_id=pid)
+    check_conn(client, bob, **BASE, provider_id=pid)
+    check_conn(client, alice, **BASE, api_key="sk-nowy", provider_id=pid)
+    assert [c[2] for c in checked] == [KEY, None, None, "sk-nowy"]
+
+
+def test_parallel_requests_default_to_one_and_can_be_raised(client, alice, provider):
+    assert provider["max_parallel"] == 1
+    r = put(client, alice, provider["id"], **BASE, max_parallel=4)
+    assert r.json()["max_parallel"] == 4
+    assert client.get("/settings/providers", headers=alice.headers).json()[0]["max_parallel"] == 4
+
+
+@pytest.mark.parametrize("max_parallel", [0, 7, "dużo"])
+def test_parallel_requests_must_be_between_one_and_six(client, alice, max_parallel):
+    r = client.post(
+        "/settings/providers", json={**BASE, "max_parallel": max_parallel}, headers=alice.headers
+    )
+    assert r.status_code == 422
+
+
+def test_worker_reads_the_saved_limit(client, alice, provider):
+    from db.settings import custom_provider_limit
+
+    assert custom_provider_limit(provider["id"]) == 1
+    put(client, alice, provider["id"], **BASE, max_parallel=3)
+    assert custom_provider_limit(provider["id"]) == 3
+    assert custom_provider_limit("usuniety") == 1

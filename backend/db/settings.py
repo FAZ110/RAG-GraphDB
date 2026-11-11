@@ -25,7 +25,7 @@ async def list_custom_providers(owner_id: str) -> list[dict]:
 
 @translates_neo4j_errors
 async def create_custom_provider(
-    owner_id: str, name: str, base_url: str, model: str, api_key: str | None
+    owner_id: str, name: str, base_url: str, model: str, api_key: str | None, max_parallel: int
 ) -> dict:
     params = {
         "id": str(uuid.uuid4()),
@@ -33,6 +33,7 @@ async def create_custom_provider(
         "name": name,
         "base_url": base_url,
         "model": model,
+        "max_parallel": max_parallel,
         **_key_fields(api_key or ""),
     }
     async with get_driver().session() as session:
@@ -41,7 +42,13 @@ async def create_custom_provider(
 
 @translates_neo4j_errors
 async def update_custom_provider(
-    owner_id: str, provider_id: str, name: str, base_url: str, model: str, api_key: str | None
+    owner_id: str,
+    provider_id: str,
+    name: str,
+    base_url: str,
+    model: str,
+    api_key: str | None,
+    max_parallel: int,
 ) -> dict | None:
     params = {
         "id": provider_id,
@@ -49,6 +56,7 @@ async def update_custom_provider(
         "name": name,
         "base_url": base_url,
         "model": model,
+        "max_parallel": max_parallel,
         "replace_key": api_key is not None,
         **_key_fields(api_key or ""),
     }
@@ -92,3 +100,11 @@ def custom_provider_config(provider_id: str, owner_id: str | None) -> dict | Non
         "model": row["model"],
         "api_key": decrypt(token) if token else None,
     }
+
+
+def custom_provider_limit(provider_id: str) -> int:
+    """Requests the model may get at once; 1 for a model deleted meanwhile, whose task then
+    fails on its own."""
+    with get_sync_driver().session() as session:
+        row = session.run(_QUERIES["get_custom_provider_limit"], {"id": provider_id}).single()
+    return row["max_parallel"] if row else 1

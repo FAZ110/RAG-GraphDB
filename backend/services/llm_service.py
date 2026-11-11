@@ -1,7 +1,14 @@
 import json
 import re
 
-from openai import DefaultHttpxClient, OpenAI
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    APITimeoutError,
+    DefaultHttpxClient,
+    OpenAI,
+    RateLimitError,
+)
 
 from core.config import (
     GROQ_API_KEY,
@@ -17,6 +24,50 @@ from db.settings import custom_provider_config
 
 _GROQ_MAX_COMPLETION_TOKENS = 8000
 CUSTOM_PROVIDER_PREFIX = "custom:"
+_THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+
+
+def _provider_error(e: APIStatusError) -> tuple[str | None, str | None]:
+    """The code and message the provider put in its error body, when it gave them."""
+    body = e.body.get("error", e.body) if isinstance(e.body, dict) else None
+    if not isinstance(body, dict):
+        return None, None
+    return body.get("code"), body.get("message")
+
+
+def describe_llm_error(e: Exception, model: str) -> str | None:
+    """A readable message for failures of the model's server; None for anything else."""
+    if isinstance(e, APITimeoutError):
+        return "Serwer modelu nie odpowiedział na czas."
+    if isinstance(e, APIConnectionError):
+        return "Nie można połączyć się z serwerem modelu: sprawdź adres i czy serwer (lub tunel) działa."
+    if not isinstance(e, APIStatusError):
+        return None
+    code = e.status_code
+    provider_code, provider_message = _provider_error(e)
+    # Groq checks the JSON itself under response_format and refuses an invalid answer.
+    if provider_code == "json_validate_failed":
+        return "Model zwrócił niepoprawny JSON. To się zdarza losowo: ponów ekstrakcję artykułu."
+    if code in (401, 403):
+        return "Serwer modelu odrzucił klucz API."
+    if code == 404:
+        return f"Serwer modelu nie zna modelu „{model}” albo adres API jest błędny."
+    # 502/530: the tunnel or proxy is up, but nothing answers behind it (e.g. LM Studio stopped).
+    if code in (502, 530):
+        return (
+            "Adres odpowiada, ale serwer modelu za nim nie działa: "
+            "sprawdź, czy serwer lokalny jest uruchomiony."
+        )
+    if code == 503:
+        return "Serwer modelu jest chwilowo niedostępny albo przeciążony."
+    if code in (504, 522, 524):
+        return (
+            "Serwer modelu nie odpowiedział w limicie czasu po drodze (np. tunel Cloudflare: ~120 s). "
+            "Ustaw „Równoległe zapytania” na 1, użyj szybszego modelu albo krótszego artykułu."
+        )
+    detail = f": {provider_message[:300]}" if provider_message else "."
+    return f"Serwer modelu zwrócił błąd {code}{detail}"
+
 
 DEFAULT_LABELS = ["OSOBA", "ORGANIZACJA", "MIEJSCE", "WYDARZENIE"]
 
@@ -77,9 +128,30 @@ Treść: {content}\
 """
 
 
+def check_model(base_url: str, model: str, api_key: str | None) -> tuple[bool, str]:
+    """Asks the server for its models; the URL must already have passed ensure_public_url."""
+    client = OpenAI(
+        base_url=base_url,
+        api_key=api_key or "none",
+        max_retries=0,
+        timeout=15,
+        http_client=DefaultHttpxClient(follow_redirects=False),
+    )
+    try:
+        ids = [m.id for m in client.models.list()]
+    except (APIConnectionError, APIStatusError) as e:
+        return False, describe_llm_error(e, model) or str(e)
+    if model in ids:
+        return True, f"Połączono. Model „{model}” jest dostępny."
+    if not ids:
+        return False, "Serwer odpowiada, ale nie zwrócił żadnego modelu."
+    return False, f"Serwer odpowiada, ale nie ma modelu „{model}”. Dostępne: {', '.join(ids[:8])}."
+
+
 class LLMService:
     def __init__(self, provider: str = "local", owner_id: str | None = None) -> None:
         self._extra: dict = {"temperature": 0.1}
+        self._stream = False
 
         if provider == "groq":
             if not GROQ_API_KEY:
@@ -115,13 +187,36 @@ class LLMService:
                 http_client=DefaultHttpxClient(follow_redirects=False),
             )
             self._model = config["model"]
-            # No temperature: reasoning models (GPT-5, o-series, Claude 4.7+) reject anything but the default.
             self._extra = {}
+            self._stream = True
         else:
             self._client = OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY, max_retries=0)
             self._model = LLM_MODEL
 
         print(f"Initialized with: {self._model}")
+
+    def _complete(self, messages: list[dict]) -> tuple[str | None, str | None]:
+        if not self._stream:
+            response = self._client.chat.completions.create(
+                model=self._model, messages=messages, **self._extra
+            )
+            if not response.choices:
+                raise ValueError("Missing response from LLM")
+            choice = response.choices[0]
+            return choice.message.content, choice.finish_reason
+
+        parts, finish_reason = [], None
+        stream = self._client.chat.completions.create(
+            model=self._model, messages=messages, stream=True, **self._extra
+        )
+        for chunk in stream:
+            if not chunk.choices:
+                continue
+            choice = chunk.choices[0]
+            if choice.delta.content:
+                parts.append(choice.delta.content)
+            finish_reason = choice.finish_reason or finish_reason
+        return "".join(parts), finish_reason
 
     def generate_graph_json(
         self,
@@ -138,17 +233,14 @@ class LLMService:
             messages.insert(
                 0, {"role": "system", "content": _EXTRA_RULES_PROMPT.format(rules=rules)}
             )
-        response = self._client.chat.completions.create(
-            model=self._model,
-            messages=messages,
-            **self._extra,
-        )
-        if not response.choices:
-            raise ValueError("Missing response from LLM")
-        choice = response.choices[0]
-        raw = choice.message.content
+        try:
+            raw, finish_reason = self._complete(messages)
+        except RateLimitError:
+            raise  # retried by the task
+        except (APIConnectionError, APIStatusError) as e:
+            raise ValueError(describe_llm_error(e, self._model)) from e
 
-        if choice.finish_reason == "length":
+        if finish_reason == "length":
             raise ValueError(
                 "LLM response was truncated (finish_reason=length) — "
                 "article too long or token limit too low"
@@ -157,7 +249,9 @@ class LLMService:
         if not raw:
             raise ValueError("Empty response from LLM")
 
-        cleaned = re.sub(r"^```[a-z]*\n?", "", raw.strip(), flags=re.IGNORECASE)
+        # Reasoning models (Qwen3, DeepSeek-R1...) may think out loud before the JSON.
+        cleaned = _THINK_BLOCK.sub("", raw).strip()
+        cleaned = re.sub(r"^```[a-z]*\n?", "", cleaned, flags=re.IGNORECASE)
         cleaned = re.sub(r"```$", "", cleaned).strip()
 
         try:

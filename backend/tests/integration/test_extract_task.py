@@ -1,8 +1,11 @@
 import copy
+from types import SimpleNamespace
 
 import pytest
+import redis
 
-from tasks.extract_task import _extract, _run_extraction
+from core.config import REDIS_URL
+from tasks.extract_task import _SLOT_KEY, _extract, _run_extraction
 from tests.integration.conftest import FakeLLM, article_status, cypher, job_results
 
 TEXT = "Jan Kowalski mieszka w Warszawie. Lubi spacery."
@@ -187,3 +190,103 @@ def test_empty_graph_from_llm_finishes_the_article_with_nothing(space, llm, uplo
     assert (result["status"], result["nodes_count"], result["edges_count"]) == ("ok", 0, 0)
     assert article_status(task["article_id"]) == "ok"
     assert entities(space) == []
+
+
+class Retried(Exception):
+    pass
+
+
+class FakeTask:
+    soft_time_limit = 600
+
+    def __init__(self, retries: int = 0) -> None:
+        self.request = SimpleNamespace(retries=retries)
+
+    def retry(self, **kwargs):
+        self.retry_kwargs = kwargs
+        return Retried()
+
+
+@pytest.fixture
+def limit(monkeypatch):
+    """The custom model's max_parallel, in place of the saved provider's."""
+    value = {"n": 1}
+    monkeypatch.setattr("tasks.extract_task.custom_provider_limit", lambda pid: value["n"])
+    return value
+
+
+def slot(index: int = 0):
+    return redis.from_url(REDIS_URL).lock(
+        _SLOT_KEY.format(provider="custom:p1", index=index), timeout=60
+    )
+
+
+def run_custom(task: dict, fake_task=None):
+    _extract(fake_task, task["job_id"], task["article_id"], "Artykuł", "custom:p1", task["token"])
+
+
+def queued_at(article_id: str):
+    return cypher("MATCH (a:Article {id: $id}) RETURN a.queued_at AS t", id=article_id)[0]["t"]
+
+
+def test_busy_model_sends_the_article_back_untouched(space, llm, uploaded, limit):
+    task, taken, fake_task = uploaded(), slot(), FakeTask(retries=1)
+    assert taken.acquire(blocking=False)
+    before = queued_at(task["article_id"])
+    with pytest.raises(Retried):
+        run_custom(task, fake_task)
+    assert llm.calls == [] and fake_task.retry_kwargs["countdown"] > 0
+    # Not started and not written to: waiting costs only a read and a Redis call.
+    assert article_status(task["article_id"]) == "pending"
+    assert queued_at(task["article_id"]) == before
+
+    taken.release()
+    run_custom(task)
+    assert article_status(task["article_id"]) == "ok"
+
+
+def test_long_wait_keeps_the_article_from_counting_as_stalled(space, llm, uploaded, limit):
+    task, taken = uploaded(), slot()
+    assert taken.acquire(blocking=False)
+    cypher(
+        "MATCH (a:Article {id: $id}) SET a.queued_at = datetime() - duration({minutes: 14})",
+        id=task["article_id"],
+    )
+    before = queued_at(task["article_id"])
+    with pytest.raises(Retried):
+        run_custom(task, FakeTask(retries=30))
+    assert queued_at(task["article_id"]) > before
+    taken.release()
+
+
+def test_free_slot_of_a_wider_limit_is_used_and_freed(space, llm, uploaded, limit):
+    limit["n"] = 2
+    taken = slot(0)
+    assert taken.acquire(blocking=False)
+    task = uploaded()
+    run_custom(task)
+    assert article_status(task["article_id"]) == "ok"
+    assert slot(1).acquire(blocking=False)  # freed after the call
+
+
+def test_slot_is_free_again_while_the_graph_is_written(space, llm, uploaded, limit, monkeypatch):
+    from db.json_validator import validate_graph_json
+
+    free = []
+
+    def validate_after_model(raw):
+        free.append(slot().acquire(blocking=False))
+        return validate_graph_json(raw)
+
+    monkeypatch.setattr("tasks.extract_task.validate_graph_json", validate_after_model)
+    task = uploaded()
+    run_custom(task)
+    assert free == [True] and article_status(task["article_id"]) == "ok"
+
+
+def test_slot_is_freed_when_the_model_fails(space, llm, uploaded, limit):
+    llm.graph = {"nodes": "zepsute"}
+    task = uploaded()
+    run_custom(task)
+    assert article_status(task["article_id"]) == "error"
+    assert slot().acquire(blocking=False)
