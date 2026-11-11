@@ -2,12 +2,14 @@ import uuid
 from collections.abc import Mapping
 from typing import Any
 
-from neo4j import AsyncSession
 from neo4j.exceptions import ConstraintError
 
-from db.driver import get_driver, translates_neo4j_errors
+from db.access import gate
+from db.access.queries import load_queries
+from db.access.runner import Runner
+from db.access.scopes import SpaceScope, UserScope
+from db.driver import translates_neo4j_errors
 from db.errors import SpaceNameTakenError
-from db.query_loader import load_queries
 
 _QUERIES = load_queries(__file__)
 # Batched, so clearing a large space is not one huge transaction.
@@ -31,94 +33,85 @@ def _space_from_row(row: Mapping[str, Any]) -> dict:
     }
 
 
-async def _fetch_space(session: AsyncSession, space_id: str) -> dict | None:
-    res = await session.run(_QUERIES["get_space"], {"space_id": space_id})
-    row = await res.single()
+@translates_neo4j_errors
+async def owned_space(scope: UserScope, space_id: str) -> SpaceScope | None:
+    """The space's scope when it belongs to the user, the one way into a space's data."""
+    row = await gate.single(scope, _QUERIES["owned_space"], {"requested_id": space_id})
+    return SpaceScope(space_id=row["id"], owner_id=row["owner_id"]) if row else None
+
+
+@translates_neo4j_errors
+async def list_spaces(scope: UserScope) -> list[dict]:
+    return [_space_from_row(r) for r in await gate.rows(scope, _QUERIES["list_spaces"])]
+
+
+@translates_neo4j_errors
+async def get_space(scope: SpaceScope) -> dict | None:
+    row = await gate.single(scope, _QUERIES["get_space"])
     return _space_from_row(row) if row else None
 
 
 @translates_neo4j_errors
-async def list_spaces(owner_id: str) -> list[dict]:
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["list_spaces"], {"owner_id": owner_id})
-        return [_space_from_row(r) async for r in res]
+async def create_space(scope: UserScope, name: str) -> dict:
+    params = {"space_id": str(uuid.uuid4()), "name": name}
+    try:
+        [row] = await gate.change(scope, _QUERIES["create_space"], params)
+    except ConstraintError as e:
+        raise SpaceNameTakenError(name) from e
+    return _space_from_row(row)
 
 
 @translates_neo4j_errors
-async def get_space(space_id: str) -> dict | None:
-    async with get_driver().session() as session:
-        return await _fetch_space(session, space_id)
+async def rename_space(scope: SpaceScope, name: str) -> dict | None:
+    try:
+        renamed = await gate.change(scope, _QUERIES["rename_space"], {"name": name})
+    except ConstraintError as e:
+        raise SpaceNameTakenError(name) from e
+    return await get_space(scope) if renamed else None
 
 
 @translates_neo4j_errors
-async def create_space(name: str, owner_id: str) -> dict:
-    space_id = str(uuid.uuid4())
-    params = {"space_id": space_id, "name": name, "owner_id": owner_id}
-    async with get_driver().session() as session:
-        try:
-            await (await session.run(_QUERIES["create_space"], params)).consume()
-        except ConstraintError as e:
-            raise SpaceNameTakenError(name) from e
-        return await _fetch_space(session, space_id)
-
-
-@translates_neo4j_errors
-async def rename_space(space_id: str, name: str) -> dict | None:
-    async with get_driver().session() as session:
-        try:
-            res = await session.run(_QUERIES["rename_space"], {"space_id": space_id, "name": name})
-            renamed = await res.single()
-        except ConstraintError as e:
-            raise SpaceNameTakenError(name) from e
-        return await _fetch_space(session, space_id) if renamed else None
-
-
-@translates_neo4j_errors
-async def reorder_spaces(space_ids: list[str], owner_id: str) -> None:
+async def reorder_spaces(scope: UserScope, space_ids: list[str]) -> None:
     """Unknown ids and other owners' spaces are skipped."""
-    params = {"space_ids": space_ids, "owner_id": owner_id}
-    async with get_driver().session() as session:
-        await (await session.run(_QUERIES["reorder_spaces"], params)).consume()
+    await gate.change(scope, _QUERIES["reorder_spaces"], {"space_ids": space_ids})
 
 
-async def _clear(session: AsyncSession, space_id: str) -> None:
-    # CALL { } IN TRANSACTIONS needs an auto-commit transaction, hence session.run.
+async def _clear(db: Runner) -> None:
     for step in _CLEAR_SPACE_STEPS:
-        await (await session.run(_QUERIES[step], {"space_id": space_id})).consume()
+        await db.run(_QUERIES[step])
 
 
 @translates_neo4j_errors
-async def clear_space(space_id: str) -> None:
+async def clear_space(scope: SpaceScope) -> None:
     """Remove all articles of a space and the graph built from them; the space stays."""
-    async with get_driver().session() as session:
-        await _clear(session, space_id)
+    # CALL { } IN TRANSACTIONS needs auto-commit transactions.
+    await gate.auto(scope, _clear)
 
 
 @translates_neo4j_errors
-async def delete_space(space_id: str) -> bool:
+async def delete_space(scope: SpaceScope) -> bool:
     """Delete a space with all its articles and entities. False if it did not exist."""
-    async with get_driver().session() as session:
-        if await _fetch_space(session, space_id) is None:
+
+    async def work(db: Runner) -> bool:
+        if await db.single(_QUERIES["get_space"]) is None:
             return False
-        await _clear(session, space_id)
-        await (await session.run(_QUERIES["delete_space"], {"space_id": space_id})).consume()
-    return True
+        await _clear(db)
+        await db.run(_QUERIES["delete_space"])
+        return True
+
+    return await gate.auto(scope, work)
 
 
 @translates_neo4j_errors
-async def get_extraction_settings(space_id: str) -> dict | None:
-    async with get_driver().session() as session:
-        row = await (
-            await session.run(_QUERIES["get_extraction_settings"], {"space_id": space_id})
-        ).single()
-        return dict(row) if row else None
+async def get_extraction_settings(scope: SpaceScope) -> dict | None:
+    row = await gate.single(scope, _QUERIES["get_extraction_settings"])
+    return dict(row) if row else None
 
 
 @translates_neo4j_errors
 async def set_extraction_settings(
-    space_id: str, rules: str | None, labels: list[str] | None
+    scope: SpaceScope, rules: str | None, labels: list[str] | None
 ) -> dict | None:
-    params = {"space_id": space_id, "rules": rules, "labels": labels}
-    async with get_driver().session() as session:
-        row = await (await session.run(_QUERIES["set_extraction_settings"], params)).single()
-        return dict(row) if row else None
+    params = {"rules": rules, "labels": labels}
+    rows = await gate.change(scope, _QUERIES["set_extraction_settings"], params)
+    return dict(rows[0]) if rows else None
