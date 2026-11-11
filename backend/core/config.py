@@ -7,6 +7,10 @@ load_dotenv()
 NEO4J_URI = os.getenv("NEO4J_URI")
 NEO4J_USER = os.getenv("NEO4J_USER")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
+# Connections each process may hold; with many API processes Neo4j must accept all of them.
+NEO4J_POOL_SIZE = int(os.getenv("NEO4J_POOL_SIZE", "100"))
+QUERY_TIMEOUT_SECONDS = int(os.getenv("QUERY_TIMEOUT_SECONDS", "30"))
+TASK_QUERY_TIMEOUT_SECONDS = int(os.getenv("TASK_QUERY_TIMEOUT_SECONDS", "60"))
 
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "local")
 
