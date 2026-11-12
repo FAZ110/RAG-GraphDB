@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, StringConstraints
 
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 BaseUrl = Annotated[
@@ -16,7 +16,7 @@ class CustomProvider(BaseModel):
     model: str
     has_api_key: bool
     api_key_hint: str | None
-    max_parallel: int
+    local: bool
 
 
 class CustomProviderIn(BaseModel):
@@ -24,8 +24,8 @@ class CustomProviderIn(BaseModel):
     base_url: BaseUrl
     model: Text
     api_key: ApiKey | None = None
-    # Requests sent to this model at once; the custom worker runs at most 6 tasks.
-    max_parallel: int = Field(default=1, ge=1, le=6)
+    # On the user's computer (behind a tunnel): gets one request at a time.
+    local: bool = False
 
 
 class ProviderTestIn(BaseModel):

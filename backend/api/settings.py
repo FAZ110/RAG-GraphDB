@@ -44,7 +44,7 @@ async def post_custom_provider(body: CustomProviderIn, user: CurrentUser):
     await _check_url(body.base_url)
     try:
         return await create_custom_provider(
-            user["id"], body.name, body.base_url, body.model, body.api_key, body.max_parallel
+            user["id"], body.name, body.base_url, body.model, body.api_key, body.local
         )
     except SecretsKeyError as e:
         raise _secrets_error(e) from e
@@ -77,7 +77,7 @@ async def put_custom_provider(provider_id: str, body: CustomProviderIn, user: Cu
             body.base_url,
             body.model,
             body.api_key,
-            body.max_parallel,
+            body.local,
         )
     except SecretsKeyError as e:
         raise _secrets_error(e) from e

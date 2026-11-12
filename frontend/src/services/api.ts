@@ -149,7 +149,7 @@ export const updateCustomProvider = (id: string, provider: CustomProviderInput) 
   sendJson<CustomProvider>(customProviderUrl(id), 'PUT', provider);
 
 export const testCustomProvider = (
-  provider: Omit<CustomProviderInput, 'name' | 'max_parallel'> & { provider_id: string | null }
+  provider: Omit<CustomProviderInput, 'name' | 'local'> & { provider_id: string | null }
 ) => sendJson<ProviderCheck>(`${customProvidersUrl}/test`, 'POST', provider);
 
 export const deleteCustomProvider = (id: string) => sendJson<void>(customProviderUrl(id), 'DELETE');

@@ -209,16 +209,14 @@ class FakeTask:
 
 @pytest.fixture
 def limit(monkeypatch):
-    """The custom model's max_parallel, in place of the saved provider's."""
-    value = {"n": 1}
-    monkeypatch.setattr("tasks.extract_task.custom_provider_limit", lambda pid: value["n"])
+    """Whether the custom model is local, in place of the saved provider's switch."""
+    value = {"local": True}
+    monkeypatch.setattr("tasks.extract_task.custom_provider_is_local", lambda pid: value["local"])
     return value
 
 
-def slot(index: int = 0):
-    return redis.from_url(REDIS_URL).lock(
-        _SLOT_KEY.format(provider="custom:p1", index=index), timeout=60
-    )
+def slot():
+    return redis.from_url(REDIS_URL).lock(_SLOT_KEY.format(provider_id="p1"), timeout=60)
 
 
 def run_custom(task: dict, fake_task=None):
@@ -259,14 +257,14 @@ def test_long_wait_keeps_the_article_from_counting_as_stalled(space, llm, upload
     taken.release()
 
 
-def test_free_slot_of_a_wider_limit_is_used_and_freed(space, llm, uploaded, limit):
-    limit["n"] = 2
-    taken = slot(0)
+def test_cloud_model_is_not_limited_to_one_article(space, llm, uploaded, limit):
+    limit["local"] = False
+    taken = slot()
     assert taken.acquire(blocking=False)
     task = uploaded()
     run_custom(task)
     assert article_status(task["article_id"]) == "ok"
-    assert slot(1).acquire(blocking=False)  # freed after the call
+    taken.release()
 
 
 def test_slot_is_free_again_while_the_graph_is_written(space, llm, uploaded, limit, monkeypatch):

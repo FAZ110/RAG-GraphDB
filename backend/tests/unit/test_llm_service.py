@@ -192,3 +192,21 @@ def test_provider_message_is_kept_for_other_errors():
 def test_groq_invalid_json_is_named():
     body = {"error": {"message": "Failed to generate JSON", "code": "json_validate_failed"}}
     assert "niepoprawny JSON" in describe_llm_error(status_error(400, body), "m")
+
+
+def test_endless_stream_is_cut_off(monkeypatch):
+    svc, fake = custom_service(monkeypatch)
+    closed = []
+
+    class Endless:
+        def __iter__(self):
+            while True:
+                yield chunk("x" * 100_000)
+
+        def close(self):
+            closed.append(True)
+
+    fake.create = lambda **kwargs: Endless()
+    with pytest.raises(ValueError, match="zbyt długa"):
+        svc.generate_graph_json("T", "x")
+    assert closed == [True]

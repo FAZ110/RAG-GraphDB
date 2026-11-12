@@ -25,7 +25,7 @@ async def list_custom_providers(owner_id: str) -> list[dict]:
 
 @translates_neo4j_errors
 async def create_custom_provider(
-    owner_id: str, name: str, base_url: str, model: str, api_key: str | None, max_parallel: int
+    owner_id: str, name: str, base_url: str, model: str, api_key: str | None, local: bool
 ) -> dict:
     params = {
         "id": str(uuid.uuid4()),
@@ -33,7 +33,7 @@ async def create_custom_provider(
         "name": name,
         "base_url": base_url,
         "model": model,
-        "max_parallel": max_parallel,
+        "local": local,
         **_key_fields(api_key or ""),
     }
     async with get_driver().session() as session:
@@ -48,7 +48,7 @@ async def update_custom_provider(
     base_url: str,
     model: str,
     api_key: str | None,
-    max_parallel: int,
+    local: bool,
 ) -> dict | None:
     params = {
         "id": provider_id,
@@ -56,7 +56,7 @@ async def update_custom_provider(
         "name": name,
         "base_url": base_url,
         "model": model,
-        "max_parallel": max_parallel,
+        "local": local,
         "replace_key": api_key is not None,
         **_key_fields(api_key or ""),
     }
@@ -102,9 +102,9 @@ def custom_provider_config(provider_id: str, owner_id: str | None) -> dict | Non
     }
 
 
-def custom_provider_limit(provider_id: str) -> int:
-    """Requests the model may get at once; 1 for a model deleted meanwhile, whose task then
-    fails on its own."""
+def custom_provider_is_local(provider_id: str) -> bool:
+    """Whether the model runs on the user's computer. A model deleted meanwhile counts as
+    local; its task then fails on its own."""
     with get_sync_driver().session() as session:
-        row = session.run(_QUERIES["get_custom_provider_limit"], {"id": provider_id}).single()
-    return row["max_parallel"] if row else 1
+        row = session.run(_QUERIES["get_custom_provider_local"], {"id": provider_id}).single()
+    return row["local"] if row else True

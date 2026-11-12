@@ -152,25 +152,28 @@ def test_connection_test_uses_saved_key_only_for_its_address(client, alice, bob,
     assert [c[2] for c in checked] == [KEY, None, None, "sk-nowy"]
 
 
-def test_parallel_requests_default_to_one_and_can_be_raised(client, alice, provider):
-    assert provider["max_parallel"] == 1
-    r = put(client, alice, provider["id"], **BASE, max_parallel=4)
-    assert r.json()["max_parallel"] == 4
-    assert client.get("/settings/providers", headers=alice.headers).json()[0]["max_parallel"] == 4
+def test_local_defaults_to_off_and_can_be_switched_on(client, alice, provider):
+    assert provider["local"] is False
+    assert put(client, alice, provider["id"], **BASE, local=True).json()["local"] is True
+    assert client.get("/settings/providers", headers=alice.headers).json()[0]["local"] is True
 
 
-@pytest.mark.parametrize("max_parallel", [0, 7, "dużo"])
-def test_parallel_requests_must_be_between_one_and_six(client, alice, max_parallel):
-    r = client.post(
-        "/settings/providers", json={**BASE, "max_parallel": max_parallel}, headers=alice.headers
+def test_worker_reads_the_saved_switch(client, alice, provider):
+    from db.settings import custom_provider_is_local
+
+    assert custom_provider_is_local(provider["id"]) is False
+    put(client, alice, provider["id"], **BASE, local=True)
+    assert custom_provider_is_local(provider["id"]) is True
+    assert custom_provider_is_local("usuniety") is True
+
+
+@pytest.mark.parametrize(("max_parallel", "local"), [(1, True), (4, False)])
+def test_model_saved_with_a_parallel_limit_counts_as_local_at_one(
+    client, alice, provider, max_parallel, local
+):
+    cypher(
+        "MATCH (p:LlmProvider {id: $id}) REMOVE p.local SET p.max_parallel = $n",
+        id=provider["id"],
+        n=max_parallel,
     )
-    assert r.status_code == 422
-
-
-def test_worker_reads_the_saved_limit(client, alice, provider):
-    from db.settings import custom_provider_limit
-
-    assert custom_provider_limit(provider["id"]) == 1
-    put(client, alice, provider["id"], **BASE, max_parallel=3)
-    assert custom_provider_limit(provider["id"]) == 3
-    assert custom_provider_limit("usuniety") == 1
+    assert client.get("/settings/providers", headers=alice.headers).json()[0]["local"] is local

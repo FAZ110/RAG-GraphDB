@@ -24,6 +24,8 @@ from db.settings import custom_provider_config
 
 _GROQ_MAX_COMPLETION_TOKENS = 8000
 CUSTOM_PROVIDER_PREFIX = "custom:"
+# A real graph is tens of KB; a server streaming without end is cut off here.
+_MAX_STREAMED_CHARS = 1_000_000
 _THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 
 
@@ -63,7 +65,7 @@ def describe_llm_error(e: Exception, model: str) -> str | None:
     if code in (504, 522, 524):
         return (
             "Serwer modelu nie odpowiedział w limicie czasu po drodze (np. tunel Cloudflare: ~120 s). "
-            "Ustaw „Równoległe zapytania” na 1, użyj szybszego modelu albo krótszego artykułu."
+            "Zaznacz „Model lokalny”, użyj szybszego modelu albo krótszego artykułu."
         )
     detail = f": {provider_message[:300]}" if provider_message else "."
     return f"Serwer modelu zwrócił błąd {code}{detail}"
@@ -205,7 +207,7 @@ class LLMService:
             choice = response.choices[0]
             return choice.message.content, choice.finish_reason
 
-        parts, finish_reason = [], None
+        parts, size, finish_reason = [], 0, None
         stream = self._client.chat.completions.create(
             model=self._model, messages=messages, stream=True, **self._extra
         )
@@ -215,6 +217,10 @@ class LLMService:
             choice = chunk.choices[0]
             if choice.delta.content:
                 parts.append(choice.delta.content)
+                size += len(choice.delta.content)
+                if size > _MAX_STREAMED_CHARS:
+                    stream.close()
+                    raise ValueError("Odpowiedź modelu jest zbyt długa (ponad 1 mln znaków).")
             finish_reason = choice.finish_reason or finish_reason
         return "".join(parts), finish_reason
 

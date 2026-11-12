@@ -23,7 +23,7 @@ from core.config import (
 from db.graph.writer import GRAPH_WRITE_LOCK, build_statements
 from db.json_validator import validate_graph_json
 from db.query_loader import load_queries
-from db.settings import custom_provider_limit
+from db.settings import custom_provider_is_local
 from db.spaces.articles import (
     fail_article,
     finish_article,
@@ -51,7 +51,7 @@ _TASK_OPTIONS = {"bind": True, "max_retries": 5, "soft_time_limit": 120, "time_l
 _CUSTOM_TIME_LIMIT = 630
 # A task waiting for a free slot of its model goes back to the queue instead of holding a
 # worker thread; 360 tries 10 s apart is an hour of waiting at most.
-_SLOT_KEY = "llm-slot:{provider}:{index}"
+_SLOT_KEY = "llm-slot:local:{provider_id}"
 _SLOT_RETRY_DELAY = 10
 _SLOT_MAX_RETRIES = 360
 # Every 30th try (~5 min) the waiting article's clock is set back, well within the 15 min
@@ -60,26 +60,24 @@ _SLOT_KEEP_WAITING_EVERY = 30
 
 
 class ModelBusy(Exception):
-    """Every slot of the article's model is taken by other articles."""
+    """The article's local model is busy with another article."""
 
 
 def _take_slot(provider: str) -> Callable[[], None]:
-    """A slot of the user's own model, or ModelBusy; returns its release, safe to call twice.
-    At most `max_parallel` requests reach one model at once: a local model answers them one by
-    one, and the rest would wait on an open connection until a tunnel cuts it off (~120 s).
-    Server models have no slots."""
+    """The slot of the user's local model, or ModelBusy; returns its release, safe to call
+    twice. A local model gets one request at a time: it answers them one by one, and the rest
+    would wait on an open connection until a tunnel cuts it off (~120 s). Cloud and server
+    models have no slot."""
     if not provider.startswith(CUSTOM_PROVIDER_PREFIX):
         return lambda: None
-    limit = custom_provider_limit(provider.removeprefix(CUSTOM_PROVIDER_PREFIX))
-    r = redis.from_url(REDIS_URL)
-    for index in range(limit):
-        # Expires after the task's hard limit, so a killed worker frees its slot.
-        slot = r.lock(
-            _SLOT_KEY.format(provider=provider, index=index), timeout=_CUSTOM_TIME_LIMIT + 60
-        )
-        if slot.acquire(blocking=False):
-            break
-    else:
+    provider_id = provider.removeprefix(CUSTOM_PROVIDER_PREFIX)
+    if not custom_provider_is_local(provider_id):
+        return lambda: None
+    # Expires after the task's hard limit, so a killed worker frees it.
+    slot = redis.from_url(REDIS_URL).lock(
+        _SLOT_KEY.format(provider_id=provider_id), timeout=_CUSTOM_TIME_LIMIT + 60
+    )
+    if not slot.acquire(blocking=False):
         raise ModelBusy
 
     def release() -> None:

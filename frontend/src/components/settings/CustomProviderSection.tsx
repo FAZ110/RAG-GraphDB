@@ -16,6 +16,7 @@ import {
   useSaveCustomProvider,
   useTestCustomProvider,
 } from '@/hooks/useSettings'
+import { Switch } from '@/components/admin/Switch'
 import { cn } from '@/lib/utils'
 import type { CustomProvider } from '@/types'
 
@@ -39,18 +40,14 @@ function LocalModelGuide({
     >
       <h2 className="text-title text-fg">Jak dodać model lokalny</h2>
       <p className="mt-1 text-sm text-fg-subtle">
-        Artykuły przetwarza nasz serwer, więc nie widzi on adresu localhost na Twoim komputerze.
-        Model trzeba udostępnić pod publicznym adresem, np. przez darmowy tunel.
+        Nasz serwer nie widzi adresu localhost na Twoim komputerze, więc model udostępniasz przez
+        darmowy tunel Cloudflare.
       </p>
       <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm text-fg">
         <li>
-          W LM Studio pobierz i załaduj model, a potem w zakładce <b>Developer</b> włącz serwer
-          (domyślnie port <code className={code}>1234</code>).
-        </li>
-        <li>
-          W <b>Developer → Server Settings</b> włącz wymaganie uwierzytelnienia i utwórz token API.
-          Tunel wystawia serwer do internetu, a bez tokenu każdy, kto zna adres, mógłby korzystać z
-          Twojego modelu.
+          W LM Studio załaduj model i w zakładce <b>Developer</b> włącz serwer (port{' '}
+          <code className={code}>1234</code>). W <b>Server Settings</b> włącz uwierzytelnianie i
+          utwórz token API — bez niego każdy znający adres tunelu użyje Twojego modelu.
         </li>
         <li>
           Zainstaluj{' '}
@@ -68,34 +65,15 @@ function LocalModelGuide({
           </pre>
         </li>
         <li>
-          Skopiuj wypisany adres <code className={code}>https://….trycloudflare.com</code>.
-        </li>
-        <li>
-          Kliknij <b>Dodaj model</b>. Jako adres API wpisz skopiowany adres z dopiskiem{' '}
-          <code className={code}>/v1</code>, jako model — nazwę Twojego modelu lokalnego, a jako
-          klucz API — token z LM Studio. <b>Równoległe zapytania</b> zostaw na{' '}
-          <code className={code}>1</code> i kliknij <b>Sprawdź połączenie</b>.
+          Kliknij <b>Dodaj model</b>. Adres API to wypisany adres{' '}
+          <code className={code}>https://….trycloudflare.com</code> z dopiskiem{' '}
+          <code className={code}>/v1</code>, klucz API to token z LM Studio. Zaznacz{' '}
+          <b>Model lokalny</b> i kliknij <b>Sprawdź połączenie</b>.
         </li>
       </ol>
-      <h3 className="mt-5 text-sm font-semibold text-fg">Wskazówki</h3>
-      <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-fg">
-        <li>
-          Przy ładowaniu modelu ustaw <b>Context Length</b> na co najmniej{' '}
-          <code className={code}>8192</code>, a <b>Max Concurrent Predictions</b> na{' '}
-          <code className={code}>1</code>. Przy braku pamięci GPU zmniejsz <b>GPU Offload</b>.
-        </li>
-        <li>
-          Wybieraj modele bez „myślenia” (np. Llama 3.1 Instruct). Modele rozumujące działają, ale
-          zużywają kontekst i czas na samo myślenie.
-        </li>
-        <li>
-          Jeden artykuł musi zostać przetworzony w ciągu 10 minut. Przy wolnym sprzęcie dziel długie
-          teksty na krótsze artykuły.
-        </li>
-      </ul>
       <p className="mt-4 text-xs text-fg-subtle">
-        Tunel i komputer muszą działać przez cały czas przetwarzania artykułów. Po ponownym
-        uruchomieniu tunelu adres się zmienia — zaktualizuj go wtedy w ustawieniach modelu.
+        Komputer i tunel muszą działać podczas przetwarzania artykułów. Po ponownym uruchomieniu
+        tunelu adres się zmienia — zaktualizuj go w ustawieniach modelu.
       </p>
       <div className="mt-5 flex justify-end">
         <Button variant="primary" size="sm" onClick={() => onOpenChange(false)}>
@@ -129,10 +107,7 @@ export function CustomProviderSection() {
         <div className="max-w-2xl">
           <h2 className="text-title text-fg">Własne modele językowe</h2>
           <p className="mt-1 text-sm text-fg-subtle">
-            Dowolny serwer zgodny z API OpenAI, np. LM Studio, Ollama, vLLM albo OpenRouter — także
-            model uruchomiony na Twoim komputerze. Każdy dodany model pojawi się jako opcja w
-            ustawieniach zaawansowanych przy dodawaniu artykułów. Klucze API są przechowywane w
-            postaci zaszyfrowanej.
+            Dowolny serwer zgodny z API OpenAI, także lokalny. Do wyboru przy dodawaniu artykułów.
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
@@ -237,7 +212,7 @@ function ProviderForm({ saved, onDone }: { saved: CustomProvider | null; onDone:
   const [baseUrl, setBaseUrl] = useState(saved?.base_url ?? '')
   const [model, setModel] = useState(saved?.model ?? '')
   const [apiKey, setApiKey] = useState('')
-  const [maxParallel, setMaxParallel] = useState(saved?.max_parallel ?? 1)
+  const [local, setLocal] = useState(saved?.local ?? false)
   const save = useSaveCustomProvider(saved?.id ?? null)
   const check = useTestCustomProvider()
   const keyRequired = !!saved?.has_api_key && baseUrl.trim() !== saved.base_url
@@ -253,7 +228,7 @@ function ProviderForm({ saved, onDone }: { saved: CustomProvider | null; onDone:
   const submit = (e: FormEvent) => {
     e.preventDefault()
     save.mutate(
-      { name, base_url: baseUrl, model, api_key: apiKey.trim() || null, max_parallel: maxParallel },
+      { name, base_url: baseUrl, model, api_key: apiKey.trim() || null, local },
       { onSuccess: onDone }
     )
   }
@@ -277,10 +252,7 @@ function ProviderForm({ saved, onDone }: { saved: CustomProvider | null; onDone:
           />
         </Field>
         <div className="sm:col-span-2">
-          <Field
-            label="Adres API"
-            hint="Adres musi być publiczny: localhost i sieć prywatna nie są osiągalne z serwera."
-          >
+          <Field label="Adres API">
             <TextInput
               required
               type="url"
@@ -293,13 +265,7 @@ function ProviderForm({ saved, onDone }: { saved: CustomProvider | null; onDone:
         <div className="sm:col-span-2">
           <Field
             label="Klucz API"
-            hint={
-              keyRequired
-                ? 'Adres API się zmienił: podaj klucz ponownie, by nie trafił na inny serwer.'
-                : saved?.has_api_key
-                  ? 'Klucz jest zapisany. Zostaw puste, by go nie zmieniać.'
-                  : 'Opcjonalny: serwer lokalny wymaga go, gdy włączysz w nim uwierzytelnianie.'
-            }
+            hint={keyRequired ? 'Adres się zmienił: podaj klucz ponownie.' : undefined}
           >
             <TextInput
               type="password"
@@ -311,21 +277,9 @@ function ProviderForm({ saved, onDone }: { saved: CustomProvider | null; onDone:
             />
           </Field>
         </div>
-        <div className="sm:col-span-2">
-          <Field
-            label="Równoległe zapytania"
-            hint="Ile artykułów wysyłać do modelu naraz. Model lokalny: 1. Usługi w chmurze (np. OpenRouter) zwykle przyjmą do 6."
-          >
-            <TextInput
-              required
-              type="number"
-              min={1}
-              max={6}
-              className="sm:max-w-32"
-              value={maxParallel}
-              onChange={(e) => setMaxParallel(Number(e.target.value))}
-            />
-          </Field>
+        <div className="flex items-center gap-3 sm:col-span-2">
+          <Switch checked={local} onChange={setLocal} label="Model lokalny" />
+          <span className="text-xs font-medium text-fg-muted">Model lokalny</span>
         </div>
         {(check.data || check.error) && (
           <p
