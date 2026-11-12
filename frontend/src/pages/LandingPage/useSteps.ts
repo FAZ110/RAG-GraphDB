@@ -80,7 +80,8 @@ export function useSteps(last: number) {
     const onWheel = (event: WheelEvent) => {
       event.preventDefault()
       const horizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY)
-      const direction = steps(horizontal ? event.deltaX : event.deltaY, performance.now())
+      const unit = [1, 40, el.clientHeight][event.deltaMode] ?? 1
+      const direction = steps((horizontal ? event.deltaX : event.deltaY) * unit, performance.now())
       if (direction !== 0) goTo(current.current + direction)
     }
 

@@ -1,4 +1,5 @@
 import json
+from collections.abc import Callable
 
 import redis
 from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
@@ -22,9 +23,11 @@ from core.config import (
 from db.graph.writer import GRAPH_WRITE_LOCK, build_statements
 from db.json_validator import validate_graph_json
 from db.query_loader import load_queries
+from db.settings import custom_provider_is_local
 from db.spaces.articles import (
     fail_article,
     finish_article,
+    keep_waiting,
     release_article,
     start_article,
     still_running,
@@ -45,6 +48,45 @@ from services.llm_service import CUSTOM_PROVIDER_PREFIX, LLMService
 CUSTOM_QUEUE = "custom"
 
 _TASK_OPTIONS = {"bind": True, "max_retries": 5, "soft_time_limit": 120, "time_limit": 130}
+_CUSTOM_TIME_LIMIT = 630
+# A task waiting for a free slot of its model goes back to the queue instead of holding a
+# worker thread; 360 tries 10 s apart is an hour of waiting at most.
+_SLOT_KEY = "llm-slot:local:{provider_id}"
+_SLOT_RETRY_DELAY = 10
+_SLOT_MAX_RETRIES = 360
+# Every 30th try (~5 min) the waiting article's clock is set back, well within the 15 min
+# after which an untouched article counts as stalled.
+_SLOT_KEEP_WAITING_EVERY = 30
+
+
+class ModelBusy(Exception):
+    """The article's local model is busy with another article."""
+
+
+def _take_slot(provider: str) -> Callable[[], None]:
+    """The slot of the user's local model, or ModelBusy; returns its release, safe to call
+    twice. A local model gets one request at a time: it answers them one by one, and the rest
+    would wait on an open connection until a tunnel cuts it off (~120 s). Cloud and server
+    models have no slot."""
+    if not provider.startswith(CUSTOM_PROVIDER_PREFIX):
+        return lambda: None
+    provider_id = provider.removeprefix(CUSTOM_PROVIDER_PREFIX)
+    if not custom_provider_is_local(provider_id):
+        return lambda: None
+    # Expires after the task's hard limit, so a killed worker frees it.
+    slot = redis.from_url(REDIS_URL).lock(
+        _SLOT_KEY.format(provider_id=provider_id), timeout=_CUSTOM_TIME_LIMIT + 60
+    )
+    if not slot.acquire(blocking=False):
+        raise ModelBusy
+
+    def release() -> None:
+        try:
+            slot.release()
+        except redis.exceptions.LockError:
+            pass  # released already, or expired meanwhile
+
+    return release
 
 
 # Server models share one API key, so they share its rate limit.
@@ -62,7 +104,11 @@ def extract_article_task(
 
 # Users' own models run on their own keys: a separate queue and worker, no server limit,
 # so they never wait behind server-model jobs.
-@celery_app.task(**_TASK_OPTIONS, queue=CUSTOM_QUEUE)
+# A longer limit: a model on the user's own computer may need minutes for one article.
+@celery_app.task(
+    **{**_TASK_OPTIONS, "soft_time_limit": 600, "time_limit": _CUSTOM_TIME_LIMIT},
+    queue=CUSTOM_QUEUE,
+)
 def extract_custom_article_task(
     self, job_id: str, article_id: str, title: str | None, provider: str, token: str | None = None
 ) -> None:
@@ -102,7 +148,19 @@ def _extract(
     try:
         result = _run_extraction(job_id, article_id, provider, token)
     except SoftTimeLimitExceeded:
-        result = _error_result(article_id, title, "Task timed out (120s) — article may be too long")
+        limit = self.soft_time_limit
+        result = _error_result(
+            article_id, title, f"Task timed out ({limit}s) — article may be too long"
+        )
+    except ModelBusy as exc:
+        if token and self.request.retries % _SLOT_KEEP_WAITING_EVERY == 0:
+            keep_waiting(article_id, token)
+        try:
+            raise self.retry(countdown=_SLOT_RETRY_DELAY, max_retries=_SLOT_MAX_RETRIES) from exc
+        except MaxRetriesExceededError:
+            result = _error_result(
+                article_id, title, "Model był zajęty przez inne artykuły zbyt długo (ponad godzinę)"
+            )
     except RateLimitError as exc:
         retry_after = 60
         if exc.response is not None:
@@ -180,6 +238,22 @@ def _record_dedup_log(r: redis.Redis, job_id: str, title: str, entries: list[dic
 
 
 def _run_extraction(job_id: str, article_id: str, provider: str, token: str | None) -> dict | None:
+    # First, before any database write: a task waiting for a busy model costs a read and a
+    # Redis call per try, not an article update.
+    release_slot = _take_slot(provider)
+    try:
+        return _process_article(job_id, article_id, provider, token, release_slot)
+    finally:
+        release_slot()
+
+
+def _process_article(
+    job_id: str,
+    article_id: str,
+    provider: str,
+    token: str | None,
+    release_slot: Callable[[], None],
+) -> dict | None:
     article = start_article(article_id, token)
     if article is None:
         return _error_result(article_id, None, "Article no longer exists")
@@ -195,6 +269,7 @@ def _run_extraction(job_id: str, article_id: str, provider: str, token: str | No
         raw_json = llm.generate_graph_json(
             title, numbered(content, sentences), article["rules"], article["labels"]
         )
+        release_slot()  # the model is free for the next article while this one is written
         graph = validate_graph_json(raw_json)
         nodes_dicts = [n.model_dump() for n in graph.nodes]
         edges_dicts = [e.model_dump() for e in graph.edges]

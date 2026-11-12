@@ -105,6 +105,11 @@ async def delete_articles(space_id: str, article_ids: list[str]) -> dict[str, li
         return await session.execute_write(work)
 
 
+def keep_waiting(article_id: str, token: str) -> None:
+    with get_sync_driver().session() as session:
+        session.run(_QUERIES["keep_waiting"], {"article_id": article_id, "token": token}).consume()
+
+
 def start_article(article_id: str, token: str) -> dict | None:
     """None when the article is gone; `runnable` is false when this task no longer owns it."""
     with get_sync_driver().session() as session:
