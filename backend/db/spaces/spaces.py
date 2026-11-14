@@ -116,9 +116,14 @@ async def get_extraction_settings(space_id: str) -> dict | None:
 
 @translates_neo4j_errors
 async def set_extraction_settings(
-    space_id: str, rules: str | None, labels: list[str] | None
+    space_id: str, preset: str | None, labels: list[str] | None, strict_labels: bool
 ) -> dict | None:
-    params = {"space_id": space_id, "rules": rules, "labels": labels}
+    params = {
+        "space_id": space_id,
+        "preset": preset,
+        "labels": labels,
+        "strict_labels": strict_labels,
+    }
     async with get_driver().session() as session:
         row = await (await session.run(_QUERIES["set_extraction_settings"], params)).single()
         return dict(row) if row else None

@@ -52,9 +52,12 @@ DELETE s
 
 // name: get_extraction_settings
 MATCH (s:Space {id: $space_id})
-RETURN s.extraction_rules AS rules, s.extraction_labels AS labels
+RETURN s.extraction_preset AS preset, s.extraction_labels AS labels,
+       coalesce(s.extraction_strict_labels, false) AS strict_labels
 
 // name: set_extraction_settings
 MATCH (s:Space {id: $space_id})
-SET s.extraction_rules = $rules, s.extraction_labels = $labels
-RETURN s.extraction_rules AS rules, s.extraction_labels AS labels
+SET s.extraction_preset = $preset, s.extraction_labels = $labels,
+    s.extraction_strict_labels = $strict_labels
+RETURN s.extraction_preset AS preset, s.extraction_labels AS labels,
+       coalesce(s.extraction_strict_labels, false) AS strict_labels

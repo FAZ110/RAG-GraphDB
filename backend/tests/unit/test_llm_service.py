@@ -49,11 +49,27 @@ def test_invalid_json_raises():
         svc.generate_graph_json("T", "x")
 
 
-def test_rules_go_first_as_system_message():
+def test_rules_sit_in_the_one_prompt_right_before_the_article():
     svc, fake = service("{}")
-    svc.generate_graph_json("T", "x", rules="Tylko osoby")
-    messages = fake.calls[0]["messages"]
-    assert messages[0]["role"] == "system" and "Tylko osoby" in messages[0]["content"]
+    svc.generate_graph_json("Tytuł artykułu", "x", rules="Tylko osoby")
+    [message] = fake.calls[0]["messages"]
+    prompt = message["content"]
+    assert message["role"] == "user"
+    assert prompt.index("9. Zwróć") < prompt.index("Tylko osoby") < prompt.index("Tytuł artykułu")
+
+
+def test_strict_labels_swap_the_label_rule():
+    svc, fake = service("{}")
+    svc.generate_graph_json("T", "x", labels=["FIRMA", "UMOWA"], strict_labels=True)
+    prompt = fake.calls[0]["messages"][0]["content"]
+    assert "1. Jako etykiety (label) używaj WYŁĄCZNIE tych: FIRMA, UMOWA." in prompt
+    assert "lub inne pasujące" not in prompt
+
+
+def test_no_rules_leaves_no_scope_section():
+    svc, fake = service("{}")
+    svc.generate_graph_json("T", "x")
+    assert "ZAKRES EKSTRAKCJI" not in fake.calls[0]["messages"][0]["content"]
 
 
 def test_server_model_gets_low_temperature():

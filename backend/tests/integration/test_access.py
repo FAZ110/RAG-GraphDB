@@ -29,7 +29,7 @@ FOREIGN = [
     ("GET", "/spaces/{s}/batches/latest", None),
     ("POST", "/spaces/{s}/batches/{j}/cancel", None),
     ("GET", "/spaces/{s}/extraction-settings", None),
-    ("PUT", "/spaces/{s}/extraction-settings", {"rules": "Przejęte"}),
+    ("PUT", "/spaces/{s}/extraction-settings", {"preset": "people"}),
 ]
 
 
@@ -96,7 +96,7 @@ def test_foreign_space_untouched_after_attempts(client, world, alice, bob):
     assert client.get(f"/spaces/{s}/analyses/{world['an']}", headers=h).json()["name"] == (
         "Nowa analiza"
     )
-    assert client.get(f"/spaces/{s}/extraction-settings", headers=h).json()["rules"] != "Przejęte"
+    assert client.get(f"/spaces/{s}/extraction-settings", headers=h).json()["preset"] is None
 
 
 def test_lists_show_only_own_data(client, world, bob):

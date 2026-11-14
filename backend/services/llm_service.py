@@ -73,11 +73,92 @@ def describe_llm_error(e: Exception, model: str) -> str | None:
 
 DEFAULT_LABELS = ["OSOBA", "ORGANIZACJA", "MIEJSCE", "WYDARZENIE"]
 
-_EXTRA_RULES_PROMPT = """\
-Przy ekstrakcji stosuj także poniższe dodatkowe reguły użytkownika. Format odpowiedzi \
-(JSON z "nodes" i "edges") pozostaje bez zmian.
+# Ready label sets the UI puts into a space's labels; the space stores only the labels.
+# Each names people and organisations too: with strict labels, whatever has no label is dropped.
+LABEL_DOMAINS: dict[str, dict] = {
+    "general": {"name": "Ogólna", "labels": DEFAULT_LABELS},
+    "business": {
+        "name": "Biznes i finanse",
+        "labels": ["FIRMA", "INSTYTUCJA", "OSOBA", "PRODUKT", "TRANSAKCJA", "UMOWA"],
+    },
+    "law": {
+        "name": "Prawo",
+        "labels": ["OSOBA", "STRONA", "SĄD", "INSTYTUCJA", "PRZEPIS", "ORZECZENIE", "UMOWA"],
+    },
+    "medicine": {
+        "name": "Medycyna",
+        "labels": ["OSOBA", "INSTYTUCJA", "CHOROBA", "OBJAW", "LEK", "ZABIEG", "BADANIE"],
+    },
+    "science": {
+        "name": "Nauka i technika",
+        "labels": ["POJĘCIE", "METODA", "WYNIK", "BADACZ", "INSTYTUCJA", "TECHNOLOGIA"],
+    },
+    "sport": {
+        "name": "Sport",
+        "labels": ["ZAWODNIK", "KLUB", "TRENER", "MECZ", "TURNIEJ", "STADION"],
+    },
+}
 
-{rules}\
+# The only extra instructions a user can send to the model: they pick a key, never write text.
+EXTRACTION_PRESETS: dict[str, dict[str, str]] = {
+    "people": {
+        "name": "Powiązania osobowe",
+        "description": "Osoby i relacje między nimi: rodzinne, zawodowe, towarzyskie.",
+        "rules": (
+            "Skup się na osobach i relacjach między nimi (rodzinnych, zawodowych, towarzyskich). "
+            "Organizacje, miejsca i wydarzenia wyodrębniaj tylko wtedy, gdy łączą co najmniej "
+            "dwie osoby. Typ relacji nazywaj możliwie konkretnie."
+        ),
+    },
+    "finance": {
+        "name": "Przepływy finansowe",
+        "description": "Firmy, udziały, transakcje i umowy wraz z kwotami.",
+        "rules": (
+            "Skup się na firmach, instytucjach i osobach powiązanych finansowo: własność, "
+            "udziały, transakcje, umowy, dotacje, pożyczki. Kwoty i daty podane w tekście "
+            "zapisuj we właściwościach (properties) relacji. Pomijaj byty bez związku z pieniędzmi."
+        ),
+    },
+    "timeline": {
+        "name": "Chronologia wydarzeń",
+        "description": "Wydarzenia z datami, ich uczestnicy i miejsca.",
+        "rules": (
+            "Skup się na wydarzeniach. Każde wydarzenie wyodrębnij jako osobny węzeł, a datę "
+            'podaną w tekście zapisz we właściwości "date". Łącz wydarzenia z uczestnikami '
+            "i miejscami; pomijaj byty, które nie biorą udziału w żadnym wydarzeniu."
+        ),
+    },
+    "key_only": {
+        "name": "Tylko kluczowe byty",
+        "description": "Mniejszy graf: bez postaci i miejsc wspomnianych tylko przy okazji.",
+        "rules": (
+            "Wyodrębniaj tylko byty istotne dla głównego tematu tekstu. Pomijaj byty wspomniane "
+            "tylko raz i bez znaczenia dla tematu oraz takie, które nie mają żadnej relacji "
+            "z innymi."
+        ),
+    },
+}
+
+# Sits in the main prompt right before the article, so it works with any chat template
+# and says outright which rule it narrows.
+_SCOPE_SECTION = """\
+ZAKRES EKSTRAKCJI — ma pierwszeństwo przed zasadą 1 w kwestii tego, które byty i relacje \
+wyodrębniać. Format odpowiedzi i pozostałe zasady obowiązują bez zmian.
+{rules}
+
+"""
+
+_LABEL_RULE = """\
+Dobierz etykiety (label) odpowiednio do domeny tekstu (np. {labels} lub inne pasujące).
+   Etykiety pisz wielkimi literami, np. OSOBA, FIRMA, PRODUKT.\
+"""
+
+# The model may still stray; only_labels() drops what it returns outside the list.
+_STRICT_LABEL_RULE = """\
+Jako etykiety (label) używaj WYŁĄCZNIE tych: {labels}.
+   Bytów, które nie pasują do żadnej z nich, nie wyodrębniaj. Ograniczenie dotyczy tylko
+   etykiet bytów: relacje między nimi wyodrębniaj wszystkie, a ich typy dobieraj swobodnie
+   według zasady 4.\
 """
 
 _GRAPH_JSON_PROMPT = """\
@@ -92,42 +173,59 @@ Format krawędzi:
 {{"source": "id_węzła", "target": "id_węzła", "type": "TYP_RELACJI", "evidence": ["S2"], "properties": {{}}}}
 
 Bardzo ważne zasady:
-1. Dobierz etykiety (label) odpowiednio do domeny tekstu (np. {labels} lub inne pasujące).
-   Etykiety pisz wielkimi literami, np. OSOBA, FIRMA, PRODUKT.
-   Etykieta to rodzaj bytu (jedno słowo lub słowa połączone podkreślnikiem, np. KLUB,
-   ZAWODNIK, KLUB_PIŁKARSKI), NIGDY jego nazwa: "KLUB", nie "KLUB AC MILAN".
+1. {label_rule}
+   Etykieta to rodzaj bytu w mianowniku (jedno słowo lub słowa połączone podkreślnikiem,
+   np. FIRMA, LEK, CZASOPISMO), NIGDY jego nazwa własna: "FIRMA", nie "ORLEN";
+   "UCZELNIA", nie "POLITECHNIKA_ŚLĄSKA". Byty tego samego rodzaju mają tę samą etykietę.
 2. Każdy węzeł MUSI mieć właściwość "name" z pełną nazwą encji w mianowniku
-   liczby pojedynczej (np. "Wisła Kraków", nie "Wiśle Kraków"; "Aston Villa",
-   nie "Aston Villę"). Osoby zapisuj jako imię i nazwisko, jeśli tekst je podaje.
+   liczby pojedynczej (np. "Uniwersytet Jagielloński", nie "Uniwersytecie Jagiellońskim";
+   "Wisła Kraków", nie "Wiśle Kraków"). Osoby zapisuj jako imię i nazwisko, jeśli tekst
+   je podaje.
    Ten sam byt w całym tekście musi mieć dokładnie tę samą nazwę.
    W "name" podawaj zawsze pełną, oficjalną nazwę, także gdy tekst używa skrótu lub przezwiska
-   (np. "Robert Lewandowski", nie "Lewy"; "Paris Saint-Germain", nie "PSG").
+   (np. "Narodowy Bank Polski", nie "NBP"; "Robert Lewandowski", nie "Lewy").
    Skróty, przezwiska i inne warianty nazwy użyte w tekście wpisz do listy "aliases"
    (pusta lista, jeśli ich nie ma).
 3. Pole "id" to wewnętrzny identyfikator do budowania relacji (np. "p1", "org_microsoft").
 4. Typy relacji pisz WYŁĄCZNIE po polsku, wielkimi literami z podkreślnikami,
-   np. PRACUJE_W, JEST_CZĘŚCIĄ, POSIADA, GRA_W, CHWALI. Nie używaj angielskich typów
-   (np. PLAYS_FOR, PRAISES, INTERVIEWED_BY) - także gdy tekst zawiera angielskie nazwy.
+   np. PRACUJE_W, JEST_CZĘŚCIĄ, POSIADA, LECZY, GRA_W. Nie używaj angielskich typów
+   (np. WORKS_AT, OWNS, PLAYS_FOR) - także gdy tekst zawiera angielskie nazwy.
 5. Pola "source" i "target" MUSZĄ odpowiadać istniejącym "id" węzłów.
 6. Każdy węzeł MUSI mieć właściwość "description": jedno krótkie zdanie (do 15 słów)
-   mówiące, kim lub czym jest ten byt, na podstawie tekstu (np. "klub piłkarski z Poznania
-   grający w Ekstraklasie", "napastnik reprezentacji Polski"). Opisuj sam byt, nie wydarzenia
-   z artykułu.
+   mówiące, kim lub czym jest ten byt, na podstawie tekstu (np. "spółka paliwowa
+   z siedzibą w Płocku", "lek przeciwzapalny stosowany w reumatologii", "napastnik
+   reprezentacji Polski"). Opisuj sam byt, nie wydarzenia z artykułu.
 7. Każdy węzeł MUSI mieć pole "type" — ogólny rodzaj bytu, DOKŁADNIE jedna z wartości:
-   OSOBA, ORGANIZACJA (firmy, kluby, drużyny, reprezentacje, instytucje),
-   MIEJSCE (kraje, miasta, regiony, obiekty), WYDARZENIE (mecze, turnieje, ligi,
-   rozgrywki, konferencje), PRODUKT (produkty, dzieła, technologie), POJĘCIE (pozostałe).
-   Przykład: {{"label": "KLUB", "type": "ORGANIZACJA", ...}},
-   {{"label": "ZAWODNIK", "type": "OSOBA", ...}}, {{"label": "LIGA", "type": "WYDARZENIE", ...}}.
+   OSOBA, ORGANIZACJA (firmy, instytucje, urzędy, kluby, drużyny, reprezentacje),
+   MIEJSCE (kraje, miasta, regiony, obiekty), WYDARZENIE (konferencje, rozprawy, wybory,
+   mecze, turnieje, ligi, rozgrywki), PRODUKT (produkty, leki, dzieła, technologie),
+   POJĘCIE (pozostałe).
+   Przykład: {{"label": "FIRMA", "type": "ORGANIZACJA", ...}},
+   {{"label": "LEKARZ", "type": "OSOBA", ...}}, {{"label": "LIGA", "type": "WYDARZENIE", ...}}.
 8. Treść jest podzielona na zdania, każde poprzedzone identyfikatorem w nawiasie, np. [S3].
    Każdy węzeł i każda krawędź MUSI mieć pole "evidence": lista 1-2 identyfikatorów zdań
    (np. ["S3"]), które najlepiej uzasadniają ten byt lub tę relację. Podawaj wyłącznie
    identyfikatory istniejące w treści.
 9. Zwróć TYLKO surowy JSON — bez komentarzy, bez tekstu poza JSON.
 
-Tytuł: {title}
+{scope}Tytuł: {title}
 Treść: {content}\
 """
+
+
+def extraction_prompt_preview() -> dict:
+    """The prompt as sent, with its slots left as {name} for the UI to fill in live."""
+    return {
+        "scope": _SCOPE_SECTION.format(rules="{rules}"),
+        "label_rule": _LABEL_RULE,
+        "strict_label_rule": _STRICT_LABEL_RULE,
+        "user": _GRAPH_JSON_PROMPT.format(
+            label_rule="{label_rule}",
+            scope="{scope}",
+            title="‹tytuł artykułu›",
+            content="‹treść artykułu podzielona na zdania: [S1] … [S2] …›",
+        ),
+    }
 
 
 def check_model(base_url: str, model: str, api_key: str | None) -> tuple[bool, str]:
@@ -230,17 +328,17 @@ class LLMService:
         content: str,
         rules: str | None = None,
         labels: list[str] | None = None,
+        strict_labels: bool = False,
     ) -> dict:
+        label_rule = _STRICT_LABEL_RULE if strict_labels else _LABEL_RULE
         prompt = _GRAPH_JSON_PROMPT.format(
-            labels=", ".join(labels or DEFAULT_LABELS), title=title, content=content
+            label_rule=label_rule.format(labels=", ".join(labels or DEFAULT_LABELS)),
+            scope=_SCOPE_SECTION.format(rules=rules) if rules else "",
+            title=title,
+            content=content,
         )
-        messages = [{"role": "user", "content": prompt}]
-        if rules:
-            messages.insert(
-                0, {"role": "system", "content": _EXTRA_RULES_PROMPT.format(rules=rules)}
-            )
         try:
-            raw, finish_reason = self._complete(messages)
+            raw, finish_reason = self._complete([{"role": "user", "content": prompt}])
         except RateLimitError:
             raise  # retried by the task
         except (APIConnectionError, APIStatusError) as e:

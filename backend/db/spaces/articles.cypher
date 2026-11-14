@@ -41,8 +41,9 @@ RETURN a.id AS id,
        a.title AS title,
        a.content AS content,
        a.content_hash AS content_hash,
-       s.extraction_rules AS rules,
-       s.extraction_labels AS labels
+       s.extraction_preset AS preset,
+       s.extraction_labels AS labels,
+       coalesce(s.extraction_strict_labels, false) AS strict_labels
 
 // name: finish_article
 // A newer text may have been uploaded while this one was processing; the article then
