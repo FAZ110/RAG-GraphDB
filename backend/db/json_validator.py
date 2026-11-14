@@ -1,6 +1,15 @@
+import re
+
 from pydantic import BaseModel, field_validator, model_validator
 
+from services.dedup import normalize_name
+
 ENTITY_TYPES = {"OSOBA", "ORGANIZACJA", "MIEJSCE", "WYDARZENIE", "PRODUKT", "POJĘCIE"}
+
+
+def _letters(text: str) -> str:
+    """BUDIMEX_WSCHOD and "Budimex-Wschód" compare equal."""
+    return re.sub(r"[\W_]+", "", normalize_name(text))
 
 
 def _ids_as_list(v) -> list[str]:
@@ -71,6 +80,13 @@ class NodeSchema(BaseModel):
         )
         return self
 
+    @model_validator(mode="after")
+    def label_is_a_kind_not_the_name(self):
+        """Models sometimes label an entity with its own name; its type is the nearest kind."""
+        if _letters(self.label) == _letters(self.properties["name"]):
+            self.label = self.type or "POJĘCIE"
+        return self
+
 
 class EdgeSchema(BaseModel):
     source: str
@@ -97,3 +113,11 @@ class GraphSchema(BaseModel):
 
 def validate_graph_json(data: dict) -> GraphSchema:
     return GraphSchema.model_validate(data)
+
+
+def only_labels(graph: GraphSchema, labels: list[str]) -> GraphSchema:
+    """Strict labels: nodes labelled outside the list go, and their edges with them."""
+    nodes = [n for n in graph.nodes if n.label in labels]
+    ids = {n.id for n in nodes}
+    edges = [e for e in graph.edges if e.source in ids and e.target in ids]
+    return GraphSchema(nodes=nodes, edges=edges)
