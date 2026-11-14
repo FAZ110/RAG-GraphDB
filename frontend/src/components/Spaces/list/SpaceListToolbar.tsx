@@ -11,7 +11,7 @@ interface Props {
 
 export function SpaceListToolbar({ query, onQueryChange, status, onNewSpace }: Props) {
   return (
-    <div className="flex items-stretch gap-2">
+    <div className="mb-3 flex items-stretch gap-2">
       <SpaceSearchField query={query} onQueryChange={onQueryChange} status={status} />
       <IconButton variant="primary" size="icon-lg" label="Nowa przestrzeń" onClick={onNewSpace}>
         <PlusIcon />
