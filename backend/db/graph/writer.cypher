@@ -1,4 +1,5 @@
 // name: merge_entity
+// scope: space
 MERGE (n:Entity {space_id: $space_id, label: $label, name: $name})
 ON CREATE SET n.id = randomUUID(), n.created_at = datetime(), n.embedding = $embedding
 // Keep the first description and type: the stored embedding was made from them.
@@ -8,11 +9,12 @@ SET n:$($label),
     n.type = coalesce(n.type, $type),
     n.aliases = coalesce(n.aliases, []) + [a IN $aliases WHERE NOT a IN coalesce(n.aliases, [])]
 WITH n
-MATCH (article:Article {id: $article_id})
+MATCH (article:Article {id: $article_id, space_id: $space_id})
 MERGE (article)-[m:MENTIONS]->(n)
 SET m.spans = coalesce(m.spans, []) + [s IN $spans WHERE NOT s IN coalesce(m.spans, [])]
 
 // name: merge_relationship
+// scope: space
 MATCH (a:Entity {space_id: $space_id, label: $source_label, name: $source_name})
 MATCH (b:Entity {space_id: $space_id, label: $target_label, name: $target_name})
 MERGE (a)-[r:$($type)]->(b)

@@ -4,9 +4,11 @@ from typing import Any
 
 from neo4j.exceptions import ConstraintError
 
-from db.driver import get_driver, translates_neo4j_errors
+from db.access import gate
+from db.access.queries import load_queries
+from db.access.scopes import SYSTEM, AdminScope
+from db.driver import translates_neo4j_errors
 from db.errors import EmailTakenError
-from db.query_loader import load_queries
 from db.spaces.spaces import delete_space
 
 _QUERIES = load_queries(__file__)
@@ -34,92 +36,80 @@ async def create_user(email: str, password_hash: str, role: str, server_models: 
         "role": role,
         "server_models": server_models,
     }
-    async with get_driver().session() as session:
-        try:
-            row = await (await session.run(_QUERIES["create_user"], params)).single()
-        except ConstraintError as e:
-            raise EmailTakenError(email) from e
-        return _user(row["u"])
+    try:
+        [row] = await gate.change(SYSTEM, _QUERIES["create_user"], params)
+    except ConstraintError as e:
+        raise EmailTakenError(email) from e
+    return _user(row["u"])
 
 
 @translates_neo4j_errors
 async def get_user(user_id: str) -> dict | None:
-    async with get_driver().session() as session:
-        row = await (await session.run(_QUERIES["user_by_id"], {"id": user_id})).single()
-        return _user(row["u"]) if row else None
+    row = await gate.single(SYSTEM, _QUERIES["user_by_id"], {"id": user_id})
+    return _user(row["u"]) if row else None
 
 
 @translates_neo4j_errors
 async def user_with_hash(email: str) -> tuple[dict, str] | None:
-    async with get_driver().session() as session:
-        row = await (await session.run(_QUERIES["user_by_email"], {"email": email})).single()
-        return (_user(row["u"]), row["u"]["password_hash"]) if row else None
+    row = await gate.single(SYSTEM, _QUERIES["user_by_email"], {"email": email})
+    return (_user(row["u"]), row["u"]["password_hash"]) if row else None
 
 
 @translates_neo4j_errors
 async def password_hash_of(user_id: str) -> str | None:
-    async with get_driver().session() as session:
-        row = await (await session.run(_QUERIES["user_by_id"], {"id": user_id})).single()
-        return row["u"]["password_hash"] if row else None
+    row = await gate.single(SYSTEM, _QUERIES["user_by_id"], {"id": user_id})
+    return row["u"]["password_hash"] if row else None
 
 
 @translates_neo4j_errors
 async def touch_login(user_id: str) -> None:
-    async with get_driver().session() as session:
-        await (await session.run(_QUERIES["touch_login"], {"id": user_id})).consume()
+    await gate.change(SYSTEM, _QUERIES["touch_login"], {"id": user_id})
 
 
 @translates_neo4j_errors
 async def set_password_hash(user_id: str, password_hash: str) -> None:
     params = {"id": user_id, "password_hash": password_hash}
-    async with get_driver().session() as session:
-        await (await session.run(_QUERIES["set_password_hash"], params)).consume()
+    await gate.change(SYSTEM, _QUERIES["set_password_hash"], params)
 
 
 @translates_neo4j_errors
-async def list_users() -> list[dict]:
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["list_users"])
-        return [
-            {**_user(r["u"]), "space_count": r["space_count"], "article_count": r["article_count"]}
-            async for r in res
-        ]
+async def list_users(scope: AdminScope) -> list[dict]:
+    return [
+        {**_user(r["u"]), "space_count": r["space_count"], "article_count": r["article_count"]}
+        for r in await gate.rows(scope, _QUERIES["list_users"])
+    ]
 
 
 @translates_neo4j_errors
-async def update_user(user_id: str, changes: dict) -> dict | None:
-    async with get_driver().session() as session:
-        params = {"id": user_id, "changes": changes}
-        row = await (await session.run(_QUERIES["update_user"], params)).single()
-        return _user(row["u"]) if row else None
+async def update_user(scope: AdminScope, user_id: str, changes: dict) -> dict | None:
+    params = {"id": user_id, "changes": changes}
+    rows = await gate.change(scope, _QUERIES["update_user"], params)
+    return _user(rows[0]["u"]) if rows else None
 
 
 @translates_neo4j_errors
-async def delete_user(user_id: str) -> None:
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["owned_space_ids"], {"id": user_id})
-        space_ids = [r["id"] async for r in res]
-    for space_id in space_ids:
-        await delete_space(space_id)
-    async with get_driver().session() as session:
-        await (await session.run(_QUERIES["delete_user"], {"id": user_id})).consume()
+async def delete_user(scope: AdminScope, user_id: str) -> None:
+    rows = await gate.rows(scope, _QUERIES["owned_space_ids"], {"id": user_id})
+    for row in rows:
+        await delete_space(scope.for_space(row["id"], user_id))
+    await gate.change(scope, _QUERIES["delete_user"], {"id": user_id})
 
 
 @translates_neo4j_errors
 async def claim_orphans(user_id: str) -> dict:
-    async with get_driver().session() as session:
-        row = await (await session.run(_QUERIES["claim_orphans"], {"id": user_id})).single()
-        return dict(row)
+    [row] = await gate.change(SYSTEM, _QUERIES["claim_orphans"], {"id": user_id})
+    return dict(row)
 
 
 @translates_neo4j_errors
 async def get_app_settings() -> dict:
-    async with get_driver().session() as session:
-        return dict(await (await session.run(_QUERIES["app_settings"])).single())
+    # Created on first use, so it is a write.
+    [row] = await gate.change(SYSTEM, _QUERIES["app_settings"])
+    return dict(row)
 
 
 @translates_neo4j_errors
-async def set_app_settings(registration_open: bool) -> dict:
+async def set_app_settings(scope: AdminScope, registration_open: bool) -> dict:
     params = {"registration_open": registration_open}
-    async with get_driver().session() as session:
-        return dict(await (await session.run(_QUERIES["set_app_settings"], params)).single())
+    [row] = await gate.change(scope, _QUERIES["set_app_settings"], params)
+    return dict(row)

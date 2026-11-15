@@ -7,8 +7,11 @@ from core.config import (
     DEDUP_SUGGEST_LEXICAL_MIN,
     DEDUP_SUGGEST_MIN,
 )
-from db.driver import get_driver, translates_neo4j_errors
-from db.query_loader import load_queries
+from db.access import gate
+from db.access.queries import load_queries
+from db.access.runner import Runner
+from db.access.scopes import SpaceScope, UserScope
+from db.driver import translates_neo4j_errors
 from services.dedup import name_similarity, normalize_name
 
 _QUERIES = load_queries(__file__)
@@ -52,81 +55,74 @@ def _edge(row: Mapping[str, Any]) -> dict:
 
 
 @translates_neo4j_errors
-async def top_graph(space_id: str, limit: int) -> dict:
+async def top_graph(scope: SpaceScope, limit: int) -> dict:
     """The space's best-connected entities, the edges among them and the entity total."""
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["top_nodes"], {"space_id": space_id, "limit": limit})
-        nodes = [_node(r) async for r in res]
 
+    async def work(db: Runner) -> dict:
+        nodes = [_node(r) for r in await db.rows(_QUERIES["top_nodes"], {"limit": limit})]
         edges = []
         if nodes:
-            res = await session.run(
-                _QUERIES["edges_between"],
-                {"space_id": space_id, "ids": [n["id"] for n in nodes]},
-            )
-            edges = [_edge(r) async for r in res]
+            rows = await db.rows(_QUERIES["edges_between"], {"ids": [n["id"] for n in nodes]})
+            edges = [_edge(r) for r in rows]
+        total = (await db.single(_QUERIES["count_nodes"], strict=True))["total"]
+        return {"nodes": nodes, "edges": edges, "total_nodes": total}
 
-        res = await session.run(_QUERIES["count_nodes"], {"space_id": space_id})
-        total = (await res.single(strict=True))["total"]
-
-    return {"nodes": nodes, "edges": edges, "total_nodes": total}
+    return await gate.read(scope, work)
 
 
 @translates_neo4j_errors
-async def overview_graph(space_id: str, limit: int) -> dict:
+async def overview_graph(scope: SpaceScope, limit: int) -> dict:
     """Every entity of the space, best connected first and at most `limit`, slimmed to what a
     map of the whole graph draws, with the edges among them."""
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["overview_nodes"], {"space_id": space_id, "limit": limit})
-        nodes = [dict(r) async for r in res]
 
-        res = await session.run(_QUERIES["count_nodes"], {"space_id": space_id})
-        total = (await res.single(strict=True))["total"]
-
+    async def work(db: Runner) -> dict:
+        nodes = [dict(r) for r in await db.rows(_QUERIES["overview_nodes"], {"limit": limit})]
+        total = (await db.single(_QUERIES["count_nodes"], strict=True))["total"]
         ids = {n["id"] for n in nodes}
-        res = await session.run(_QUERIES["space_edges"], {"space_id": space_id})
-        edges = [_edge(r) async for r in res if r["edge_source"] in ids and r["edge_target"] in ids]
+        edges = [
+            _edge(r)
+            for r in await db.rows(_QUERIES["space_edges"])
+            if r["edge_source"] in ids and r["edge_target"] in ids
+        ]
+        return {
+            "nodes": nodes,
+            "edges": edges,
+            "total_nodes": total,
+            "truncated": total > len(nodes),
+        }
 
-    return {"nodes": nodes, "edges": edges, "total_nodes": total, "truncated": total > len(nodes)}
+    return await gate.read(scope, work)
 
 
 @translates_neo4j_errors
-async def fresh_nodes(space_id: str, limit: int) -> list[dict]:
+async def fresh_nodes(scope: SpaceScope, limit: int) -> list[dict]:
     """The space's most recently extracted entities, newest first."""
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["fresh_nodes"], {"space_id": space_id, "limit": limit})
-        return [dict(r) async for r in res]
+    return [dict(r) for r in await gate.rows(scope, _QUERIES["fresh_nodes"], {"limit": limit})]
 
 
 @translates_neo4j_errors
-async def node_details(space_id: str, node_id: str) -> dict | None:
-    async with get_driver().session() as session:
-        params = {"space_id": space_id, "node_id": node_id}
-        row = await (await session.run(_QUERIES["node"], params)).single()
+async def node_details(scope: SpaceScope, node_id: str) -> dict | None:
+    row = await gate.single(scope, _QUERIES["node"], {"node_id": node_id})
     return _node(row) if row else None
 
 
 @translates_neo4j_errors
-async def edges_among(space_id: str, ids: list[str]) -> list[dict]:
+async def edges_among(scope: SpaceScope, ids: list[str]) -> list[dict]:
     """Every edge of the space whose both ends are among `ids`."""
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["edges_between"], {"space_id": space_id, "ids": ids})
-        return [_edge(r) async for r in res]
+    return [_edge(r) for r in await gate.rows(scope, _QUERIES["edges_between"], {"ids": ids})]
 
 
 @translates_neo4j_errors
-async def subgraph(space_id: str, ids: list[str]) -> dict:
+async def subgraph(scope: SpaceScope, ids: list[str]) -> dict:
     """The given entities of the space, with fresh degrees, and the edges among them."""
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["nodes_by_id"], {"space_id": space_id, "ids": ids})
-        nodes = [_node(r) async for r in res]
-    edges = await edges_among(space_id, [n["id"] for n in nodes]) if nodes else []
+    nodes = [_node(r) for r in await gate.rows(scope, _QUERIES["nodes_by_id"], {"ids": ids})]
+    edges = await edges_among(scope, [n["id"] for n in nodes]) if nodes else []
     return {"nodes": nodes, "edges": edges}
 
 
 @translates_neo4j_errors
 async def node_neighbours(
-    space_id: str,
+    scope: SpaceScope,
     node_id: str,
     limit: int,
     type_: str | None = None,
@@ -136,82 +132,70 @@ async def node_neighbours(
     """A node of the space with up to `limit` neighbours, optionally of one group;
     None if it is not in the space."""
     params = {
-        "space_id": space_id,
         "node_id": node_id,
         "limit": limit,
         "type": type_,
         "label": label,
         "direction": direction,
     }
-    async with get_driver().session() as session:
-        root = await (await session.run(_QUERIES["node"], params)).single()
+
+    async def work(db: Runner) -> dict | None:
+        root = await db.single(_QUERIES["node"], params)
         if root is None:
             return None
-        rows = [r async for r in await session.run(_QUERIES["neighbours"], params)]
+        rows = await db.rows(_QUERIES["neighbours"], params)
+        # A neighbour linked by several relationships comes back once per relationship.
+        nodes = {r["id"]: _node(r) for r in rows}
+        edges = {r["edge_id"]: _edge(r) for r in rows}
+        return {"root": _node(root), "nodes": list(nodes.values()), "edges": list(edges.values())}
 
-    # A neighbour linked by several relationships comes back once per relationship.
-    nodes = {r["id"]: _node(r) for r in rows}
-    edges = {r["edge_id"]: _edge(r) for r in rows}
-    return {"root": _node(root), "nodes": list(nodes.values()), "edges": list(edges.values())}
-
-
-@translates_neo4j_errors
-async def node_sources(space_id: str, node_id: str) -> list[dict]:
-    params = {"space_id": space_id, "node_id": node_id}
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["node_sources"], params)
-        return [_source(r) async for r in res]
+    return await gate.read(scope, work)
 
 
 @translates_neo4j_errors
-async def edge_sources(space_id: str, edge_id: str) -> list[dict]:
-    params = {"space_id": space_id, "edge_id": edge_id}
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["edge_sources"], params)
-        return [_source(r) async for r in res]
+async def node_sources(scope: SpaceScope, node_id: str) -> list[dict]:
+    return [
+        _source(r) for r in await gate.rows(scope, _QUERIES["node_sources"], {"node_id": node_id})
+    ]
 
 
 @translates_neo4j_errors
-async def search_nodes(space_id: str, vec: list[float], top_k: int) -> list[dict]:
-    params = {
-        "space_id": space_id,
-        "vec": vec,
-        "top_k": top_k,
-        "search_k": top_k * _SEARCH_K_FACTOR,
-    }
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["search"], params)
-        return [
-            {"id": r["id"], "name": r["name"], "label": r["label"], "score": r["score"]}
-            async for r in res
-        ]
+async def edge_sources(scope: SpaceScope, edge_id: str) -> list[dict]:
+    return [
+        _source(r) for r in await gate.rows(scope, _QUERIES["edge_sources"], {"edge_id": edge_id})
+    ]
 
 
 @translates_neo4j_errors
-async def search_all_spaces(vec: list[float], top_k: int, owner_id: str) -> list[dict]:
+async def search_nodes(scope: SpaceScope, vec: list[float], top_k: int) -> list[dict]:
+    params = {"vec": vec, "top_k": top_k, "search_k": top_k * _SEARCH_K_FACTOR}
+    return [
+        {"id": r["id"], "name": r["name"], "label": r["label"], "score": r["score"]}
+        for r in await gate.rows(scope, _QUERIES["search"], params)
+    ]
+
+
+@translates_neo4j_errors
+async def search_all_spaces(scope: UserScope, vec: list[float], top_k: int) -> list[dict]:
     # shortcut: an owner whose entities rank below _SEARCH_ALL_K of others' gets fewer hits;
     # move to a filtered vector search (Neo4j 2025+ SEARCH ... WHERE) when that shows.
-    params = {"vec": vec, "top_k": top_k, "search_k": _SEARCH_ALL_K, "owner_id": owner_id}
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["search_all"], params)
-        return [dict(r) async for r in res]
+    params = {"vec": vec, "top_k": top_k, "search_k": _SEARCH_ALL_K}
+    return [dict(r) for r in await gate.rows(scope, _QUERIES["search_all"], params)]
 
 
 @translates_neo4j_errors
 async def existing_like(
-    space_id: str, vec: list[float], label: str, names: list[str], top_k: int
+    scope: SpaceScope, vec: list[float], label: str, names: list[str], top_k: int
 ) -> list[dict]:
     """Entities a new one with this embedding, label and names would likely duplicate:
     one with the same name, or of the same label named alike as auto-dedup requires.
     The label stands in for dedup's type check, which keeps a club apart from its matches."""
     params = {
-        "space_id": space_id,
         "vec": vec,
         "search_top": _DUPLICATE_POOL,
         "search_k": _DUPLICATE_POOL * _SEARCH_K_FACTOR,
     }
-    async with get_driver().session() as session:
-        rows = [r async for r in await session.run(_QUERIES["nearest_entities"], params)]
+    rows = await gate.rows(scope, _QUERIES["nearest_entities"], params)
 
     own = {normalize_name(n) for n in names}
     hits = []
@@ -225,25 +209,22 @@ async def existing_like(
 
 
 @translates_neo4j_errors
-async def duplicate_suggestions(space_id: str) -> list[dict]:
+async def duplicate_suggestions(scope: SpaceScope) -> list[dict]:
     """Pairs extraction found alike but not alike enough to merge on its own."""
-    async with get_driver().session() as session:
-        params = {
-            "space_id": space_id,
-            "score_min": DEDUP_SUGGEST_MIN,
-            "lexical_min": DEDUP_SUGGEST_LEXICAL_MIN,
-            "any_name_min": DEDUP_SUGGEST_ANY_NAME_MIN,
+    params = {
+        "score_min": DEDUP_SUGGEST_MIN,
+        "lexical_min": DEDUP_SUGGEST_LEXICAL_MIN,
+        "any_name_min": DEDUP_SUGGEST_ANY_NAME_MIN,
+    }
+    return [
+        {
+            "id": r["id"],
+            "score": r["score"],
+            "lexical": r["lexical"],
+            "nodes": [
+                _node({k: r[f"{side}_{k}"] for k in ("id", "label", "props", "degree")})
+                for side in ("a", "b")
+            ],
         }
-        res = await session.run(_QUERIES["duplicate_suggestions"], params)
-        return [
-            {
-                "id": r["id"],
-                "score": r["score"],
-                "lexical": r["lexical"],
-                "nodes": [
-                    _node({k: r[f"{side}_{k}"] for k in ("id", "label", "props", "degree")})
-                    for side in ("a", "b")
-                ],
-            }
-            async for r in res
-        ]
+        for r in await gate.rows(scope, _QUERIES["duplicate_suggestions"], params)
+    ]

@@ -1,4 +1,5 @@
 // name: visit
+// scope: owner
 // A visit starts after a gap of `$gap_minutes`; reloads and refetches within one keep the
 // previous visit as the point the start page counts from.
 MATCH (u:User {id: $owner_id})
@@ -11,6 +12,7 @@ SET u.previous_visit_at = CASE
 RETURN u.previous_visit_at AS since
 
 // name: totals
+// scope: owner
 // `$since` is null on a first visit; the counts after it are then 0.
 MATCH (s:Space {owner_id: $owner_id})
 WITH collect(s.id) AS space_ids
@@ -30,6 +32,7 @@ RETURN size(space_ids) AS spaces,
          AS new_entities
 
 // name: recent_spaces
+// scope: owner
 // A space is used when articles are added to it or one of its analyses is edited.
 MATCH (s:Space {owner_id: $owner_id})
 CALL (s) {
@@ -52,6 +55,7 @@ ORDER BY last_used DESC
 LIMIT $limit
 
 // name: recent_articles
+// scope: owner
 MATCH (s:Space {owner_id: $owner_id})
 MATCH (a:Article {space_id: s.id})
 RETURN a.id AS id,
@@ -66,12 +70,14 @@ ORDER BY a.created_at DESC
 LIMIT $limit
 
 // name: failed_articles
+// scope: owner
 MATCH (s:Space {owner_id: $owner_id})
 MATCH (a:Article {space_id: s.id, status: 'error'})
 RETURN s.id AS space_id, s.name AS space_name, collect(a.id) AS article_ids
 ORDER BY space_name
 
 // name: activity
+// scope: owner
 MATCH (s:Space {owner_id: $owner_id})
 WITH collect(s.id) AS space_ids
 CALL (space_ids) {

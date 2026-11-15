@@ -28,18 +28,18 @@ def test_injection_label_passes_the_json_check():
 )
 def test_unsafe_label_rejected(label):
     with pytest.raises(ValueError, match="Unsafe label"):
-        build_statements([node("1", label)], [], "s1", "a1")
+        build_statements([node("1", label)], [], "a1")
 
 
 @pytest.mark.parametrize("type_", [INJECTION, "ZNA`]->()", "ZNA X", "zna", "", "1ZNA"])
 def test_unsafe_relationship_type_rejected(type_):
     with pytest.raises(ValueError, match="Unsafe"):
-        build_statements([node("1"), node("2")], [edge(type_)], "s1", "a1")
+        build_statements([node("1"), node("2")], [edge(type_)], "a1")
 
 
 @pytest.mark.parametrize("label", ["OSOBA", "MIEJSCE_URODZENIA", "KLUB2", "MIĘDZYNARODOWA"])
 def test_safe_labels_accepted(label):
-    assert build_statements([node("1", label)], [], "s1", "a1")
+    assert build_statements([node("1", label)], [], "a1")
 
 
 def test_reserved_properties_from_llm_are_dropped():
@@ -47,7 +47,8 @@ def test_reserved_properties_from_llm_are_dropped():
     hijack["properties"] |= {
         "space_id": "cudza", "id": "przejete", "embedding": [1.0], "label": "X", "rola": "Prezes"
     }  # fmt: skip
-    [(_, params)] = build_statements([hijack], [], "s1", "a1")
-    assert params["space_id"] == "s1"
+    [(_, params)] = build_statements([hijack], [], "a1")
+    # The space comes from the scope the statements run in; a "space_id" here would be refused.
+    assert "space_id" not in params
     assert params["label"] == "OSOBA"
     assert params["props"] == {"name": "N1", "rola": "Prezes"}

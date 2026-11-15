@@ -151,7 +151,7 @@ def extract(client, alice, queued, monkeypatch):
     """Upload an article to a space and run the worker on it with `graph` as the LLM's answer;
     returns the article id."""
     llm = FakeLLM({})
-    monkeypatch.setattr("tasks.extract_task.LLMService", lambda provider, owner_id: llm)
+    monkeypatch.setattr("tasks.extract_task.LLMService", lambda provider, scope: llm)
 
     def run(space: str, text: str, graph: dict, url: str, title: str = "Artykuł", user=None):
         from tasks.extract_task import _run_extraction

@@ -20,6 +20,7 @@ from core.config import (
     OPENAI_MODEL,
 )
 from core.public_url import ensure_public_url
+from db.access.scopes import SpaceScope
 from db.settings import custom_provider_config
 
 _GROQ_MAX_COMPLETION_TOKENS = 8000
@@ -151,7 +152,7 @@ def check_model(base_url: str, model: str, api_key: str | None) -> tuple[bool, s
 
 
 class LLMService:
-    def __init__(self, provider: str = "local", owner_id: str | None = None) -> None:
+    def __init__(self, provider: str = "local", scope: SpaceScope | None = None) -> None:
         self._extra: dict = {"temperature": 0.1}
         self._stream = False
 
@@ -176,7 +177,8 @@ class LLMService:
             self._model = OPENAI_MODEL
             self._extra |= {"response_format": {"type": "json_object"}}
         elif provider.startswith(CUSTOM_PROVIDER_PREFIX):
-            config = custom_provider_config(provider.removeprefix(CUSTOM_PROVIDER_PREFIX), owner_id)
+            provider_id = provider.removeprefix(CUSTOM_PROVIDER_PREFIX)
+            config = custom_provider_config(scope, provider_id) if scope else None
             if config is None:
                 raise ValueError("Custom LLM provider no longer exists, pick another model")
             # Checked again on every call: the host's DNS may have changed since it was saved,

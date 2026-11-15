@@ -4,6 +4,7 @@ import httpx
 import pytest
 from openai import APIConnectionError, APIStatusError, RateLimitError
 
+from db.access.scopes import SpaceScope
 from services.llm_service import LLMService, check_model, describe_llm_error
 
 
@@ -95,9 +96,9 @@ class FakeStream(FakeCompletions):
 
 def custom_service(monkeypatch, finish_reason: str = "stop") -> tuple[LLMService, FakeStream]:
     config = {"base_url": "https://llm.example/v1", "model": "m", "api_key": "k"}
-    monkeypatch.setattr("services.llm_service.custom_provider_config", lambda pid, owner: config)
+    monkeypatch.setattr("services.llm_service.custom_provider_config", lambda scope, pid: config)
     monkeypatch.setattr("services.llm_service.ensure_public_url", lambda url: None)
-    svc = LLMService("custom:p1", owner_id="u1")
+    svc = LLMService("custom:p1", scope=SpaceScope(space_id="s1", owner_id="u1"))
     fake = FakeStream(None, finish_reason)
     svc._client = SimpleNamespace(chat=SimpleNamespace(completions=fake))
     return svc, fake

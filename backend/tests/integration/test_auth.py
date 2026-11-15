@@ -116,9 +116,8 @@ def test_admin_cannot_disable_self(client, admin):
     assert client.get("/auth/me", headers=admin.headers).status_code == 200
 
 
-def test_non_admin_gets_403_on_admin_and_debug(client, alice):
+def test_non_admin_gets_403_on_admin(client, alice):
     assert client.get("/admin/users", headers=alice.headers).status_code == 403
-    assert client.get("/debug/dedup", headers=alice.headers).status_code == 403
 
 
 def test_admin_lists_users(client, admin, alice):
