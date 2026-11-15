@@ -48,6 +48,7 @@ export function ArticlePreview({ spaceId, articleId, focusId = null, open, onOpe
           </DrawerHeader>
         ) : (
           <ArticleBody
+            spaceId={spaceId}
             article={data}
             focusId={focusId}
             wide={wide}

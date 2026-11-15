@@ -4,6 +4,7 @@ import { ErrorNote } from '@/components/deck'
 import { leave, move, reveal } from '@/design/motion'
 import { cn } from '@/lib/utils'
 import type { ArticleDetail, Span } from '@/types'
+import { ArticleExtraction } from './ArticleExtraction'
 import { ArticleGraphOutline } from './ArticleGraphOutline'
 import { ArticleGraphToggle } from './ArticleGraphToggle'
 import { ArticleHeader } from './ArticleHeader'
@@ -12,6 +13,7 @@ import { ARTICLE_COLUMN, useOutlineWidth } from './articleLayout'
 import { entityMatcher, namesInText } from './entityMatch'
 
 interface Props {
+  spaceId: string
   article: ArticleDetail
   focusId: string | null
   wide: boolean
@@ -40,7 +42,14 @@ function evidenceFor(
   return [...unique.values()].sort((x, y) => x[0] - y[0])
 }
 
-export function ArticleBody({ article, focusId, wide, revealed, onRevealedChange }: Props) {
+export function ArticleBody({
+  spaceId,
+  article,
+  focusId,
+  wide,
+  revealed,
+  onRevealedChange,
+}: Props) {
   const [hovered, setHovered] = useState<ReadonlySet<string>>(NONE)
   const [hoveredRelationship, setHoveredRelationship] = useState<string | null>(null)
   const outlineWidth = useOutlineWidth()
@@ -83,6 +92,8 @@ export function ArticleBody({ article, focusId, wide, revealed, onRevealedChange
     )
   }
 
+  const extraction = <ArticleExtraction spaceId={spaceId} article={article} />
+
   const outline = (
     <div
       ref={outlineRef}
@@ -90,7 +101,11 @@ export function ArticleBody({ article, focusId, wide, revealed, onRevealedChange
         setHovered(NONE)
         setHoveredRelationship(null)
       }}
+      className="space-y-6"
     >
+      {article.extraction_labels && (
+        <div className="border-b border-line-soft pb-6">{extraction}</div>
+      )}
       <ArticleGraphOutline
         entities={article.entities}
         relationships={article.relationships}
@@ -130,13 +145,19 @@ export function ArticleBody({ article, focusId, wide, revealed, onRevealedChange
   )
 
   const toggle = (
-    <ArticleGraphToggle
-      entities={article.entities}
-      relationships={article.relationships}
-      open={revealed}
-      onOpenChange={onRevealedChange}
-      side={wide ? 'left' : 'below'}
-    />
+    <>
+      <ArticleGraphToggle
+        entities={article.entities}
+        relationships={article.relationships}
+        open={revealed}
+        onOpenChange={onRevealedChange}
+        side={wide ? 'left' : 'below'}
+      />
+      {/* With no entities there is no outline to open, and the settings may be why. */}
+      {article.entities.length === 0 && article.extraction_labels && (
+        <div className="border-b border-line-soft bg-surface-sunken px-8 pb-5">{extraction}</div>
+      )}
+    </>
   )
 
   const error = article.status === 'error' && article.error && (
