@@ -17,14 +17,22 @@ export function wheelSteps() {
   let lastAt = 0
   let lastDirection = 0
   let lockedUntil = 0
+  let fresh = true
 
   return (delta: number, now: number): number => {
     const size = Math.abs(delta)
     const direction = Math.sign(delta)
+    if (direction === 0) {
+      lastAt = now
+      return 0
+    }
     const reversed = direction !== lastDirection
     const quiet = now - lastAt > GESTURE_GAP_MS || reversed
     const notch = size >= NOTCH_DELTA && size === sizes[sizes.length - 1]
-    if (quiet) sizes.length = 0
+    if (quiet) {
+      sizes.length = 0
+      fresh = true
+    }
     sizes.push(size)
     if (sizes.length > INERTIA_WINDOW) sizes.shift()
     lastAt = now
@@ -34,8 +42,9 @@ export function wheelSteps() {
     const surge =
       sizes.length === INERTIA_WINDOW &&
       average(sizes.slice(half)) > average(sizes.slice(0, half)) * SURGE_RATIO
-    const unlocked = now >= lockedUntil || reversed
-    if (size < MIN_DELTA || !unlocked || !(quiet || notch || surge)) return 0
+    const unlocked = now >= lockedUntil || reversed || fresh
+    if (size < MIN_DELTA || !unlocked || !(fresh || notch || surge)) return 0
+    fresh = false
     lockedUntil = now + STEP_LOCK_MS
     return direction
   }

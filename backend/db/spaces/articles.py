@@ -98,6 +98,12 @@ async def delete_articles(scope: SpaceScope, article_ids: list[str]) -> dict[str
     return await gate.write(scope, work)
 
 
+def keep_waiting(article_id: str, token: str) -> None:
+    """Guarded by the task's queue token, like start_article."""
+    params = {"article_id": article_id, "token": token}
+    sync_gate.write(SYSTEM, lambda db: db.run(_QUERIES["keep_waiting"], params))
+
+
 def start_article(article_id: str, token: str) -> dict | None:
     """None when the article is gone; `runnable` is false when this task no longer owns it.
     The queue token stands in for a user here: only the task holding it can start the article."""
