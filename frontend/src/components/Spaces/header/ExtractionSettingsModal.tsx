@@ -6,16 +6,14 @@ import { Button, ErrorNote, IconButton, Modal, Select } from '@/components/deck'
 import { inkFor } from '@/design/inks'
 import type { Ink } from '@/design/inks'
 import { useExtractionSettings, useSaveExtractionSettings } from '@/hooks/useSpaces'
-import { toIdentifier } from '@/lib/text'
 import type { ExtractionSettings } from '@/types'
+import { previewPrompt, splitLabels } from './extractionPreview'
 
 const sectionTitle = 'font-semibold text-fg'
 const fieldLabel = 'text-sm text-fg-muted'
 
 // The parts of the prompt that follow the form, in the space's ink.
 const changing = 'border-b-2 border-(--ink) bg-(--ink-field) text-fg'
-
-const splitLabels = (value: string) => value.split(',').map(toIdentifier).filter(Boolean)
 
 export function ExtractionSettingsButton({ spaceId }: { spaceId: string }) {
   const [open, setOpen] = useState(false)
@@ -115,17 +113,7 @@ function SettingsForm({
   const reset = () =>
     save.mutate({ preset: null, labels: null, strict_labels: false }, { onSuccess: onDone })
 
-  const rules = saved.presets.find((p) => p.key === preset)?.rules
-  const sentLabels = splitLabels(labels)
-  const scope = rules && saved.prompt.scope.replace('{rules}', rules)
-  // The template is: text {label_rule} text {scope} text; the rule is: text {labels} text.
-  const [beforeRule, beforeScope, afterScope] = saved.prompt.user.split(/\{label_rule\}|\{scope\}/)
-  const labelRule = strict ? saved.prompt.strict_label_rule : saved.prompt.label_rule
-  const [ruleStart, ruleEnd] = labelRule.split('{labels}')
-  // Empty labels fall back to the default set on the server.
-  const labelsText = (sentLabels.length ? sentLabels : saved.domains[0].labels).join(', ')
-  // The domain is not stored: it is whichever ready set the labels currently equal.
-  const domain = saved.domains.find((d) => d.labels.join(', ') === labelsText)?.key
+  const sent = previewPrompt(saved, { preset, labels, strict })
 
   return (
     <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
@@ -172,12 +160,11 @@ function SettingsForm({
                   label: d.name,
                   hint: d.labels.join(', '),
                 }))}
-                value={domain}
+                value={sent.domain}
                 onChange={(key) =>
                   setLabels(saved.domains.find((d) => d.key === key)!.labels.join(', '))
                 }
               />
-              {/* Two rows: the longer ready sets don't fit on one line. */}
               <textarea
                 aria-label="Etykiety po przecinku"
                 rows={2}
@@ -209,26 +196,26 @@ function SettingsForm({
           className="flex flex-col gap-5 border-t border-line-soft bg-surface-sunken p-6 sm:p-8 lg:overflow-y-auto lg:border-t-0 lg:border-l"
         >
           <Sent title="Reguły trybu">
-            {scope ? (
-              <mark className={changing}>{scope.trim()}</mark>
+            {sent.scope ? (
+              <mark className={changing}>{sent.scope.trim()}</mark>
             ) : (
               <span className="text-fg-subtle">Brak: tryb ogólny wysyła tylko stały prompt.</span>
             )}
           </Sent>
           <Sent title="Cały prompt">
-            {beforeRule}
+            {sent.beforeRule}
             {strict ? (
-              <mark className={changing}>{ruleStart + labelsText + ruleEnd}</mark>
+              <mark className={changing}>{sent.ruleStart + sent.labels + sent.ruleEnd}</mark>
             ) : (
               <>
-                {ruleStart}
-                <mark className={changing}>{labelsText}</mark>
-                {ruleEnd}
+                {sent.ruleStart}
+                <mark className={changing}>{sent.labels}</mark>
+                {sent.ruleEnd}
               </>
             )}
-            {beforeScope}
-            {scope && <mark className={changing}>{scope}</mark>}
-            {afterScope}
+            {sent.beforeScope}
+            {sent.scope && <mark className={changing}>{sent.scope}</mark>}
+            {sent.afterScope}
           </Sent>
         </section>
       </div>

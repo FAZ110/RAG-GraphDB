@@ -149,6 +149,10 @@ export interface Article {
   created_at: string
   processed_at: string | null
   batch_id: string | null
+  /** What the current graph was extracted with; null before these were recorded. */
+  extraction_preset: string | null
+  extraction_labels: string[] | null
+  extraction_strict_labels: boolean | null
 }
 
 export type Span = [number, number]
