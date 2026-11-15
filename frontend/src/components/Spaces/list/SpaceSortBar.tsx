@@ -21,7 +21,6 @@ interface Props {
   className?: string
 }
 
-/** The list's header: which order its rows are in. */
 export function SpaceSortBar({ sort, onSortChange, className }: Props) {
   return (
     <div
