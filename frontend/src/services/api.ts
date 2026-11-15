@@ -159,7 +159,7 @@ export const fetchExtractionSettings = (spaceId: string) =>
 
 export const saveExtractionSettings = (
   spaceId: string,
-  settings: { rules: string | null; labels: string[] | null }
+  settings: { preset: string | null; labels: string[] | null; strict_labels: boolean }
 ) => sendJson<ExtractionSettings>(`${spaceUrl(spaceId)}/extraction-settings`, 'PUT', settings);
 
 export const fetchSpaceStats = async (id: string): Promise<SpaceStats> => {

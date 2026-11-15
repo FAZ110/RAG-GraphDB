@@ -121,8 +121,12 @@ export interface ProviderCheck {
 }
 
 export interface ExtractionSettings {
-    rules: string;
+    preset: string | null;
     labels: string[];
+    strict_labels: boolean;
+    presets: { key: string; name: string; description: string; rules: string }[];
+    domains: { key: string; name: string; labels: string[] }[];
+    prompt: { scope: string; user: string; label_rule: string; strict_label_rule: string };
 }
 
 export interface SpaceStats {
@@ -142,6 +146,9 @@ export interface Article {
   created_at: string
   processed_at: string | null
   batch_id: string | null
+  extraction_preset: string | null
+  extraction_labels: string[] | null
+  extraction_strict_labels: boolean | null
 }
 
 export type Span = [number, number]

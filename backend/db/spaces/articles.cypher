@@ -44,8 +44,9 @@ RETURN a.id AS id,
        a.title AS title,
        a.content AS content,
        a.content_hash AS content_hash,
-       s.extraction_rules AS rules,
-       s.extraction_labels AS labels
+       s.extraction_preset AS preset,
+       s.extraction_labels AS labels,
+       coalesce(s.extraction_strict_labels, false) AS strict_labels
 
 // name: finish_article
 // scope: space
@@ -56,6 +57,10 @@ SET a.processed_hash = $content_hash,
     a.processed_at = datetime(),
     a.nodes_count = $nodes_count,
     a.edges_count = $edges_count,
+    // The settings this graph came from: the space's may change afterwards.
+    a.extraction_preset = $preset,
+    a.extraction_labels = $labels,
+    a.extraction_strict_labels = $strict_labels,
     a.error = null,
     a.status = CASE WHEN a.content_hash = $content_hash THEN 'ok' ELSE a.status END
 
@@ -113,7 +118,10 @@ RETURN a.id AS id,
        a.edges_count AS edges_count,
        a.created_at AS created_at,
        a.processed_at AS processed_at,
-       a.batch_id AS batch_id
+       a.batch_id AS batch_id,
+       a.extraction_preset AS extraction_preset,
+       a.extraction_labels AS extraction_labels,
+       a.extraction_strict_labels AS extraction_strict_labels
 ORDER BY a.created_at DESC
 
 // name: article_statuses
@@ -163,6 +171,9 @@ RETURN a.id AS id,
        a.edges_count AS edges_count,
        a.created_at AS created_at,
        a.processed_at AS processed_at,
+       a.extraction_preset AS extraction_preset,
+       a.extraction_labels AS extraction_labels,
+       a.extraction_strict_labels AS extraction_strict_labels,
        a.content AS content,
        entities,
        relationships

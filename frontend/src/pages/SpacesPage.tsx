@@ -5,6 +5,7 @@ import { SpaceList } from '@/components/Spaces/list/SpaceList'
 import { SpaceSwitcher } from '@/components/Spaces/list/SpaceSwitcher'
 import { SpacePanel } from '@/components/Spaces/SpacePanel'
 import { SpacesMark } from '@/components/Spaces/SpacesMark'
+import type { SpaceSort } from '@/components/Spaces/spaceSearch'
 import { pickSpace, rememberSpace } from '@/components/Spaces/choice/spaceChoice'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSpaceListHidden } from '@/components/Spaces/list/spaceListHidden'
@@ -17,6 +18,7 @@ export function SpacesPage() {
   const navigate = useNavigate()
   const spaces = useSpaces()
   const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<SpaceSort>('own')
   const [params, setParams] = useSearchParams()
   const [draftState, setDraft] = useState<string | null>(null)
   // `?new`, e.g. from the navigation, opens a draft right away.
@@ -37,6 +39,8 @@ export function SpacesPage() {
     loading: !spaces.data,
     query,
     onQueryChange: setQuery,
+    sort,
+    onSortChange: setSort,
     draft,
     onDraftChange: changeDraft,
     onCreated: (space: Space) => navigate(`/spaces/${space.id}`),

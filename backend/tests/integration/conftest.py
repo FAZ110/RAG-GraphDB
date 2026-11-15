@@ -139,8 +139,10 @@ class FakeLLM:
         # Runs while the "LLM" works, to change the article mid-extraction.
         self.during = None
 
-    def generate_graph_json(self, title, content, rules=None, labels=None) -> dict:
-        self.calls.append({"title": title, "content": content, "rules": rules, "labels": labels})
+    def generate_graph_json(self, title, content, rules=None, labels=None, strict=False) -> dict:
+        self.calls.append(
+            {"title": title, "content": content, "rules": rules, "labels": labels, "strict": strict}
+        )
         if self.during:
             self.during()
         return copy.deepcopy(self.graph)

@@ -6,12 +6,14 @@ import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
 import type { Space } from '@/types'
 import { ContourBackdrop } from '../map/ContourBackdrop'
-import { filterSpaces } from '../spaceSearch'
+import { filterSpaces, sortSpaces } from '../spaceSearch'
+import type { SpaceSort } from '../spaceSearch'
 import { SPACE_FORMS, pluralForm } from '../spaceText'
 import { DraftSpaceItem } from './DraftSpaceItem'
 import { NoSpaceMatch } from './NoSpaceMatch'
 import { SpaceListItem } from './SpaceListItem'
 import { SpaceListToolbar } from './SpaceListToolbar'
+import { SpaceSortBar } from './SpaceSortBar'
 import { useSpaceOrder } from './useSpaceOrder'
 
 const ROW_HEIGHT = 68
@@ -22,6 +24,8 @@ interface Props {
   selectedId: string | undefined
   query: string
   onQueryChange: (query: string) => void
+  sort: SpaceSort
+  onSortChange: (sort: SpaceSort) => void
   /** null when no space is being created. */
   draft: string | null
   onDraftChange: (draft: string | null) => void
@@ -36,6 +40,8 @@ export function SpaceList({
   selectedId,
   query,
   onQueryChange,
+  sort,
+  onSortChange,
   draft,
   onDraftChange,
   onCreated,
@@ -43,7 +49,7 @@ export function SpaceList({
   onPicked,
 }: Props) {
   const needle = normalize(query.trim())
-  const shown = filterSpaces(spaces, needle)
+  const shown = sortSpaces(filterSpaces(spaces, needle), sort)
   const status = needle
     ? `${shown.length} z ${spaces.length}`
     : `${spaces.length} ${pluralForm(spaces.length, SPACE_FORMS)}`
@@ -51,7 +57,8 @@ export function SpaceList({
 
   // On touch, dragging would take over the list's scrolling.
   const finePointer = useMediaQuery('(pointer: fine)')
-  const reorderable = finePointer && !needle && draft === null
+  // Dragging rearranges the user's own order, so only that order can be dragged.
+  const reorderable = finePointer && !needle && draft === null && sort === 'own'
   const order = useSpaceOrder(shown)
 
   // Stays true until the draft's exit animation ends, not just while `draft` is set.
@@ -64,13 +71,14 @@ export function SpaceList({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col">
       <SpaceListToolbar
         query={query}
         onQueryChange={onQueryChange}
         status={status}
         onNewSpace={() => startDraft()}
       />
+      <SpaceSortBar sort={sort} onSortChange={onSortChange} className={cn(edgeToEdge && '-mx-3')} />
 
       <div className={cn('relative min-h-0 flex-1', edgeToEdge && '-mx-3')}>
         <ContourBackdrop color="var(--fg-faint)" className="absolute inset-0 opacity-70" />

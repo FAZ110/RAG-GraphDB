@@ -132,7 +132,14 @@ def release_article(db: SyncRunner, article_id: str) -> None:
 
 
 def finish_article(
-    db: SyncRunner, article_id: str, content_hash: str, nodes_count: int, edges_count: int
+    db: SyncRunner,
+    article_id: str,
+    content_hash: str,
+    nodes_count: int,
+    edges_count: int,
+    preset: str | None,
+    labels: list[str],
+    strict_labels: bool,
 ) -> None:
     db.run(
         _QUERIES["finish_article"],
@@ -141,6 +148,9 @@ def finish_article(
             "content_hash": content_hash,
             "nodes_count": nodes_count,
             "edges_count": edges_count,
+            "preset": preset,
+            "labels": labels,
+            "strict_labels": strict_labels,
         },
     )
 

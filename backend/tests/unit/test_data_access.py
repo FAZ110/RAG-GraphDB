@@ -107,7 +107,8 @@ def test_scopes_are_made_only_where_access_is_checked():
         if rel.startswith(("venv/", "tests/")):
             continue
         for name in re.findall(
-            r"\b(SpaceScope|UserScope|AdminScope|SystemScope)\(", path.read_text()
+            r"\b(SpaceScope|UserScope|AdminScope|SystemScope)\(",
+            path.read_text(encoding="utf-8"),
         ):
             made.setdefault(name, set()).add(rel)
     stray = {name: files - _MADE_IN[name] for name, files in made.items() if files - _MADE_IN[name]}

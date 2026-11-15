@@ -5,7 +5,7 @@ import {
   LayersIcon,
   NetworkIcon,
   SettingsIcon,
-  UploadIcon,
+  FilePlus2Icon,
 } from 'lucide-react'
 import { Swatch } from '@/components/deck'
 import { inkFor } from '@/design/inks'
@@ -37,7 +37,7 @@ export function searchItems({ needle, spaces, results, openAdd }: Sources): Sear
       key: 'add',
       section: 'Polecenia',
       label: 'Dodaj artykuły',
-      icon: <UploadIcon />,
+      icon: <FilePlus2Icon />,
       to: openAdd,
     },
     {

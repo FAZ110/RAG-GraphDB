@@ -21,7 +21,7 @@ from db.access.queries import load_queries
 from db.access.runner import SyncRunner
 from db.access.scopes import SpaceScope
 from db.graph.writer import GRAPH_WRITE_LOCK, build_statements
-from db.json_validator import validate_graph_json
+from db.json_validator import only_labels, validate_graph_json
 from db.settings import custom_provider_is_local
 from db.spaces.articles import (
     fail_article,
@@ -41,7 +41,12 @@ from services.embedding_service import embedding_text, get_embedding_service
 from services.evidence import mentioning, numbered, split_sentences, to_spans
 from services.jobs.llm_quota import server_llm_wait
 from services.jobs.results import push_result
-from services.llm_service import CUSTOM_PROVIDER_PREFIX, LLMService
+from services.llm_service import (
+    CUSTOM_PROVIDER_PREFIX,
+    DEFAULT_LABELS,
+    EXTRACTION_PRESETS,
+    LLMService,
+)
 
 CUSTOM_QUEUE = "custom"
 
@@ -260,11 +265,17 @@ def _process_article(
     try:
         llm = LLMService(provider=provider, scope=space)
         sentences = split_sentences(content)
+        # A preset removed from the code since it was saved means no extra rules.
+        preset = EXTRACTION_PRESETS.get(article["preset"], {})
+        labels = article["labels"] or DEFAULT_LABELS
+        strict = article["strict_labels"]
         raw_json = llm.generate_graph_json(
-            title, numbered(content, sentences), article["rules"], article["labels"]
+            title, numbered(content, sentences), preset.get("rules"), labels, strict
         )
         release_slot()  # the model is free for the next article while this one is written
         graph = validate_graph_json(raw_json)
+        if strict:
+            graph = only_labels(graph, labels)
         nodes_dicts = [n.model_dump() for n in graph.nodes]
         edges_dicts = [e.model_dump() for e in graph.edges]
         names = {n["id"]: [n["properties"]["name"], *n["aliases"]] for n in nodes_dicts}
@@ -329,7 +340,14 @@ def _process_article(
                     for query, params in statements:
                         db.run(query, params)
                     finish_article(
-                        db, article_id, article["content_hash"], len(nodes_dicts), len(edges_dicts)
+                        db,
+                        article_id,
+                        article["content_hash"],
+                        len(nodes_dicts),
+                        len(edges_dicts),
+                        article["preset"] if preset else None,
+                        labels,
+                        strict,
                     )
                     return True
 

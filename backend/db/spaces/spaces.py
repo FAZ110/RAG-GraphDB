@@ -110,8 +110,8 @@ async def get_extraction_settings(scope: SpaceScope) -> dict | None:
 
 @translates_neo4j_errors
 async def set_extraction_settings(
-    scope: SpaceScope, rules: str | None, labels: list[str] | None
+    scope: SpaceScope, preset: str | None, labels: list[str] | None, strict_labels: bool
 ) -> dict | None:
-    params = {"rules": rules, "labels": labels}
+    params = {"preset": preset, "labels": labels, "strict_labels": strict_labels}
     rows = await gate.change(scope, _QUERIES["set_extraction_settings"], params)
     return dict(rows[0]) if rows else None

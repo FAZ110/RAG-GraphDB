@@ -22,7 +22,12 @@ from schemas.spaces import (
     SpaceStats,
     SpaceUpdate,
 )
-from services.llm_service import DEFAULT_LABELS
+from services.llm_service import (
+    DEFAULT_LABELS,
+    EXTRACTION_PRESETS,
+    LABEL_DOMAINS,
+    extraction_prompt_preview,
+)
 
 router = APIRouter(prefix="/spaces", tags=["spaces"])
 
@@ -69,8 +74,12 @@ async def get_space_stats(space: SpaceAccess):
 
 def _effective(settings: dict) -> dict:
     return {
-        "rules": settings["rules"] or "",
+        "preset": settings["preset"] if settings["preset"] in EXTRACTION_PRESETS else None,
         "labels": settings["labels"] or DEFAULT_LABELS,
+        "strict_labels": settings["strict_labels"],
+        "presets": [{"key": key, **p} for key, p in EXTRACTION_PRESETS.items()],
+        "domains": [{"key": key, **d} for key, d in LABEL_DOMAINS.items()],
+        "prompt": extraction_prompt_preview(),
     }
 
 
@@ -92,8 +101,10 @@ async def get_space_extraction_settings(space: SpaceAccess):
     dependencies=[Depends(space_scope)],
 )
 async def put_space_extraction_settings(space: SpaceAccess, body: ExtractionSettingsUpdate):
+    if body.preset is not None and body.preset not in EXTRACTION_PRESETS:
+        raise HTTPException(status_code=422, detail="Unknown extraction preset")
     labels = list(dict.fromkeys(body.labels)) if body.labels else None
-    settings = await set_extraction_settings(space, body.rules, labels)
+    settings = await set_extraction_settings(space, body.preset, labels, body.strict_labels)
     if settings is None:
         raise _not_found()
     return _effective(settings)

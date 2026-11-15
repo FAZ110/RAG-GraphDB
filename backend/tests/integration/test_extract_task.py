@@ -5,6 +5,7 @@ import pytest
 import redis
 
 from core.config import REDIS_URL
+from services.llm_service import EXTRACTION_PRESETS
 from tasks.extract_task import _SLOT_KEY, _extract, _run_extraction
 from tests.integration.conftest import FakeLLM, article_status, cypher, job_results
 
@@ -58,6 +59,67 @@ def test_extraction_writes_graph_and_marks_ok(client, alice, space, llm, uploade
     assert article_status(task["article_id"]) == "ok"
     assert entities(space) == ["Jan Kowalski", "Warszawa"]
     assert "[S1] Jan Kowalski mieszka w Warszawie." in llm.calls[0]["content"]
+
+
+def test_chosen_preset_reaches_the_model_and_unknown_one_is_rejected(
+    client, alice, space, llm, uploaded
+):
+    url = f"/spaces/{space}/extraction-settings"
+    assert client.put(url, json={"preset": "nope"}, headers=alice.headers).status_code == 422
+    run(uploaded(TEXT, "https://example.com/1"))
+    assert llm.calls[0]["rules"] is None
+
+    saved = client.put(url, json={"preset": "people"}, headers=alice.headers)
+    assert saved.json()["preset"] == "people"
+    assert saved.json()["presets"][0]["rules"] == EXTRACTION_PRESETS["people"]["rules"]
+    run(uploaded("Anna Nowak zna Jana.", "https://example.com/2"))
+    assert llm.calls[1]["rules"] == EXTRACTION_PRESETS["people"]["rules"]
+    # Every ready label set must come back unchanged through the validation saving puts it through.
+    for domain in saved.json()["domains"]:
+        r = client.put(url, json={"labels": domain["labels"]}, headers=alice.headers)
+        assert r.json()["labels"] == domain["labels"], domain["key"]
+    # The preview keeps the prompt's literal JSON braces and leaves only the UI slots.
+    prompt = saved.json()["prompt"]
+    assert "{rules}" in prompt["scope"]
+    assert "{label_rule}" in prompt["user"] and "{scope}" in prompt["user"]
+    assert "{labels}" in prompt["label_rule"] and "{labels}" in prompt["strict_label_rule"]
+    assert '{"id": "unikalny_id"' in prompt["user"]
+
+
+def test_strict_labels_keep_only_listed_entities(client, alice, space, llm, uploaded):
+    url = f"/spaces/{space}/extraction-settings"
+    saved = client.put(
+        url, json={"labels": ["OSOBA"], "strict_labels": True}, headers=alice.headers
+    )
+    assert saved.json()["strict_labels"] is True
+
+    result = run(uploaded())
+    assert llm.calls[0]["strict"] is True
+    # Warszawa is a MIEJSCE: it goes, and the edge to it with it.
+    assert entities(space) == ["Jan Kowalski"]
+    assert result["edges_count"] == 0
+
+    # The article keeps what it was extracted with, also once the space's settings move on.
+    client.put(url, json={"preset": "people"}, headers=alice.headers)
+    [listed] = client.get(f"/spaces/{space}/articles", headers=alice.headers).json()
+    assert (
+        listed["extraction_preset"],
+        listed["extraction_labels"],
+        listed["extraction_strict_labels"],
+    ) == (None, ["OSOBA"], True)
+    detail = client.get(f"/spaces/{space}/articles/{listed['id']}", headers=alice.headers).json()
+    assert (detail["extraction_labels"], detail["extraction_strict_labels"]) == (["OSOBA"], True)
+
+
+def test_preset_no_longer_in_the_code_means_no_extra_rules(client, alice, space, llm, uploaded):
+    cypher("MATCH (s:Space {id: $s}) SET s.extraction_preset = 'gone'", s=space)
+    settings = client.get(f"/spaces/{space}/extraction-settings", headers=alice.headers).json()
+    assert settings["preset"] is None
+
+    run(uploaded())
+    assert llm.calls[0]["rules"] is None
+    [listed] = client.get(f"/spaces/{space}/articles", headers=alice.headers).json()
+    assert listed["extraction_preset"] is None
 
 
 def test_evidence_becomes_spans_of_the_cited_sentence(space, llm, uploaded):

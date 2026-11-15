@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { FilePlus2Icon, ScanSearchIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCurrentSpace } from '@/components/nav/useCurrentSpace'
@@ -22,7 +23,7 @@ function Summary({ totals, since }: { totals: HomeTotals; since: string | null }
     since && totals.new_articles + totals.new_entities > 0
       ? [totals.new_articles, totals.new_entities, 'Od ostatniej wizyty']
       : [totals.week_articles, totals.week_entities, 'W tym tygodniu']
-  if (articles + entities === 0) return <>Wgraj artykuły, a model zbuduje z nich graf powiązań.</>
+  if (articles + entities === 0) return <>Dodaj artykuły, a model zbuduje z nich graf powiązań.</>
   // Parts that are 0 are left out; the verb agrees with the first part named.
   const parts = [
     {
@@ -97,11 +98,17 @@ export function HomePage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Button asChild variant="primary" size="sm">
-              <Link to="/spaces">Załaduj artykuły</Link>
-            </Button>
             <Button asChild variant="secondary" size="sm">
-              <Link to="/analyses">Nowa analiza</Link>
+              <Link to="/analyses">
+                <ScanSearchIcon />
+                Nowa analiza
+              </Link>
+            </Button>
+            <Button asChild variant="primary" size="sm">
+              <Link to="/spaces">
+                <FilePlus2Icon />
+                Dodaj artykuły
+              </Link>
             </Button>
           </div>
         </header>
