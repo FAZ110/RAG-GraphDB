@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { UploadIcon } from 'lucide-react'
-import { IconButton } from '@/components/deck'
+import { FilePlus2Icon } from 'lucide-react'
+import { Button } from '@/components/deck'
 import { useAddArticlesClick } from '../add/addArticlesContext'
 import { ArticleSearch } from './ArticleSearch'
 
@@ -31,7 +31,7 @@ export function ArticlesToolbar({
   const addArticles = useAddArticlesClick(spaceId)
 
   return (
-    <div className="flex min-h-10 items-center gap-x-4">
+    <div className="@container flex min-h-10 items-center gap-x-4">
       <div className="max-w-full min-w-0">{title}</div>
       {hasArticles && (
         <div className="flex flex-1 items-center justify-end gap-2">
@@ -42,10 +42,17 @@ export function ArticlesToolbar({
             onOpenChange={onSearchingChange}
             status={status}
           />
-          <IconButton size="icon-lg" label="Dodaj artykuły" onClick={addArticles}>
-            <UploadIcon />
-          </IconButton>
           {extraActions}
+          <Button
+            variant="primary"
+            aria-label="Dodaj artykuły"
+            title="Dodaj artykuły"
+            className="px-3 @xl:px-4"
+            onClick={addArticles}
+          >
+            <FilePlus2Icon />
+            <span className="hidden @xl:inline">Dodaj artykuły</span>
+          </Button>
         </div>
       )}
     </div>
