@@ -7,6 +7,10 @@ load_dotenv()
 NEO4J_URI = os.getenv("NEO4J_URI")
 NEO4J_USER = os.getenv("NEO4J_USER")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
+# Connections each process may hold; with many API processes Neo4j must accept all of them.
+NEO4J_POOL_SIZE = int(os.getenv("NEO4J_POOL_SIZE", "100"))
+QUERY_TIMEOUT_SECONDS = int(os.getenv("QUERY_TIMEOUT_SECONDS", "30"))
+TASK_QUERY_TIMEOUT_SECONDS = int(os.getenv("TASK_QUERY_TIMEOUT_SECONDS", "60"))
 
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "local")
 
@@ -41,6 +45,10 @@ DEDUP_SUGGEST_MIN = float(os.getenv("DEDUP_SUGGEST_MIN", "0.5"))
 DEDUP_SUGGEST_LEXICAL_MIN = float(os.getenv("DEDUP_SUGGEST_LEXICAL_MIN", "0.8"))
 DEDUP_SUGGEST_ANY_NAME_MIN = float(os.getenv("DEDUP_SUGGEST_ANY_NAME_MIN", "0.9"))
 DEDUP_TOP_K = int(os.getenv("DEDUP_TOP_K", "5"))
+
+# Optional, for many workers: calls per minute to the server's model counted across all of them.
+# Unset, each worker keeps to Celery's own 10 a minute, which is enough with one worker.
+SERVER_LLM_PER_MINUTE = int(os.getenv("SERVER_LLM_PER_MINUTE") or 0) or None
 
 # Longer than a task can take: its 130 s time limit plus the countdowns of rate-limit retries.
 STALE_PROCESSING_MINUTES = int(os.getenv("STALE_PROCESSING_MINUTES", "15"))

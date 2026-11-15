@@ -123,12 +123,9 @@ export interface ProviderCheck {
 export interface ExtractionSettings {
     preset: string | null;
     labels: string[];
-    /** Entities labelled outside `labels` are left out of the graph. */
     strict_labels: boolean;
     presets: { key: string; name: string; description: string; rules: string }[];
-    /** Ready label sets; the first one is the default. */
     domains: { key: string; name: string; labels: string[] }[];
-    /** Templates as the backend sends them: `user` has `{label_rule}` and `{scope}`, the label rules have `{labels}`, `scope` has `{rules}`. */
     prompt: { scope: string; user: string; label_rule: string; strict_label_rule: string };
 }
 
@@ -149,7 +146,6 @@ export interface Article {
   created_at: string
   processed_at: string | null
   batch_id: string | null
-  /** What the current graph was extracted with; null before these were recorded. */
   extraction_preset: string | null
   extraction_labels: string[] | null
   extraction_strict_labels: boolean | null

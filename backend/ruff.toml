@@ -10,10 +10,23 @@ select = [
     "I",   # isort (kolejność importów)
     "UP",  # pyupgrade (nowoczesna składnia Pythona)
     "B",   # flake8-bugbear (częste błędy logiczne)
+    "TID251", # banned-api (Neo4j only through db/access)
 ]
 ignore = [
     "E501", # długość linii — pilnuje formatter
 ]
+
+[lint.flake8-tidy-imports.banned-api]
+"db.driver.get_driver".msg = "Query Neo4j through db.access.gate with a scope"
+"db.driver.get_sync_driver".msg = "Query Neo4j through db.access.sync_gate with a scope"
+"neo4j.GraphDatabase".msg = "Query Neo4j through db.access.sync_gate with a scope"
+"neo4j.AsyncGraphDatabase".msg = "Query Neo4j through db.access.gate with a scope"
+
+[lint.per-file-ignores]
+"db/driver.py" = ["TID251"]
+"db/access/gate.py" = ["TID251"]
+"db/access/sync_gate.py" = ["TID251"]
+"tests/**" = ["TID251"]
 
 [format]
 quote-style = "double"

@@ -1,6 +1,6 @@
 import re
 
-from db.query_loader import load_queries
+from db.access.queries import Query, load_queries
 
 _QUERIES = load_queries(__file__)
 
@@ -42,11 +42,11 @@ def _find_node(nodes: list[dict], node_id: str) -> dict:
 def build_statements(
     nodes: list[dict],
     edges: list[dict],
-    space_id: str,
     article_id: str,
     embeddings: dict[str, list[float]] | None = None,
-) -> list[tuple[str, dict]]:
-    """Queries that write an article's entities and relationships into its space.
+) -> list[tuple[Query, dict]]:
+    """Queries that write an article's entities and relationships into its space, which
+    the scope they run in fills in.
 
     Entities merge on (space_id, label, name), the `entity_key` constraint. Each
     relationship records the articles backing it in `article_ids`, which is what
@@ -60,7 +60,6 @@ def build_statements(
             (
                 _QUERIES["merge_entity"],
                 {
-                    "space_id": space_id,
                     "article_id": article_id,
                     "label": node["label"],
                     "name": node["properties"].get("name", ""),
@@ -81,7 +80,6 @@ def build_statements(
             (
                 _QUERIES["merge_relationship"],
                 {
-                    "space_id": space_id,
                     "article_id": article_id,
                     "type": edge["type"],
                     "source_label": src["label"],

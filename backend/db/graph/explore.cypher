@@ -1,4 +1,5 @@
 // name: relation_groups
+// scope: space
 // A node's neighbours counted per direction, relationship type and entity type.
 MATCH (n:Entity {space_id: $space_id, id: $node_id})-[r]-(m:Entity)
 RETURN CASE WHEN startNode(r) = n THEN 'out' ELSE 'in' END AS direction,
@@ -8,6 +9,7 @@ RETURN CASE WHEN startNode(r) = n THEN 'out' ELSE 'in' END AS direction,
 ORDER BY count DESC, type, label
 
 // name: common_neighbours
+// scope: space
 // Entities linked to at least $min_shared of the given ones, those sharing most first.
 MATCH (a:Entity {space_id: $space_id})-[r]-(m:Entity)
 WHERE a.id IN $ids AND NOT m.id IN $ids AND ($label IS NULL OR m.label = $label)
@@ -32,6 +34,7 @@ RETURN m.id AS id,
        total
 
 // name: shortest_paths
+// scope: space
 // Only through entities, never through the articles mentioning them. The path count and
 // length bounds are validated integers put into the query, as Cypher takes no parameters there.
 MATCH (s:Entity {space_id: $space_id, id: $source_id})
@@ -46,6 +49,7 @@ RETURN [n IN nodes(p) | n.id] AS node_ids,
        }] AS edges
 
 // name: entities_by_label
+// scope: space
 MATCH (n:Entity {space_id: $space_id, label: $label})
 WITH n, COUNT { (n)--(:Entity) } AS degree
 ORDER BY degree DESC, n.name
@@ -58,6 +62,7 @@ RETURN hit.n.id AS id,
        size(ranked) AS total
 
 // name: sources_for
+// scope: space
 // Articles mentioning any of the entities, those mentioning most of them first.
 MATCH (ar:Article)-[:MENTIONS]->(n:Entity {space_id: $space_id})
 WHERE n.id IN $ids

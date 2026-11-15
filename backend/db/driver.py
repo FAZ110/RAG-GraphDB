@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 from neo4j import AsyncDriver, AsyncGraphDatabase, Driver, GraphDatabase
 from neo4j.exceptions import DriverError, Neo4jError, TransientError
 
-from core.config import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
+from core.config import NEO4J_PASSWORD, NEO4J_POOL_SIZE, NEO4J_URI, NEO4J_USER
 from db.errors import GraphDatabaseError
 
 _driver: AsyncDriver | None = None
@@ -38,7 +38,9 @@ def translates_neo4j_errors[**P, R](fn: Callable[P, Awaitable[R]]) -> Callable[P
 def get_driver() -> AsyncDriver:
     global _driver
     if _driver is None:
-        _driver = AsyncGraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+        _driver = AsyncGraphDatabase.driver(
+            NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD), max_connection_pool_size=NEO4J_POOL_SIZE
+        )
     return _driver
 
 
@@ -46,7 +48,9 @@ def get_sync_driver() -> Driver:
     """Sync driver used by Celery workers, which do not run an event loop."""
     global _sync_driver
     if _sync_driver is None:
-        _sync_driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+        _sync_driver = GraphDatabase.driver(
+            NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD), max_connection_pool_size=NEO4J_POOL_SIZE
+        )
     return _sync_driver
 
 

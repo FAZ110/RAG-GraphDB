@@ -41,7 +41,6 @@ class ExtractionPrompt(BaseModel):
 class ExtractionSettings(BaseModel):
     preset: str | None
     labels: list[str]
-    # Entities labelled outside `labels` are left out of the graph.
     strict_labels: bool
     presets: list[ExtractionPreset]
     domains: list[LabelDomain]

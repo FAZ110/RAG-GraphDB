@@ -11,8 +11,7 @@ from api.analyses import router as analyses_router
 from api.articles import router as articles_router
 from api.auth import router as auth_router
 from api.batches import router as batches_router
-from api.debug import router as debug_router
-from api.dependencies import current_user, require_admin
+from api.dependencies import current_user
 from api.graph import router as graph_router
 from api.home import router as home_router
 from api.jobs import router as jobs_router
@@ -20,7 +19,7 @@ from api.search import router as search_router
 from api.settings import router as settings_router
 from api.spaces import router as spaces_router
 from core.config import API_DOCS, CORS_ORIGINS, DEV_ACCOUNTS
-from db.driver import close_driver, get_driver
+from db.driver import close_driver
 from db.errors import GraphDatabaseError
 from db.schema import ensure_schema
 from services.auth.bootstrap import ensure_dev_accounts
@@ -36,7 +35,6 @@ _SECURITY_HEADERS = {
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    get_driver()
     await ensure_schema()
     await ensure_dev_accounts(DEV_ACCOUNTS, CORS_ORIGINS)
     yield
@@ -92,7 +90,6 @@ app.include_router(home_router, dependencies=signed_in)
 app.include_router(search_router, dependencies=signed_in)
 app.include_router(settings_router, dependencies=signed_in)
 app.include_router(admin_router)
-app.include_router(debug_router, dependencies=[Depends(require_admin)])  # TEMP
 
 
 @app.get("/")

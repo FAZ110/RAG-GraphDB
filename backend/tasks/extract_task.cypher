@@ -1,4 +1,5 @@
 // name: similar_in_space
+// scope: space
 CALL db.index.vector.queryNodes('entity_embeddings', $search_k, $vec)
 YIELD node, score
 WHERE node.space_id = $space_id
@@ -12,6 +13,7 @@ ORDER BY score DESC
 LIMIT $top_k
 
 // name: suggest_duplicate
+// scope: space
 // Keyed by both entities' (label, name), which outlive the ids a re-extraction replaces,
 // so a pair the user rejected stays rejected.
 MERGE (s:DuplicateSuggestion {

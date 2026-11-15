@@ -1,9 +1,12 @@
 import uuid
 
 from core.secrets import decrypt, encrypt
-from db.driver import get_driver, get_sync_driver, translates_neo4j_errors
+from db.access import gate, sync_gate
+from db.access.queries import load_queries
+from db.access.runner import Runner
+from db.access.scopes import SYSTEM, SpaceScope, UserScope
+from db.driver import translates_neo4j_errors
 from db.errors import ApiKeyRequiredError
-from db.query_loader import load_queries
 
 _QUERIES = load_queries(__file__)
 _HINT_MIN_LENGTH = 16
@@ -17,32 +20,29 @@ def _key_fields(api_key: str) -> dict:
 
 
 @translates_neo4j_errors
-async def list_custom_providers(owner_id: str) -> list[dict]:
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["list_custom_providers"], {"owner_id": owner_id})
-        return [dict(r) async for r in res]
+async def list_custom_providers(scope: UserScope) -> list[dict]:
+    return [dict(r) for r in await gate.rows(scope, _QUERIES["list_custom_providers"])]
 
 
 @translates_neo4j_errors
 async def create_custom_provider(
-    owner_id: str, name: str, base_url: str, model: str, api_key: str | None, local: bool
+    scope: UserScope, name: str, base_url: str, model: str, api_key: str | None, local: bool
 ) -> dict:
     params = {
         "id": str(uuid.uuid4()),
-        "owner_id": owner_id,
         "name": name,
         "base_url": base_url,
         "model": model,
         "local": local,
         **_key_fields(api_key or ""),
     }
-    async with get_driver().session() as session:
-        return dict(await (await session.run(_QUERIES["create_custom_provider"], params)).single())
+    [row] = await gate.change(scope, _QUERIES["create_custom_provider"], params)
+    return dict(row)
 
 
 @translates_neo4j_errors
 async def update_custom_provider(
-    owner_id: str,
+    scope: UserScope,
     provider_id: str,
     name: str,
     base_url: str,
@@ -52,7 +52,6 @@ async def update_custom_provider(
 ) -> dict | None:
     params = {
         "id": provider_id,
-        "owner_id": owner_id,
         "name": name,
         "base_url": base_url,
         "model": model,
@@ -60,38 +59,33 @@ async def update_custom_provider(
         "replace_key": api_key is not None,
         **_key_fields(api_key or ""),
     }
-    async with get_driver().session() as session:
+
+    async def work(db: Runner) -> dict | None:
         if api_key is None:
-            res = await session.run(
-                _QUERIES["get_custom_provider_config"], {"id": provider_id, "owner_id": owner_id}
-            )
-            current = await res.single()
+            current = await db.single(_QUERIES["get_custom_provider_config"], {"id": provider_id})
             if current and current["api_key_encrypted"] and current["base_url"] != base_url:
                 raise ApiKeyRequiredError("Enter the API key again when changing the API address")
-        row = await (await session.run(_QUERIES["update_custom_provider"], params)).single()
+        row = await db.single(_QUERIES["update_custom_provider"], params)
         return dict(row) if row else None
 
-
-@translates_neo4j_errors
-async def delete_custom_provider(owner_id: str, provider_id: str) -> bool:
-    params = {"id": provider_id, "owner_id": owner_id}
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["delete_custom_provider"], params)
-        return (await res.single())["deleted"] > 0
+    return await gate.write(scope, work)
 
 
 @translates_neo4j_errors
-async def owns_custom_provider(owner_id: str, provider_id: str) -> bool:
-    params = {"id": provider_id, "owner_id": owner_id}
-    async with get_driver().session() as session:
-        res = await session.run(_QUERIES["get_custom_provider_config"], params)
-        return await res.single() is not None
+async def delete_custom_provider(scope: UserScope, provider_id: str) -> bool:
+    rows = await gate.change(scope, _QUERIES["delete_custom_provider"], {"id": provider_id})
+    return rows[0]["deleted"] > 0
 
 
-def custom_provider_config(provider_id: str, owner_id: str | None) -> dict | None:
-    params = {"id": provider_id, "owner_id": owner_id}
-    with get_sync_driver().session() as session:
-        row = session.run(_QUERIES["get_custom_provider_config"], params).single()
+@translates_neo4j_errors
+async def owns_custom_provider(scope: UserScope, provider_id: str) -> bool:
+    row = await gate.single(scope, _QUERIES["get_custom_provider_config"], {"id": provider_id})
+    return row is not None
+
+
+def custom_provider_config(scope: SpaceScope | UserScope, provider_id: str) -> dict | None:
+    """The owner's provider with its key, as extraction and the model check use it."""
+    row = sync_gate.single(scope, _QUERIES["get_custom_provider_config"], {"id": provider_id})
     if row is None:
         return None
     token = row["api_key_encrypted"]
@@ -105,6 +99,5 @@ def custom_provider_config(provider_id: str, owner_id: str | None) -> dict | Non
 def custom_provider_is_local(provider_id: str) -> bool:
     """Whether the model runs on the user's computer. A model deleted meanwhile counts as
     local; its task then fails on its own."""
-    with get_sync_driver().session() as session:
-        row = session.run(_QUERIES["get_custom_provider_local"], {"id": provider_id}).single()
+    row = sync_gate.single(SYSTEM, _QUERIES["get_custom_provider_local"], {"id": provider_id})
     return row["local"] if row else True

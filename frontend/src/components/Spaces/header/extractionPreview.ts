@@ -38,7 +38,6 @@ type Extracted = Pick<
   'extraction_preset' | 'extraction_labels' | 'extraction_strict_labels'
 >
 
-/** Whether the space's settings have moved on since the article's graph was extracted. */
 export function extractedWithOtherSettings(
   article: Extracted,
   current: Pick<ExtractionSettings, 'preset' | 'labels' | 'strict_labels'>
