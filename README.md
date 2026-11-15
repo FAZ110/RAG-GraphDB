@@ -17,6 +17,14 @@ PostgreSQL is not part of `docker-compose.yml` and must be running locally. `Ctr
 
 The passwords of Neo4j, RabbitMQ and Redis are read from `backend/.env` (see `backend/.env.example`), so run Compose as `docker compose --env-file backend/.env ...`. Their ports listen on 127.0.0.1 only.
 
+## Scaling
+
+Not needed to run the app: without these settings it runs as it always has. On a bigger server they are set in `backend/.env` alone, with no code changes (see the commented block in `backend/.env.example`).
+
+- `WEB_CONCURRENCY` API processes; `WORKER_CONCURRENCY` and `CUSTOM_WORKER_CONCURRENCY` extractions at once per worker container. More containers: `docker compose --env-file backend/.env up -d --scale worker=3`.
+- `SERVER_LLM_PER_MINUTE` once there are several workers: the server model's limit counted across all of them, instead of Celery's 10 a minute per worker.
+- `NEO4J_HEAP_INITIAL`, `NEO4J_HEAP_MAX`, `NEO4J_PAGECACHE`, `NEO4J_POOL_SIZE`: Neo4j Community grows with its machine only, so give it the memory to hold the whole store in the page cache.
+
 ## Accounts
 
 Every user sees only their own spaces, articles, analyses and custom models. The app is opened at http://localhost:5173 and calls the API under `/api` on the same origin (Vite proxy in development, nginx in Docker), which the `SameSite=Strict` session cookie needs.

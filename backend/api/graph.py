@@ -45,7 +45,7 @@ from schemas.graph import (
     RelationshipCreate,
     RelationshipUpdate,
 )
-from services.embedding_service import embedding_text, get_embedding_service
+from services.embedding_service import embed_in_thread, embedding_text
 
 router = APIRouter(
     prefix="/spaces/{space_id}/graph",
@@ -155,7 +155,7 @@ async def get_edge_sources(space: SpaceAccess, edge_id: str):
 
 @router.get("/search")
 async def search(space: SpaceAccess, q: str, top_k: int = Query(10, ge=1, le=100)):
-    vec = get_embedding_service().embed(q)
+    vec = await embed_in_thread(q)
     return await search_nodes(space, vec, top_k)
 
 
@@ -183,7 +183,7 @@ async def post_node(space: SpaceAccess, body: EntityCreate):
 @router.post("/nodes/similar")
 async def post_similar(space: SpaceAccess, body: EntityCreate):
     """Existing entities the node about to be created would likely duplicate."""
-    vec = get_embedding_service().embed(embedding_text(body.label, body.name, body.description))
+    vec = await embed_in_thread(embedding_text(body.label, body.name, body.description))
     return await existing_like(space, vec, body.label, [body.name, *body.aliases], 3)
 
 

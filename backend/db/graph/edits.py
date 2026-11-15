@@ -14,7 +14,7 @@ from db.driver import translates_neo4j_errors
 from db.errors import EntityKeyTakenError, GraphDatabaseError
 from db.graph.reads import _edge, _node
 from db.graph.writer import _RESERVED_PROPS, GRAPH_WRITE_LOCK, _assert_safe_identifier
-from services.embedding_service import embedding_text, get_embedding_service
+from services.embedding_service import embed_in_thread, embedding_text
 
 _QUERIES = load_queries(__file__)
 # Extraction holds the lock for one article's write; edits wait a little less than a request.
@@ -56,8 +56,8 @@ async def _write[R](scope: SpaceScope, work: Callable[[Runner], Awaitable[R]]) -
             raise EntityKeyTakenError(str(e.message)) from e
 
 
-def _embed(label: str, name: str, description: str | None) -> list[float]:
-    return get_embedding_service().embed(embedding_text(label, name, description))
+async def _embed(label: str, name: str, description: str | None) -> list[float]:
+    return await embed_in_thread(embedding_text(label, name, description))
 
 
 def _clean_aliases(aliases: list[str], name: str) -> list[str]:
@@ -85,7 +85,7 @@ async def create_entity(
         "description": description,
         "type": type_,
         "aliases": _clean_aliases(aliases, name),
-        "embedding": _embed(label, name, description),
+        "embedding": await _embed(label, name, description),
     }
 
     async def work(db: Runner) -> dict:
@@ -114,7 +114,7 @@ async def update_entity(scope: SpaceScope, node_id: str, changes: dict) -> dict 
             aliases = [*aliases, props["name"]]
         embedding = props.get("embedding")
         if (label, name, description) != (row["label"], props["name"], props.get("description")):
-            embedding = _embed(label, name, description)
+            embedding = await _embed(label, name, description)
         return await _single(
             db,
             "update_entity",
@@ -161,7 +161,7 @@ async def merge_entities(scope: SpaceScope, keep_id: str, dup_id: str) -> bool:
         # Only fills what `keep` lacks; its name and label stay.
         props = {k: v for k, v in dp.items() if k not in _MERGE_SKIP and kp.get(k) is None}
         if "description" in props:
-            props["embedding"] = _embed(keep["label"], kp["name"], props["description"])
+            props["embedding"] = await _embed(keep["label"], kp["name"], props["description"])
         for name in ("merge_mentions", "merge_outgoing", "merge_incoming", "merge_analyses"):
             await db.run(_QUERIES[name], params)
         await db.run(

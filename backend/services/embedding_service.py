@@ -1,3 +1,5 @@
+import asyncio
+
 from openai import OpenAI
 
 from core.config import (
@@ -43,6 +45,11 @@ def get_embedding_service() -> EmbeddingService:
     if _service is None:
         _service = EmbeddingService(provider=EMBEDDING_PROVIDER)
     return _service
+
+
+async def embed_in_thread(text: str) -> list[float]:
+    """For async code: the blocking HTTP call would otherwise stall every request of the process."""
+    return await asyncio.to_thread(get_embedding_service().embed, text)
 
 
 def embedding_text(label: str, name: str, description: str | None) -> str:

@@ -85,3 +85,28 @@ CREATE CONSTRAINT analysis_id IF NOT EXISTS FOR (a:Analysis) REQUIRE a.id IS UNI
 // name: analysis_space
 // scope: system
 CREATE INDEX analysis_space IF NOT EXISTS FOR (a:Analysis) ON (a.space_id)
+
+// name: provider_id
+// scope: system
+CREATE CONSTRAINT provider_id IF NOT EXISTS FOR (p:LlmProvider) REQUIRE p.id IS UNIQUE
+
+// name: app_settings_id
+// scope: system
+// The settings are one node MERGEd on this id; unique, so two first requests cannot make two.
+CREATE CONSTRAINT app_settings_id IF NOT EXISTS FOR (a:AppSettings) REQUIRE a.id IS UNIQUE
+
+// name: duplicate_suggestion_key
+// scope: system
+// The key extraction MERGEs suggestions on: a lookup instead of a scan of the space's suggestions.
+CREATE CONSTRAINT duplicate_suggestion_key IF NOT EXISTS
+FOR (s:DuplicateSuggestion) REQUIRE (s.space_id, s.a_label, s.a_name, s.b_label, s.b_name) IS UNIQUE
+
+// name: entity_space_label
+// scope: system
+// One type's entities in a space, without reading every entity of the space.
+CREATE INDEX entity_space_label IF NOT EXISTS FOR (e:Entity) ON (e.space_id, e.label)
+
+// name: article_space_status
+// scope: system
+// Stalled, failed and retried articles of a space, checked on most article requests.
+CREATE INDEX article_space_status IF NOT EXISTS FOR (a:Article) ON (a.space_id, a.status)

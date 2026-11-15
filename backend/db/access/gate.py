@@ -3,19 +3,19 @@ from typing import Any
 
 from neo4j import AsyncManagedTransaction, Record, unit_of_work
 
+from core.config import QUERY_TIMEOUT_SECONDS
 from db.access.queries import Query
 from db.access.runner import Runner
 from db.access.scopes import Scope
 from db.driver import get_driver
 
 # The one way the API reaches Neo4j: every query goes through a scope, reads in read mode.
-_TIMEOUT_SECONDS = 30
 
 type Work[R] = Callable[[Runner], Awaitable[R]]
 
 
 def _in_transaction[R](scope: Scope, work: Work[R]):
-    @unit_of_work(timeout=_TIMEOUT_SECONDS)
+    @unit_of_work(timeout=QUERY_TIMEOUT_SECONDS)
     async def run(tx: AsyncManagedTransaction) -> R:
         return await work(Runner(scope, tx))
 

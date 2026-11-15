@@ -14,6 +14,7 @@ from core.config import (
     DEDUP_THRESHOLD,
     DEDUP_TOP_K,
     REDIS_URL,
+    SERVER_LLM_PER_MINUTE,
 )
 from db.access import sync_gate
 from db.access.queries import load_queries
@@ -38,6 +39,7 @@ from services.dedup import (
 )
 from services.embedding_service import embedding_text, get_embedding_service
 from services.evidence import mentioning, numbered, split_sentences, to_spans
+from services.jobs.llm_quota import server_llm_wait
 from services.jobs.results import push_result
 from services.llm_service import CUSTOM_PROVIDER_PREFIX, LLMService
 
@@ -85,8 +87,9 @@ def _take_slot(provider: str) -> Callable[[], None]:
     return release
 
 
-# Server models share one API key, so they share its rate limit.
-@celery_app.task(**_TASK_OPTIONS, rate_limit="10/m")
+# Server models share one API key, so they share its rate limit: Celery's per worker by default,
+# one counted across all workers when SERVER_LLM_PER_MINUTE is set.
+@celery_app.task(**_TASK_OPTIONS, rate_limit=None if SERVER_LLM_PER_MINUTE else "10/m")
 def extract_article_task(
     self,
     job_id: str,
@@ -141,6 +144,11 @@ def drop_queued(tokens: list[str]) -> None:
 def _extract(
     self, job_id: str, article_id: str, title: str | None, provider: str, token: str | None
 ) -> None:
+    if SERVER_LLM_PER_MINUTE and not provider.startswith(CUSTOM_PROVIDER_PREFIX):
+        wait = server_llm_wait(redis.from_url(REDIS_URL), SERVER_LLM_PER_MINUTE)
+        if wait:
+            # Waiting for a slot is not a failure, so it never uses up the task's retries.
+            raise self.retry(countdown=wait, max_retries=None)
     try:
         result = _run_extraction(job_id, article_id, provider, token)
     except SoftTimeLimitExceeded:
