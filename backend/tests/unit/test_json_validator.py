@@ -25,6 +25,13 @@ def test_alias_given_as_string_becomes_list():
     assert validate_graph_json(graph({"aliases": "JK"})).nodes[0].aliases == ["JK"]
 
 
+def test_missing_name_taken_from_first_alias():
+    n = validate_graph_json(
+        graph({"properties": {}, "aliases": [" ", "Ewa Pajor", "Pajor"]})
+    ).nodes[0]
+    assert (n.properties["name"], n.aliases) == ("Ewa Pajor", ["Pajor"])
+
+
 @pytest.mark.parametrize(
     "bad",
     [

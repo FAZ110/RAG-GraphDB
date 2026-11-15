@@ -4,7 +4,7 @@ from core.secrets import decrypt, encrypt
 from db.access import gate, sync_gate
 from db.access.queries import load_queries
 from db.access.runner import Runner
-from db.access.scopes import SpaceScope, UserScope
+from db.access.scopes import SYSTEM, SpaceScope, UserScope
 from db.driver import translates_neo4j_errors
 from db.errors import ApiKeyRequiredError
 
@@ -26,13 +26,14 @@ async def list_custom_providers(scope: UserScope) -> list[dict]:
 
 @translates_neo4j_errors
 async def create_custom_provider(
-    scope: UserScope, name: str, base_url: str, model: str, api_key: str | None
+    scope: UserScope, name: str, base_url: str, model: str, api_key: str | None, local: bool
 ) -> dict:
     params = {
         "id": str(uuid.uuid4()),
         "name": name,
         "base_url": base_url,
         "model": model,
+        "local": local,
         **_key_fields(api_key or ""),
     }
     [row] = await gate.change(scope, _QUERIES["create_custom_provider"], params)
@@ -41,13 +42,20 @@ async def create_custom_provider(
 
 @translates_neo4j_errors
 async def update_custom_provider(
-    scope: UserScope, provider_id: str, name: str, base_url: str, model: str, api_key: str | None
+    scope: UserScope,
+    provider_id: str,
+    name: str,
+    base_url: str,
+    model: str,
+    api_key: str | None,
+    local: bool,
 ) -> dict | None:
     params = {
         "id": provider_id,
         "name": name,
         "base_url": base_url,
         "model": model,
+        "local": local,
         "replace_key": api_key is not None,
         **_key_fields(api_key or ""),
     }
@@ -75,8 +83,8 @@ async def owns_custom_provider(scope: UserScope, provider_id: str) -> bool:
     return row is not None
 
 
-def custom_provider_config(scope: SpaceScope, provider_id: str) -> dict | None:
-    """The provider of the space's owner, as the extraction worker uses it."""
+def custom_provider_config(scope: SpaceScope | UserScope, provider_id: str) -> dict | None:
+    """The owner's provider with its key, as extraction and the model check use it."""
     row = sync_gate.single(scope, _QUERIES["get_custom_provider_config"], {"id": provider_id})
     if row is None:
         return None
@@ -86,3 +94,10 @@ def custom_provider_config(scope: SpaceScope, provider_id: str) -> dict | None:
         "model": row["model"],
         "api_key": decrypt(token) if token else None,
     }
+
+
+def custom_provider_is_local(provider_id: str) -> bool:
+    """Whether the model runs on the user's computer. A model deleted meanwhile counts as
+    local; its task then fails on its own."""
+    row = sync_gate.single(SYSTEM, _QUERIES["get_custom_provider_local"], {"id": provider_id})
+    return row["local"] if row else True

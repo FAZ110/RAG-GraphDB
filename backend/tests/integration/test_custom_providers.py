@@ -117,3 +117,63 @@ def test_own_provider_goes_to_the_custom_queue(client, alice, space, provider, q
     body = {"articles": [{"content": "Tekst."}], "provider": f"custom:{provider['id']}"}
     assert client.post(f"/spaces/{space}/articles", json=body, headers=alice.headers).is_success
     assert queued[0]["provider"] == f"custom:{provider['id']}"
+
+
+@pytest.fixture
+def checked(monkeypatch) -> list:
+    calls = []
+
+    def fake_check(base_url, model, api_key):
+        calls.append((base_url, model, api_key))
+        return True, "ok"
+
+    monkeypatch.setattr("api.settings.check_model", fake_check)
+    return calls
+
+
+def check_conn(client, user, **body):
+    return client.post("/settings/providers/test", json=body, headers=user.headers)
+
+
+def test_connection_test_refuses_our_network(client, alice, checked):
+    r = check_conn(client, alice, base_url="http://127.0.0.1:7474/v1", model="m")
+    assert r.status_code == 422 and checked == []
+
+
+def test_connection_test_uses_saved_key_only_for_its_address(client, alice, bob, provider, checked):
+    pid = provider["id"]
+    assert check_conn(client, alice, **BASE, provider_id=pid).json() == {
+        "ok": True,
+        "message": "ok",
+    }
+    check_conn(client, alice, **{**BASE, "base_url": "https://inny.example/v1"}, provider_id=pid)
+    check_conn(client, bob, **BASE, provider_id=pid)
+    check_conn(client, alice, **BASE, api_key="sk-nowy", provider_id=pid)
+    assert [c[2] for c in checked] == [KEY, None, None, "sk-nowy"]
+
+
+def test_local_defaults_to_off_and_can_be_switched_on(client, alice, provider):
+    assert provider["local"] is False
+    assert put(client, alice, provider["id"], **BASE, local=True).json()["local"] is True
+    assert client.get("/settings/providers", headers=alice.headers).json()[0]["local"] is True
+
+
+def test_worker_reads_the_saved_switch(client, alice, provider):
+    from db.settings import custom_provider_is_local
+
+    assert custom_provider_is_local(provider["id"]) is False
+    put(client, alice, provider["id"], **BASE, local=True)
+    assert custom_provider_is_local(provider["id"]) is True
+    assert custom_provider_is_local("usuniety") is True
+
+
+@pytest.mark.parametrize(("max_parallel", "local"), [(1, True), (4, False)])
+def test_model_saved_with_a_parallel_limit_counts_as_local_at_one(
+    client, alice, provider, max_parallel, local
+):
+    cypher(
+        "MATCH (p:LlmProvider {id: $id}) REMOVE p.local SET p.max_parallel = $n",
+        id=provider["id"],
+        n=max_parallel,
+    )
+    assert client.get("/settings/providers", headers=alice.headers).json()[0]["local"] is local

@@ -1,4 +1,4 @@
-import type { BulkExtractRequest, CustomProvider, CustomProviderInput, DuplicateSuggestion, ExpansionResponse, OverviewResponse, ExtractionSettings, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
+import type { BulkExtractRequest, CustomProvider, CustomProviderInput, ProviderCheck, DuplicateSuggestion, ExpansionResponse, OverviewResponse, ExtractionSettings, JobSubmitResponse, SeedResponse, SimilarNode, Space, SpaceStats, Article, ArticleDetail, ArticlesDeleted, Batch, SearchResults, NodeSource, LoadedNode, LoadedEdge, NodeFields } from '../types';
 
 export const API_URL = import.meta.env.VITE_API_URL ?? '/api';
 
@@ -147,6 +147,10 @@ export const createCustomProvider = (provider: CustomProviderInput) =>
 
 export const updateCustomProvider = (id: string, provider: CustomProviderInput) =>
   sendJson<CustomProvider>(customProviderUrl(id), 'PUT', provider);
+
+export const testCustomProvider = (
+  provider: Omit<CustomProviderInput, 'name' | 'local'> & { provider_id: string | null }
+) => sendJson<ProviderCheck>(`${customProvidersUrl}/test`, 'POST', provider);
 
 export const deleteCustomProvider = (id: string) => sendJson<void>(customProviderUrl(id), 'DELETE');
 

@@ -3,6 +3,7 @@ import {
   createCustomProvider,
   deleteCustomProvider,
   fetchCustomProviders,
+  testCustomProvider,
   updateCustomProvider,
 } from '../services/api'
 import { toast } from 'sonner'
@@ -42,4 +43,8 @@ export function useDeleteCustomProvider() {
     },
     onError: (error) => toast.error(error.message),
   })
+}
+
+export function useTestCustomProvider() {
+  return useMutation({ mutationFn: testCustomProvider })
 }

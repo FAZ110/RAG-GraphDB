@@ -72,7 +72,7 @@ def _sample_params(bob: dict) -> dict:
         "edges_count": 0, "embedding": vec, "entities": [{"id": bob["nodes"][0], "x": 0, "y": 0}],
         "force": True, "gap_minutes": 30, "id": bob["provider"], "ids": bob["nodes"],
         "keep_id": bob["nodes"][0], "label": "OSOBA", "labels": ["OSOBA"], "lexical": 1.0,
-        "lexical_min": 0.0, "limit": 100, "min_shared": 1, "model": "m", "name": "Jan",
+        "lexical_min": 0.0, "limit": 100, "local": True, "min_shared": 1, "model": "m", "name": "Jan",
         "node_id": bob["nodes"][0], "nodes_count": 0, "offset": 0, "old_label": "OSOBA",
         "props": {}, "provider": "local", "q": "a", "replace_key": True,
         "requested_id": bob["space"], "revision": 0, "rules": "Przejęte", "score": 1.0,
