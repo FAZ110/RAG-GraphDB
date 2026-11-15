@@ -28,6 +28,11 @@ class Article(BaseModel):
     created_at: datetime
     processed_at: datetime | None
     batch_id: str | None = None
+    # The settings the current graph was extracted with; all None before the first extraction
+    # and for articles extracted before these were recorded.
+    extraction_preset: str | None = None
+    extraction_labels: list[str] | None = None
+    extraction_strict_labels: bool | None = None
 
 
 Span = tuple[int, int]

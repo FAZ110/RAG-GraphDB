@@ -99,6 +99,28 @@ def test_strict_labels_keep_only_listed_entities(client, alice, space, llm, uplo
     assert entities(space) == ["Jan Kowalski"]
     assert result["edges_count"] == 0
 
+    # The article keeps what it was extracted with, also once the space's settings move on.
+    client.put(url, json={"preset": "people"}, headers=alice.headers)
+    [listed] = client.get(f"/spaces/{space}/articles", headers=alice.headers).json()
+    assert (
+        listed["extraction_preset"],
+        listed["extraction_labels"],
+        listed["extraction_strict_labels"],
+    ) == (None, ["OSOBA"], True)
+    detail = client.get(f"/spaces/{space}/articles/{listed['id']}", headers=alice.headers).json()
+    assert (detail["extraction_labels"], detail["extraction_strict_labels"]) == (["OSOBA"], True)
+
+
+def test_preset_no_longer_in_the_code_means_no_extra_rules(client, alice, space, llm, uploaded):
+    cypher("MATCH (s:Space {id: $s}) SET s.extraction_preset = 'gone'", s=space)
+    settings = client.get(f"/spaces/{space}/extraction-settings", headers=alice.headers).json()
+    assert settings["preset"] is None
+
+    run(uploaded())
+    assert llm.calls[0]["rules"] is None
+    [listed] = client.get(f"/spaces/{space}/articles", headers=alice.headers).json()
+    assert listed["extraction_preset"] is None
+
 
 def test_evidence_becomes_spans_of_the_cited_sentence(space, llm, uploaded):
     run(uploaded())

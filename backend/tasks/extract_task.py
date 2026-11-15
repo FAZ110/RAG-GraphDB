@@ -353,6 +353,9 @@ def _process_article(
                         article["content_hash"],
                         len(nodes_dicts),
                         len(edges_dicts),
+                        article["preset"] if preset else None,
+                        labels,
+                        strict,
                     )
                     tx.commit()
         except Neo4jError as e:
