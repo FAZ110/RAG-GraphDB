@@ -9,11 +9,11 @@ services:
     environment:
       # Applies when the data volume is created; to change it later use ALTER CURRENT USER.
       - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:?set NEO4J_PASSWORD in backend/.env}
-      # On a bigger server raise these in backend/.env; `neo4j-admin server memory-recommendation`
-      # suggests the split. The page cache should fit the whole store.
-      - NEO4J_server_memory_heap_initial__size=${NEO4J_HEAP:-1G}
-      - NEO4J_server_memory_heap_max__size=${NEO4J_HEAP:-1G}
-      - NEO4J_server_memory_pagecache_size=${NEO4J_PAGECACHE:-512m}
+      # Optional, for a bigger server: set these in backend/.env. Left unset, the page cache is
+      # Neo4j's own pick (an empty setting is skipped).
+      - NEO4J_server_memory_heap_initial__size=${NEO4J_HEAP_INITIAL:-512m}
+      - NEO4J_server_memory_heap_max__size=${NEO4J_HEAP_MAX:-1G}
+      - NEO4J_server_memory_pagecache_size=${NEO4J_PAGECACHE:-}
     volumes:
       - neo4j_data:/data
     healthcheck:

@@ -44,8 +44,9 @@ CUSTOM_QUEUE = "custom"
 _TASK_OPTIONS = {"bind": True, "max_retries": 5, "soft_time_limit": 120, "time_limit": 130}
 
 
-# Server models share one API key, so _extract waits for a slot under its limit.
-@celery_app.task(**_TASK_OPTIONS)
+# Server models share one API key, so they share its rate limit: Celery's per worker by default,
+# one counted across all workers when SERVER_LLM_PER_MINUTE is set.
+@celery_app.task(**_TASK_OPTIONS, rate_limit=None if SERVER_LLM_PER_MINUTE else "10/m")
 def extract_article_task(
     self,
     job_id: str,
@@ -96,7 +97,7 @@ def drop_queued(tokens: list[str]) -> None:
 def _extract(
     self, job_id: str, article_id: str, title: str | None, provider: str, token: str | None
 ) -> None:
-    if not provider.startswith(CUSTOM_PROVIDER_PREFIX):
+    if SERVER_LLM_PER_MINUTE and not provider.startswith(CUSTOM_PROVIDER_PREFIX):
         wait = server_llm_wait(redis.from_url(REDIS_URL), SERVER_LLM_PER_MINUTE)
         if wait:
             # Waiting for a slot is not a failure, so it never uses up the task's retries.

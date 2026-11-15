@@ -19,11 +19,11 @@ The passwords of Neo4j, RabbitMQ and Redis are read from `backend/.env` (see `ba
 
 ## Scaling
 
-Capacity is set in `backend/.env` alone; the defaults in `backend/.env.example` suit a laptop.
+Not needed to run the app: without these settings it runs as it always has. On a bigger server they are set in `backend/.env` alone, with no code changes (see the commented block in `backend/.env.example`).
 
 - `WEB_CONCURRENCY` API processes; `WORKER_CONCURRENCY` and `CUSTOM_WORKER_CONCURRENCY` extractions at once per worker container. More containers: `docker compose --env-file backend/.env up -d --scale worker=3`.
-- `SERVER_LLM_PER_MINUTE` the server model's limit, shared by all workers however many there are.
-- `NEO4J_HEAP`, `NEO4J_PAGECACHE`, `NEO4J_POOL_SIZE`: Neo4j Community grows with its machine only, so give it the memory to hold the whole store in the page cache.
+- `SERVER_LLM_PER_MINUTE` once there are several workers: the server model's limit counted across all of them, instead of Celery's 10 a minute per worker.
+- `NEO4J_HEAP_INITIAL`, `NEO4J_HEAP_MAX`, `NEO4J_PAGECACHE`, `NEO4J_POOL_SIZE`: Neo4j Community grows with its machine only, so give it the memory to hold the whole store in the page cache.
 
 ## Accounts
 
