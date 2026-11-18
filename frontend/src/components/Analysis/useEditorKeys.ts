@@ -3,6 +3,7 @@ import { useEffect, useEffectEvent } from 'react'
 export type EditorKey =
   | 'search'
   | 'expand'
+  | 'mentions'
   | 'common'
   | 'path'
   | 'type'
@@ -23,6 +24,7 @@ const isTyping = (target: EventTarget | null) => {
 const LETTERS: Record<string, EditorKey> = {
   '/': 'search',
   e: 'expand',
+  m: 'mentions',
   c: 'common',
   p: 'path',
   t: 'type',

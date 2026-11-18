@@ -1,4 +1,4 @@
-import { BlendIcon, RouteIcon, Trash2Icon, XIcon } from 'lucide-react'
+import { BlendIcon, RouteIcon, Trash2Icon, Wand2Icon, XIcon } from 'lucide-react'
 import { Button, IconButton, Kbd, Swatch } from '@/components/deck'
 import { ENTITY_FORMS, pluralForm } from '@/components/Spaces/spaceText'
 import { FloatingPanel } from '@/components/workspace/FloatingPanel'
@@ -9,11 +9,19 @@ interface Props {
   nodes: LoadedNode[]
   onCommon: () => void
   onPath: () => void
+  onTidy: () => void
   onRemove: () => void
   onDeselect: (id: string) => void
 }
 
-export function SelectionInspector({ nodes, onCommon, onPath, onRemove, onDeselect }: Props) {
+export function SelectionInspector({
+  nodes,
+  onCommon,
+  onPath,
+  onTidy,
+  onRemove,
+  onDeselect,
+}: Props) {
   return (
     <FloatingPanel title={`Zaznaczone: ${nodes.length} ${pluralForm(nodes.length, ENTITY_FORMS)}`}>
       <div className="flex flex-col gap-2 p-3">
@@ -29,6 +37,11 @@ export function SelectionInspector({ nodes, onCommon, onPath, onRemove, onDesele
             <Kbd>P</Kbd>
           </Button>
         )}
+        <Button size="sm" onClick={onTidy} className="justify-start">
+          <Wand2Icon />
+          Ułóż zaznaczone
+          <Kbd>L</Kbd>
+        </Button>
         <Button size="sm" variant="danger-outline" onClick={onRemove} className="justify-start">
           <Trash2Icon />
           Usuń z analizy

@@ -5,6 +5,11 @@ export interface CanvasNode extends Point {
   name: string
   label: string
   degree: number
+  /** In place of its type's colour and the size its links give it, e.g. for a group. */
+  color?: string
+  size?: number
+  /** Drawn with an ink ring, e.g. one the canvas would fall apart without. */
+  ring?: boolean
   /** A proposal not yet on the canvas: pale, dashed, added with a click. */
   ghost?: boolean
 }
@@ -34,8 +39,11 @@ export interface Insets {
   left: number
 }
 
-/** Refined: stress, edges sized for their labels, communities. Basic: springs alone. */
-export type TidyWay = 'refined' | 'basic'
+/**
+ * Keep: nothing moves but what overlaps. Refined: laid out afresh with stress, edges sized for
+ * their labels, communities. Basic: springs alone, from where things stand.
+ */
+export type TidyWay = 'keep' | 'refined' | 'basic'
 
 export interface CanvasHandle {
   fit: (ids?: string[]) => void
@@ -47,8 +55,8 @@ export interface CanvasHandle {
   viewport: () => Viewport
   /** Lay out without overlaps: only `moving` if given, the rest staying put; otherwise all. */
   arrange: (moving?: readonly string[]) => Promise<PlacedId[]>
-  /** Lay everything out afresh: refined, or the first plain way kept to compare against. */
-  tidy: (way?: TidyWay) => Promise<PlacedId[]>
+  /** Given `only`, lay just those out afresh where they stand, the rest staying put. */
+  tidy: (way?: TidyWay, only?: readonly string[]) => Promise<PlacedId[]>
   /** Where these ghosts would settle among the canvas, worked out without moving anything. */
   plan: (ids: readonly string[]) => Promise<Map<string, Point>>
 }

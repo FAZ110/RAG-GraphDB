@@ -7,27 +7,23 @@ import { TIDY_WAYS, tidyWay } from './tidyWay'
 
 interface Props {
   label: string
+  short: string
   unavailable?: string
   onTidy: () => void
 }
 
 /** Tidy the canvas, with a switch beside it for which way to tidy. */
-export function TidyButton({ label, unavailable, onTidy }: Props) {
+export function TidyButton({ label, short, unavailable, onTidy }: Props) {
   const way = tidyWay.useValue()
 
   return (
     <span className="flex items-center">
-      <ToolButton label={label} hotkey="L" unavailable={unavailable} onClick={onTidy}>
+      <ToolButton label={label} short={short} hotkey="L" unavailable={unavailable} onClick={onTidy}>
         <Wand2Icon />
       </ToolButton>
       <Popover.Root>
         <Popover.Trigger asChild>
-          <IconButton
-            label="Sposób porządkowania"
-            variant="ghost"
-            size="icon-sm"
-            className="-ml-1 w-5"
-          >
+          <IconButton label="Jak układać" variant="ghost" size="icon-sm" className="-ml-1 w-5">
             <ChevronUpIcon />
           </IconButton>
         </Popover.Trigger>
@@ -40,9 +36,7 @@ export function TidyButton({ label, unavailable, onTidy }: Props) {
             onCloseAutoFocus={(e) => e.preventDefault()}
             className="deck z-50 w-64 animate-in border border-line bg-surface py-1 fade-in-0 zoom-in-95 spring-base"
           >
-            <p className="px-3 pt-1.5 pb-1 text-xs font-semibold text-fg-subtle">
-              Sposób porządkowania
-            </p>
+            <p className="px-3 pt-1.5 pb-1 text-xs font-semibold text-fg-subtle">Jak układać</p>
             {TIDY_WAYS.map((w) => (
               <button
                 key={w.way}

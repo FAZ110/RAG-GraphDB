@@ -74,3 +74,18 @@ RETURN ar.id AS id,
        ar.url AS url,
        ar.created_at AS created_at,
        entity_ids
+
+// name: co_mentions
+// scope: space
+// Entities written about in the same articles as the node yet not related to it in the graph,
+// those sharing most articles first.
+MATCH (n:Entity {space_id: $space_id, id: $node_id})<-[:MENTIONS]-(ar:Article)-[:MENTIONS]->(m:Entity)
+WHERE m <> n AND NOT (n)--(m)
+WITH m, count(DISTINCT ar) AS articles
+ORDER BY articles DESC, m.name
+LIMIT $limit
+RETURN m.id AS id,
+       m.label AS label,
+       properties(m) AS props,
+       COUNT { (m)--(:Entity) } AS degree,
+       articles

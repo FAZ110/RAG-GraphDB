@@ -1,5 +1,5 @@
-import { CircleDotDashedIcon, Trash2Icon } from 'lucide-react'
-import { Button, Kbd, Swatch } from '@/components/deck'
+import { CircleDotDashedIcon, NewspaperIcon, Trash2Icon } from 'lucide-react'
+import { Button, IconButton, Kbd, Swatch } from '@/components/deck'
 import { typeName } from '@/components/Spaces/spaceText'
 import { FloatingPanel } from '@/components/workspace/FloatingPanel'
 import { inkFor } from '@/design/inks'
@@ -13,11 +13,19 @@ interface Props {
   spaceId: string
   node: LoadedNode
   onExpand: (group?: RelationGroup) => void
+  onMentions: () => void
   onRemove: () => void
   onOpenArticle: (articleId: string) => void
 }
 
-export function EntityInspector({ spaceId, node, onExpand, onRemove, onOpenArticle }: Props) {
+export function EntityInspector({
+  spaceId,
+  node,
+  onExpand,
+  onMentions,
+  onRemove,
+  onOpenArticle,
+}: Props) {
   const description = node.properties.description as string | null | undefined
   const aliases = (node.properties.aliases as string[] | undefined) ?? []
 
@@ -28,6 +36,11 @@ export function EntityInspector({ spaceId, node, onExpand, onRemove, onOpenArtic
           <Swatch color={inkFor(node.label).color} className="rounded-full" />
           {typeName(node.label)}
         </span>
+      }
+      aside={
+        <IconButton variant="remove" size="icon-sm" label="Usuń z analizy" onClick={onRemove}>
+          <Trash2Icon />
+        </IconButton>
       }
     >
       <div className="px-3 pt-2 pb-3">
@@ -42,9 +55,10 @@ export function EntityInspector({ spaceId, node, onExpand, onRemove, onOpenArtic
             Rozwiń
             <Kbd>E</Kbd>
           </Button>
-          <Button size="sm" variant="danger-outline" onClick={onRemove}>
-            <Trash2Icon />
-            Usuń z analizy
+          <Button size="sm" onClick={onMentions} title="Wymieniane razem w artykułach">
+            <NewspaperIcon />
+            Razem
+            <Kbd>M</Kbd>
           </Button>
         </div>
       </div>

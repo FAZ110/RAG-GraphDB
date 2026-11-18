@@ -2,7 +2,6 @@ import cytoscape from 'cytoscape'
 import type { Core, NodeSingular } from 'cytoscape'
 import type { PlacedId } from '@/types/analysis'
 import { canvasMotion } from './motion'
-import { unbendAround } from './routes'
 
 /**
  * The first, plain tidy: springs settle every node from where it stands, with one edge length
@@ -11,7 +10,6 @@ import { unbendAround } from './routes'
 export function basicTidy(cy: Core): Promise<PlacedId[]> {
   const nodes = cy.nodes().not('.ghost').not('.hidden')
   if (nodes.empty()) return Promise.resolve([])
-  unbendAround(cy, nodes)
   const { duration, easing } = canvasMotion('panel')
 
   return new Promise((resolve) => {
