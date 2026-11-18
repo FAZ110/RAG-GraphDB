@@ -6,6 +6,7 @@ import type { PickTool } from '../useToolPicking'
 
 const PROMPTS: Record<PickTool, (count: number) => string> = {
   expand: () => 'kliknij encję, której powiązania pokazać',
+  mentions: () => 'kliknij encję, by zobaczyć, z czym piszą o niej artykuły',
   path: (count) => (count === 0 ? 'kliknij pierwszą encję' : 'kliknij drugą encję'),
   common: (count) =>
     count < 2 ? 'klikaj encje, które porównać' : 'dodaj kolejne albo pokaż, co je łączy',
@@ -13,6 +14,7 @@ const PROMPTS: Record<PickTool, (count: number) => string> = {
 
 const TITLES: Record<PickTool, string> = {
   expand: 'Rozwiń powiązania',
+  mentions: 'Wymieniane razem',
   path: 'Najkrótsza ścieżka',
   common: 'Co je łączy',
 }

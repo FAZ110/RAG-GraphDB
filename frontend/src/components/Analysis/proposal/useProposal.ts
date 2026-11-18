@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import {
+  fetchCoMentions,
   fetchCommon,
   fetchEntitiesOfType,
   fetchNeighbours,
@@ -13,6 +14,7 @@ import {
   articleProposal,
   commonProposal,
   expandProposal,
+  mentionsProposal,
   pathProposal,
   typeProposal,
 } from './build'
@@ -51,6 +53,10 @@ export function useProposal(spaceId: string, context: () => Context) {
         root.node.name,
         async () => expandProposal(root, await fetchNeighbours(spaceId, root.node.id), context()),
         group
+      ),
+    mentions: (root: Placed) =>
+      run(`wymieniane razem z: ${root.node.name}`, async () =>
+        mentionsProposal(root, await fetchCoMentions(spaceId, root.node.id), context())
       ),
     common: (selected: Placed[], label?: string) =>
       run('wspólne powiązania', async () =>

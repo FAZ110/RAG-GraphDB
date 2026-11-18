@@ -53,7 +53,8 @@ export function canvasStyle(): StylesheetJson {
         'text-background-padding': '2px',
         'min-zoomed-font-size': 8,
         'overlay-opacity': 0,
-        'transition-property': 'background-color, border-color, border-width, opacity',
+        'transition-property':
+          'background-color, border-color, border-width, opacity, width, height',
         'transition-duration': 200,
       },
     },
@@ -68,6 +69,7 @@ export function canvasStyle(): StylesheetJson {
         'font-weight': 400,
       },
     },
+    { selector: 'node.ring', style: { 'border-color': fg, 'border-width': 3 } },
     {
       selector: 'node:selected',
       style: { 'outline-width': 1.5, 'outline-color': fg, 'outline-offset': 1.5 },

@@ -2,7 +2,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { RefObject } from 'react'
+import { tokenValue } from '@/components/canvas/inkColors'
 import { freeSpot } from '@/components/canvas/placement'
+import { INKS } from '@/design/inks'
 import type {
   CanvasEdge,
   CanvasHandle,
@@ -12,6 +14,7 @@ import type {
 import { fetchSubgraph, updateAnalysis } from '@/services/analyses'
 import type { LoadedNode } from '@/types'
 import type { Analysis, PlacedId, SourceArticle, Viewport } from '@/types/analysis'
+import { insights } from './insights'
 import { candidates, visible } from './proposal/proposal'
 import { tidyWay } from './dock/tidyWay'
 import { useProposal } from './proposal/useProposal'
@@ -36,6 +39,13 @@ import type { Fragment } from './fragment'
 const DEFAULT_NAME = 'Nowa analiza'
 const NO_ROUTE: ReadonlySet<string> = new Set()
 
+export type Lens = 'types' | 'groups' | 'brokers' | 'critical'
+
+// The inks run round the colour wheel; stepping 7 of 18 keeps neighbouring groups far apart.
+export const groupInk = (index: number) => tokenValue(INKS[(index * 7) % INKS.length].color)
+// A broker grows with the share of links through it, from a leaf's size to a hub's and more.
+const brokerSize = (share: number) => 13 + 25 * Math.sqrt(share)
+
 const names = (nodes: readonly { name: string }[]) =>
   nodes.length > 2
     ? `${nodes[0].name} i ${nodes.length - 1} innych`
@@ -55,6 +65,8 @@ export function useAnalysisEditor(
   const [hoverId, setHoverId] = useState<string | null>(null)
   const [litArticle, setLitArticle] = useState<SourceArticle | null>(null)
   const [litGroup, setLitGroup] = useState<string | null>(null)
+  const [litIds, setLitIds] = useState<string[] | null>(null)
+  const [lens, setLens] = useState<Lens>('types')
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set())
 
   const ids = useMemo(() => [...doc.entities.keys()], [doc.entities])
@@ -133,8 +145,29 @@ export function useAnalysisEditor(
   const view = proposal.view
   const ghosts = useMemo(() => (view ? visible(view) : []), [view])
 
+  // Worked out only for a lens that needs it, and only when what is linked changes, not on a drag.
+  const idKey = ids.join('\n')
+  const solidEdges = edges.data?.edges ?? initial?.edges
+  const found = useMemo(
+    () =>
+      lens === 'types' || !solidEdges ? null : insights(idKey ? idKey.split('\n') : [], solidEdges),
+    [lens, idKey, solidEdges]
+  )
+
   const nodes = useMemo<CanvasNode[]>(() => {
     const fresh = new Map(edges.data?.nodes.map((n) => [n.id, n.degree]))
+    const group = new Map(found?.groups.flatMap((g, i) => g.ids.map((id) => [id, i])))
+    const share = new Map(found?.brokers.map((b) => [b.id, b.score]))
+    const critical = new Set(found?.critical.map((c) => c.id))
+    const lensed = (id: string) => {
+      if (lens === 'groups' && group.size) {
+        const i = group.get(id)
+        return { color: i === undefined ? tokenValue('--line') : groupInk(i) }
+      }
+      if (lens === 'brokers' && share.size) return { size: brokerSize(share.get(id) ?? 0) }
+      if (lens === 'critical') return { ring: critical.has(id) }
+      return {}
+    }
     const placed = [...doc.entities.values()].map(({ node, x, y }) => ({
       id: node.id,
       name: node.name,
@@ -142,11 +175,12 @@ export function useAnalysisEditor(
       degree: fresh.get(node.id) ?? node.degree,
       x,
       y,
+      ...lensed(node.id),
     }))
     const spots = view?.proposal.spots
     const proposed = ghosts.map((n) => ({ ...n, ...spots!.get(n.id)!, ghost: true }))
     return [...placed, ...proposed]
-  }, [doc.entities, edges.data, ghosts, view])
+  }, [doc.entities, edges.data, ghosts, view, found, lens])
 
   const canvasEdges = useMemo<CanvasEdge[]>(() => {
     const solid = edges.data?.edges ?? initial?.edges ?? []
@@ -172,8 +206,8 @@ export function useAnalysisEditor(
         if (!lit.has(e.source) && !lit.has(e.target)) continue
         lit.add(e.id).add(e.source).add(e.target)
       }
-    } else if (litArticle) {
-      lit = new Set(litArticle.entity_ids)
+    } else if (litIds ?? litArticle) {
+      lit = new Set(litIds ?? litArticle!.entity_ids)
       for (const e of canvasEdges) if (lit.has(e.source) && lit.has(e.target)) lit.add(e.id)
     } else if (hoverId) {
       lit = new Set([hoverId])
@@ -185,7 +219,7 @@ export function useAnalysisEditor(
       lit = new Set(route)
     }
     return { lit, route, hiddenLabels: hidden }
-  }, [litGroup, ghosts, litArticle, hoverId, canvasEdges, view, hidden])
+  }, [litGroup, ghosts, litIds, litArticle, hoverId, canvasEdges, view, hidden])
 
   const types = useMemo(() => {
     const counts = new Map<string, number>()
@@ -211,6 +245,10 @@ export function useAnalysisEditor(
   const acceptAll = () => {
     if (!view) return
     const all = candidates(view)
+    // Only the ghosts in view were laid out among the canvas; the rest find their place now.
+    const shown = new Set(ghosts.map((g) => g.id))
+    const unplanned = all.filter((n) => !shown.has(n.id)).map((n) => n.id)
+    if (unplanned.length) toSettle.current = unplanned
     add(
       all,
       all.map((n) => view.proposal.spots.get(n.id)!)
@@ -277,15 +315,20 @@ export function useAnalysisEditor(
     setHoverId,
     setLitArticle,
     setLitGroup,
+    setLitIds,
+    lens,
+    setLens,
+    found,
     move: (moves: PlacedId[]) => setDoc((d) => changed(d, movement(d, moves), 'Przesunięto')),
     /** Lay out the selection, or with none the whole canvas, so nothing overlaps. */
     tidy: async () => {
       const moving =
         selection.length > 1 ? selection.filter((id) => doc.entities.has(id)) : undefined
-      // All of it afresh untangles best; a selection settles among what stays put.
+      // A selection is laid out afresh where it stands; the rest of the canvas stays put.
       const moves =
-        (await (moving ? canvas.current?.arrange(moving) : canvas.current?.tidy(tidyWay.get()))) ??
-        []
+        (await (moving
+          ? canvas.current?.tidy(undefined, moving)
+          : canvas.current?.tidy(tidyWay.get()))) ?? []
       setDoc((d) => changed(d, movement(d, moves), 'Uporządkowano'))
     },
     saveViewport: (viewport: Viewport) => {

@@ -5,6 +5,7 @@ import type { Ref } from 'react'
 import type { PlacedId, Point, Viewport } from '@/types/analysis'
 import { arrange, planGhosts } from './arrange'
 import { basicTidy } from './basicTidy'
+import { keepTidy } from './keepTidy'
 import { tidy } from './tidy'
 import { canvasStyle, sizeFor } from './canvasStyle'
 import { inkColors } from './inkColors'
@@ -53,8 +54,8 @@ function nodeData(node: CanvasNode) {
     id: node.id,
     name: node.name,
     degree: node.degree,
-    size: sizeFor(node.degree),
-    ...inkColors(node.label),
+    size: node.size ?? sizeFor(node.degree),
+    ...(node.color ? { color: node.color, field: node.color } : inkColors(node.label)),
   }
 }
 
@@ -170,13 +171,14 @@ export function GraphCanvas({
             group: 'nodes',
             data: nodeData(node),
             position: { x: node.x, y: node.y },
-            classes: node.ghost ? 'ghost' : '',
+            classes: node.ghost ? 'ghost' : node.ring ? 'ring' : '',
             selectable: !node.ghost,
             grabbable: !node.ghost,
           })
           continue
         }
         el.data(nodeData(node))
+        el.toggleClass('ring', Boolean(node.ring))
         if (el.hasClass('ghost') !== Boolean(node.ghost)) {
           el.toggleClass('ghost', node.ghost)
           if (node.ghost) el.unselectify().ungrabify()
@@ -307,9 +309,15 @@ export function GraphCanvas({
       reroute.current()
       return moves
     },
-    tidy: async (way = 'refined') => {
+    tidy: async (way = 'keep', only) => {
       const cy = cyRef.current!
-      const moves = await (way === 'basic' ? basicTidy(cy) : tidy(cy))
+      const moves = await (only
+        ? tidy(cy, only)
+        : way === 'keep'
+          ? keepTidy(cy)
+          : way === 'basic'
+            ? basicTidy(cy)
+            : tidy(cy))
       reroute.current()
       return moves
     },

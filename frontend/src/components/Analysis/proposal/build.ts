@@ -49,6 +49,21 @@ export function expandProposal(root: Placed, res: ExpansionResponse, ctx: Contex
   }
 }
 
+/** Entities written about together with `root`, most often first; no edge brings them. */
+export function mentionsProposal(root: Placed, found: LoadedNode[], ctx: Context): Proposal {
+  const nodes = fresh(found, ctx)
+  return {
+    kind: 'mentions',
+    title: `${root.node.name}: wymieniane razem`,
+    nodes,
+    edges: [],
+    spots: spotsFor(nodes, spreadAround(root, nodes.length, taken(ctx))),
+    empty: found.length
+      ? 'Wszystkie wymieniane razem są już w analizie'
+      : 'Artykuły nie wymieniają z nią nic, czego nie łączy relacja',
+  }
+}
+
 export function commonProposal(selected: Placed[], res: CommonResult, ctx: Context): Proposal {
   const nodes = fresh(res.nodes, ctx)
   const around = centroid(selected)

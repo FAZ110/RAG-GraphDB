@@ -13,7 +13,7 @@ import type {
   Subgraph,
   Viewport,
 } from '../types/analysis'
-import type { ExpansionResponse } from '../types'
+import type { ExpansionResponse, LoadedNode } from '../types'
 import { API_URL, readError, spaceUrl } from './api'
 
 /** Thrown when another tab saved the analysis first; the editor reloads it. */
@@ -74,6 +74,9 @@ export const fetchNeighbours = (spaceId: string, nodeId: string, limit = 500) =>
   request<ExpansionResponse>(
     `${graphUrl(spaceId)}/nodes/${encodeURIComponent(nodeId)}/neighbours?limit=${limit}`
   )
+
+export const fetchCoMentions = (spaceId: string, nodeId: string) =>
+  request<LoadedNode[]>(`${graphUrl(spaceId)}/nodes/${encodeURIComponent(nodeId)}/co-mentions`)
 
 export const fetchCommon = (spaceId: string, ids: string[], label?: string) =>
   request<CommonResult>(`${graphUrl(spaceId)}/common`, json('POST', { ids, label, limit: 200 }))

@@ -15,6 +15,7 @@ from db.graph.edits import (
     update_relationship,
 )
 from db.graph.explore import (
+    co_mentions,
     common_neighbours,
     entities_by_label,
     relation_groups,
@@ -103,6 +104,12 @@ async def get_neighbours(
 async def get_relations(space: SpaceAccess, node_id: str):
     """How many neighbours a node has per direction, relationship type and entity type."""
     return await relation_groups(space, node_id)
+
+
+@router.get("/nodes/{node_id}/co-mentions")
+async def get_co_mentions(space: SpaceAccess, node_id: str, limit: int = Query(50, ge=1, le=200)):
+    """Entities mentioned in the same articles as the node but not related to it."""
+    return await co_mentions(space, node_id, limit)
 
 
 @router.get("/nodes")

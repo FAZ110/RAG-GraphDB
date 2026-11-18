@@ -64,3 +64,10 @@ async def entities_by_label(scope: SpaceScope, label: str, limit: int, offset: i
 async def sources_for(scope: SpaceScope, ids: list[str], limit: int) -> list[dict]:
     rows = await gate.rows(scope, _QUERIES["sources_for"], {"ids": ids, "limit": limit})
     return [{**dict(r), "created_at": r["created_at"].to_native()} for r in rows]
+
+
+@translates_neo4j_errors
+async def co_mentions(scope: SpaceScope, node_id: str, limit: int) -> list[dict]:
+    """Entities the articles mention together with the node though no relation links them."""
+    rows = await gate.rows(scope, _QUERIES["co_mentions"], {"node_id": node_id, "limit": limit})
+    return [{**_node(r), "articles": r["articles"]} for r in rows]

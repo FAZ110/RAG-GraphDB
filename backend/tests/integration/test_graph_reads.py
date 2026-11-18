@@ -89,6 +89,14 @@ def test_subgraph_has_only_edges_among_the_picked(api, graph):
     assert [e["type"] for e in sub["edges"]] == ["GRA_W"]
 
 
+def test_co_mentions_are_in_the_same_article_but_unrelated(api, graph):
+    ids = graph["ids"]
+    # Article B names Ewa, Milan and Inter; Ewa plays in Milan, so only Inter is news.
+    [inter] = api("GET", f"/nodes/{ids['Ewa']}/co-mentions")
+    assert (inter["name"], inter["articles"]) == ("Inter", 1)
+    assert api("GET", f"/nodes/{ids['Jan']}/co-mentions") == []
+
+
 def test_common_neighbours(api, graph):
     ids = graph["ids"]
     common = api("POST", "/common", json={"ids": [ids["Jan"], ids["Anna"]]})
