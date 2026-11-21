@@ -7,6 +7,7 @@ export type EditorKey =
   | 'common'
   | 'path'
   | 'type'
+  | 'query'
   | 'fit'
   | 'tidy'
   | 'accept'
@@ -28,6 +29,7 @@ const LETTERS: Record<string, EditorKey> = {
   c: 'common',
   p: 'path',
   t: 'type',
+  q: 'query',
   f: 'fit',
   l: 'tidy',
 }
