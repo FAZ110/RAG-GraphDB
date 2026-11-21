@@ -16,9 +16,13 @@ export function useElementSize<T extends Element>(): [(el: T | null) => void, Si
         prev?.width === width && prev.height === height ? prev : { width, height }
       )
     // Measured now and rendered synchronously on every resize, so sized content never shows a
-    // frame at the old size.
-    const { width, height } = el.getBoundingClientRect()
-    update(width, height)
+    // frame at the old size. The layout size, as the observer reports it: a bounding rect would
+    // count a transform too, e.g. a modal still scaling in.
+    if (el instanceof HTMLElement) update(el.offsetWidth, el.offsetHeight)
+    else {
+      const { width, height } = el.getBoundingClientRect()
+      update(width, height)
+    }
     const observer = new ResizeObserver(([entry]) => {
       // Older Safari has no border box sizes; the content rect is the next best thing there.
       const box = entry.borderBoxSize?.[0]

@@ -41,3 +41,12 @@ ARTICLE_B = (
         "edges": [rel("1", "2", "GRA_W", "S1"), rel("2", "3", "RYWAL", "S2")],
     },
 )
+
+# Jan in a second club, for questions that count clubs; used only by the tests that need it.
+ARTICLE_C = (
+    "Jan grał też w Milanie.",
+    {
+        "nodes": [entity("1", "Jan", "OSOBA", "S1"), entity("2", "Milan", "KLUB", "S1")],
+        "edges": [rel("1", "2", "GRA_W", "S1")],
+    },
+)

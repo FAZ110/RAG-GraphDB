@@ -16,6 +16,10 @@ interface Props {
    * control is a dropdown the opening key would also open.
    */
   focusFirst?: boolean
+  /** Blurs what lies behind, for a modal that asks for full attention. */
+  blur?: boolean
+  /** No sheet of its own: the content lays out its sheet, with things beside it on the backdrop. */
+  bare?: boolean
   children: ReactNode
 }
 
@@ -26,6 +30,8 @@ export function Modal({
   className,
   style,
   focusFirst = true,
+  blur = false,
+  bare = false,
   children,
 }: Props) {
   return (
@@ -34,7 +40,18 @@ export function Modal({
         {open && (
           <Dialog.Portal forceMount>
             <Dialog.Overlay asChild forceMount>
-              <motion.div {...fade} className="fixed inset-0 z-50 bg-fg/30" />
+              <motion.div
+                {...fade}
+                className={cn(
+                  'fixed inset-0 z-50',
+                  // Without a sheet of its own the content stands on the backdrop, so it hides more.
+                  blur
+                    ? bare
+                      ? 'bg-page/90 backdrop-blur-md'
+                      : 'bg-page/40 backdrop-blur-[3px]'
+                    : 'bg-fg/30'
+                )}
+              />
             </Dialog.Overlay>
             <Dialog.Content
               asChild
@@ -49,7 +66,8 @@ export function Modal({
             >
               <motion.div
                 className={cn(
-                  'deck-lg fixed z-50 flex flex-col border border-line bg-surface outline-none',
+                  'fixed z-50 flex flex-col outline-none',
+                  !bare && 'deck-lg border border-line bg-surface',
                   className
                 )}
                 style={style}

@@ -9,16 +9,16 @@ pieces instead of styling raw elements.
 Raw values sit on `:root`, so a dark theme only has to redefine them. Tailwind utilities read
 them through `@theme inline`.
 
-| Group    | Utilities                                                                        | Use                                           |
-| -------- | -------------------------------------------------------------------------------- | --------------------------------------------- |
-| Surfaces | `bg-page`, `bg-surface`, `bg-surface-sunken`, `bg-surface-inverse`               | page, sheets, headers/hover, dark band        |
-| Text     | `text-fg`, `-soft`, `-muted`, `-subtle`, `-faint`, `-inverse(-muted)`            | strongest to faintest; on the dark band       |
-| Lines    | `border-line`, `border-line-soft`                                                | frames of sheets, dividers between rows       |
-| Danger   | `danger`, `danger-strong`, `danger-fg`, `danger-surface(-strong)`, `danger-line` | destructive actions, errors                   |
-| Status   | `status-ok`, `-processing`, `-pending`, `-error`                                 | article extraction states                     |
-| Type     | `text-display(-lg/-xl)`, `text-title`, `text-heading`, `text-figure`             | page titles, dialog titles, sections, numbers |
+| Group    | Utilities                                                                                     | Use                                           |
+| -------- | --------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| Surfaces | `bg-page`, `bg-surface`, `bg-surface-sunken`, `bg-surface-inverse`                            | page, sheets, headers/hover, dark band        |
+| Text     | `text-fg`, `-soft`, `-muted`, `-subtle`, `-faint`, `-inverse(-muted)`                         | strongest to faintest; on the dark band       |
+| Lines    | `border-line`, `border-line-soft`                                                             | frames of sheets, dividers between rows       |
+| Danger   | `danger`, `danger-strong`, `danger-fg`, `danger-surface(-strong)`, `danger-line`              | destructive actions, errors                   |
+| Status   | `status-ok`, `-processing`, `-pending`, `-error`                                              | article extraction states                     |
+| Type     | `text-display(-lg/-xl)`, `text-title`, `text-heading`, `text-figure`                          | page titles, dialog titles, sections, numbers |
 | Shadow   | `deck`, `deck-lg`, `deck-press`, `deck-lift`, `deck-land` (recolour with `[--deck-shadow:…]`) | sheets, overlays, controls, cards picked up   |
-| Motion   | springs `quick`, `base`, `panel`, `release` (`spring-*` in CSS)                  | everything that moves; see src/design/motion  |
+| Motion   | springs `quick`, `base`, `panel`, `release` (`spring-*` in CSS)                               | everything that moves; see src/design/motion  |
 
 Map inks (`--ink-<name>` and `--ink-<name>-field`, 18 of them) colour spaces and entity types;
 use them through `inkFor(id)` from `src/design/inks.ts`. Motion presets (`fade`, `pop`, `reveal`,

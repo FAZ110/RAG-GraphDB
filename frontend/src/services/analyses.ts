@@ -14,6 +14,7 @@ import type {
   Viewport,
 } from '../types/analysis'
 import type { ExpansionResponse } from '../types'
+import type { QueryBody, QueryResult, SpaceSchema } from '../types/query'
 import { API_URL, readError, spaceUrl } from './api'
 
 /** Thrown when another tab saved the analysis first; the editor reloads it. */
@@ -94,3 +95,9 @@ export const fetchSources = (spaceId: string, ids: string[]) =>
 
 export const reorderAnalyses = (analysisIds: string[]) =>
   request<void>(`${API_URL}/analyses/order`, json('PUT', { analysis_ids: analysisIds }))
+
+export const fetchSpaceSchema = (spaceId: string) =>
+  request<SpaceSchema>(`${graphUrl(spaceId)}/schema`)
+
+export const runQuery = (spaceId: string, body: QueryBody) =>
+  request<QueryResult>(`${graphUrl(spaceId)}/query`, json('POST', body))
