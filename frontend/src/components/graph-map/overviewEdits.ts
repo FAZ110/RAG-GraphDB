@@ -1,4 +1,4 @@
-import type { ExpansionResponse, LoadedEdge, LoadedNode, OverviewResponse } from '@/types'
+import type { GraphChunk, LoadedEdge, LoadedNode, OverviewResponse } from '@/types'
 
 const slim = ({ id, name, label, degree }: LoadedNode) => ({ id, name, label, degree })
 
@@ -28,9 +28,9 @@ export function upsertNode(data: OverviewResponse, node: LoadedNode): OverviewRe
 }
 
 // Entities left out of the overview, brought in with their neighbours; degrees stay the server's.
-export function mergeChunk(data: OverviewResponse, chunk: ExpansionResponse): OverviewResponse {
+export function mergeChunk(data: OverviewResponse, chunk: GraphChunk): OverviewResponse {
   const known = new Set(data.nodes.map((n) => n.id))
-  const fresh = [chunk.root, ...chunk.nodes].filter((n) => !known.has(n.id) && known.add(n.id))
+  const fresh = chunk.nodes.filter((n) => !known.has(n.id) && known.add(n.id))
   const linked = new Set(data.edges.map((e) => e.id))
   return {
     ...data,

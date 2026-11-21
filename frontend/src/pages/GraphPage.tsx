@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { Button, EmptyState, ErrorNote } from '@/components/deck'
 import { SpaceMap } from '@/components/graph-map/SpaceMap'
 import { pickSpace, rememberSpace } from '@/components/Spaces/choice/spaceChoice'
@@ -7,8 +7,11 @@ import { useSpaces } from '@/hooks/useSpaces'
 
 export function GraphPage() {
   const { spaceId } = useParams()
+  const { search } = useLocation()
+  const [params, setParams] = useSearchParams()
   // An entity to open on, e.g. picked in the global search.
-  const focus = useSearchParams()[0].get('focus')
+  const focus = params.get('focus')
+  const ask = params.has('query')
   const spaces = useSpaces()
   const space = spaces.data && pickSpace(spaces.data, spaceId ?? null)
 
@@ -37,8 +40,23 @@ export function GraphPage() {
   return (
     <>
       {/* Shown while the address catches up, so the page isn't torn down and rebuilt. */}
-      {space.id !== spaceId && <Navigate to={`/graph/${space.id}`} replace />}
-      <SpaceMap key={space.id} space={space} spaces={spaces.data} focus={focus} />
+      {space.id !== spaceId && <Navigate to={`/graph/${space.id}${search}`} replace />}
+      <SpaceMap
+        key={space.id}
+        space={space}
+        spaces={spaces.data}
+        focus={focus}
+        ask={ask && space.id === spaceId}
+        onAsked={() =>
+          setParams(
+            (p) => {
+              p.delete('query')
+              return p
+            },
+            { replace: true }
+          )
+        }
+      />
     </>
   )
 }

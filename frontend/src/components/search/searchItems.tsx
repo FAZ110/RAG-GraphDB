@@ -6,6 +6,7 @@ import {
   NetworkIcon,
   SettingsIcon,
   FilePlus2Icon,
+  WaypointsIcon,
 } from 'lucide-react'
 import { Swatch } from '@/components/deck'
 import { inkFor } from '@/design/inks'
@@ -22,6 +23,7 @@ export interface SearchItem {
   icon: ReactNode
   /** A route to open, or an action to run. */
   to: string | (() => void)
+  keywords?: string
 }
 
 interface Sources {
@@ -55,13 +57,21 @@ export function searchItems({ needle, spaces, results, openAdd }: Sources): Sear
       to: '/graph',
     },
     {
+      key: 'query',
+      section: 'Polecenia',
+      label: 'Szukaj po powiązaniach',
+      icon: <WaypointsIcon />,
+      to: '/graph?query',
+      keywords: 'zapytanie wzorzec relacje cypher',
+    },
+    {
       key: 'settings',
       section: 'Polecenia',
       label: 'Ustawienia',
       icon: <SettingsIcon />,
       to: '/settings',
     },
-  ].filter((c) => normalize(c.label).includes(needle))
+  ].filter((c: SearchItem) => normalize(`${c.label} ${c.keywords ?? ''}`).includes(needle))
 
   if (!needle) return commands
 
