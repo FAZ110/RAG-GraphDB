@@ -142,3 +142,16 @@ WHERE n.created_at IS NOT NULL
 RETURN n.id AS id, coalesce(n.name, '') AS name, n.label AS label
 ORDER BY n.created_at DESC
 LIMIT $limit
+
+// name: schema_labels
+// scope: space
+MATCH (n:Entity {space_id: $space_id})
+RETURN n.label AS label, count(*) AS count
+ORDER BY count DESC, label
+
+// name: schema_relations
+// scope: space
+// Per direction as stored: which type of entity links to which, by which relationship.
+MATCH (a:Entity {space_id: $space_id})-[r]->(b:Entity)
+RETURN a.label AS source, type(r) AS type, b.label AS target, count(*) AS count
+ORDER BY count DESC, type
