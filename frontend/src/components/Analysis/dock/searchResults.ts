@@ -51,6 +51,20 @@ const SIMILAR = 8
 const MIN_QUERY = 2
 const POOL = 500
 
+/** The space's best connected entities (of one type if given), fetched once and kept: every
+ * search of names filters these at once, without waiting for the server. */
+export function useEntityPool(spaceId: string, label: string | null = null, enabled = true) {
+  return useQuery({
+    queryKey: ['analysis', spaceId, 'entities', label],
+    queryFn: async () =>
+      label
+        ? (await fetchEntitiesOfType(spaceId, label, POOL)).nodes
+        : (await fetchGraphSeed(spaceId, POOL)).nodes,
+    enabled,
+    staleTime: 60_000,
+  })
+}
+
 /**
  * What the dock lists, to browse rather than recall: every article newest first, every entity
  * best connected first (of one type if picked), every type; typing narrows them by name, and
@@ -72,15 +86,7 @@ export function useSearchSections(
   const matches = (name: string) => !needle || normalize(name).includes(needle)
   const wants = (s: SearchScope) => scope === 'all' || scope === s
 
-  const pool = useQuery({
-    queryKey: ['analysis', spaceId, 'entities', label],
-    queryFn: async () =>
-      label
-        ? (await fetchEntitiesOfType(spaceId, label, POOL)).nodes
-        : (await fetchGraphSeed(spaceId, POOL)).nodes,
-    enabled: wants('entity'),
-    staleTime: 60_000,
-  })
+  const pool = useEntityPool(spaceId, label, wants('entity'))
   const similar = useQuery({
     queryKey: ['analysis', spaceId, 'search', deferred],
     queryFn: () => fetchSimilarNodes(spaceId, deferred, SIMILAR),
