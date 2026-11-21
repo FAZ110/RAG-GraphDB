@@ -4,10 +4,19 @@ import {
   PlusIcon,
   SquareDashedMousePointerIcon,
   Wand2Icon,
+  WaypointsIcon,
   XIcon,
 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import { Link, useNavigate } from 'react-router-dom'
@@ -20,6 +29,8 @@ import { SearchBrowser } from '@/components/Analysis/dock/SearchBrowser'
 import { useDockSearch } from '@/components/Analysis/dock/useDockSearch'
 import type { SearchHit } from '@/components/Analysis/dock/searchResults'
 import { LayersPanel } from '@/components/Analysis/panels/LayersPanel'
+import { QueryHost } from '@/components/Analysis/query/QueryHost'
+import type { QueryAnswer, QueryHostHandle } from '@/components/Analysis/query/QueryHost'
 import { useEditorKeys } from '@/components/Analysis/useEditorKeys'
 import { relationName } from '@/components/canvas/relationName'
 import type { Insets } from '@/components/canvas/types'
@@ -43,6 +54,7 @@ import { MapPickBar } from './MapPickBar'
 import { StatsPanel } from './stats/StatsPanel'
 import type { ColorBy, MapHandle, PickKind } from './types'
 import { mergeChunk } from './overviewEdits'
+import { answerOnMap } from './queryAnswer'
 import { overviewKey, useGraphOverview } from './useGraphOverview'
 import { useMapEdits } from './useMapEdits'
 
@@ -62,9 +74,11 @@ interface Props {
   space: Space
   spaces: Space[]
   focus: string | null
+  ask: boolean
+  onAsked: () => void
 }
 
-export function SpaceMap({ space, spaces, focus }: Props) {
+export function SpaceMap({ space, spaces, focus, ask, onAsked }: Props) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const overview = useGraphOverview(space.id)
@@ -95,6 +109,8 @@ export function SpaceMap({ space, spaces, focus }: Props) {
   const [creating, setCreating] = useState(false)
   const [statsOpen, setStatsOpen] = useState(false)
   const [boxing, setBoxing] = useState(false)
+  const queryHost = useRef<QueryHostHandle>(null)
+  const [queryOpen, setQueryOpen] = useState(false)
   const edits = useMapEdits(space.id)
   const duplicates = useDuplicates(space.id)
 
@@ -147,7 +163,9 @@ export function SpaceMap({ space, spaces, focus }: Props) {
       .then((chunk) => {
         queryClient.setQueryData<OverviewResponse>(
           overviewKey(space.id),
-          (current) => current && mergeChunk(current, chunk)
+          (current) =>
+            current &&
+            mergeChunk(current, { nodes: [chunk.root, ...chunk.nodes], edges: chunk.edges })
         )
         setHidden((h) => without(h, chunk.root.label))
         show(id)
@@ -265,7 +283,40 @@ export function SpaceMap({ space, spaces, focus }: Props) {
     relations
   )
 
+  const openQuery = () => {
+    const node = selectedId ? data?.nodes.find((n) => n.id === selectedId) : undefined
+    queryHost.current?.toggle(node ? [{ ...node, properties: {} }] : [])
+  }
+  const showAnswer = (answer: QueryAnswer) => {
+    const { ids, focus: first, chunk } = answerOnMap(answer)
+    queryClient.setQueryData<OverviewResponse>(
+      overviewKey(space.id),
+      (current) => current && mergeChunk(current, chunk)
+    )
+    const labels = new Set(chunk.nodes.map((n) => n.label))
+    setHidden((h) => new Set([...h].filter((kind) => !labels.has(kind))))
+    setSelectedId(null)
+    setSelectedEdgeId(null)
+    setHighlighted(ids)
+    if (first) focusSoon(first)
+  }
+  const latestShow = useRef(showAnswer)
+  useLayoutEffect(() => {
+    latestShow.current = showAnswer
+  })
+  const onQueryShow = useCallback((answer: QueryAnswer) => latestShow.current(answer), [])
+  const onQueryArticle = useCallback((id: string) => setArticle({ id, focusId: null }), [])
+  const askNow = useEffectEvent(() => {
+    queryHost.current?.open([])
+    onAsked()
+  })
+  useEffect(() => {
+    if (ask) askNow()
+  }, [ask])
+
   useEditorKeys((key) => {
+    if (queryOpen) return false
+    if (key === 'query') return openQuery()
     if (key === 'search') return search.current?.focus()
     if (key === 'fit') return map.current?.fit()
     if (key === 'tidy') return tidy()
@@ -528,6 +579,15 @@ export function SpaceMap({ space, spaces, focus }: Props) {
             >
               <SquareDashedMousePointerIcon />
             </ToolButton>
+            <ToolButton
+              label="Szukaj po powiązaniach"
+              hotkey="Q"
+              active={queryOpen}
+              unavailable={data?.nodes.length ? undefined : 'Najpierw dodaj encje'}
+              onClick={openQuery}
+            >
+              <WaypointsIcon />
+            </ToolButton>
             {duplicates.suggestions.length > 0 && (
               <Button
                 size="sm"
@@ -585,6 +645,13 @@ export function SpaceMap({ space, spaces, focus }: Props) {
           duplicates.setOpen(false)
           show(id)
         }}
+      />
+      <QueryHost
+        ref={queryHost}
+        spaceId={space.id}
+        onOpenChange={setQueryOpen}
+        onShow={onQueryShow}
+        onOpenArticle={onQueryArticle}
       />
       <ArticlePreview
         spaceId={space.id}
