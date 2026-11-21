@@ -1,6 +1,14 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { BlendIcon, CircleDotDashedIcon, RouteIcon } from 'lucide-react'
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { BlendIcon, CircleDotDashedIcon, RouteIcon, WaypointsIcon } from 'lucide-react'
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { GraphCanvas } from '@/components/canvas/GraphCanvas'
 import type { CanvasHandle, Insets } from '@/components/canvas/types'
@@ -29,6 +37,8 @@ import { SelectionInspector } from './panels/SelectionInspector'
 import { SourcesPanel } from './panels/SourcesPanel'
 import { CHROME_INSET } from './layout'
 import { relationGroupKey } from './proposal/proposal'
+import { QueryHost } from './query/QueryHost'
+import type { QueryAnswer, QueryHostHandle } from './query/QueryHost'
 import { useAnalysisEditor } from './useAnalysisEditor'
 import type { Fragment } from './fragment'
 import { useEditorKeys } from './useEditorKeys'
@@ -56,7 +66,13 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
   const [article, setArticle] = useState<{ id: string; focusId: string | null } | null>(null)
   const [blank, setBlank] = useState(false)
   const { proposal, selected, selectedPlaced } = editor
-  const canvasSources = useCanvasSources(space.id, [...editor.doc.entities.keys()])
+  const onCanvas = [...editor.doc.entities.keys()]
+  // The query keeps its own state; the editor only knows whether it is open.
+  const queryHost = useRef<QueryHostHandle>(null)
+  const [queryOpen, setQueryOpen] = useState(false)
+  const canvasKey = onCanvas.join(',')
+  const canvasIds = useMemo(() => (canvasKey ? canvasKey.split(',') : []), [canvasKey])
+  const canvasSources = useCanvasSources(space.id, onCanvas)
   const placedIn = new Map(canvasSources.data?.map((a) => [a.id, a.entity_ids.length]))
   const browse = useDockSearch(
     space.id,
@@ -116,7 +132,27 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
     expand: () => picks.start('expand', selected),
     common: () => picks.start('common', selected),
     path: () => picks.start('path', selected),
+    query: () => queryHost.current?.toggle(selectedPlaced.map((p) => p.node)),
   }
+  // The question's known entities that are on the canvas, which its matches gather round.
+  // Answers kept to the analysis are on the canvas already, so they are selected there instead.
+  const showQuery = ({ result, known, scope }: QueryAnswer) => {
+    if (scope === 'analysis') {
+      const found = result.matches.flatMap((m) => Object.values(m).flatMap((id) => id ?? []))
+      return editor.select([...new Set(found)])
+    }
+    void proposal.fromQuery(
+      result,
+      known.flatMap((id) => editor.doc.entities.get(id) ?? [])
+    )
+  }
+  // Stable for the query host, which must not re-render with the editor; reads the latest.
+  const latestShow = useRef(showQuery)
+  useLayoutEffect(() => {
+    latestShow.current = showQuery
+  })
+  const onQueryShow = useCallback((answer: QueryAnswer) => latestShow.current(answer), [])
+  const onQueryArticle = useCallback((id: string) => setArticle({ id, focusId: null }), [])
   // While a tool waits for entities, a click on one picks it instead of selecting it alone.
   const onSelect = (ids: string[]) => {
     if (!picks.picking) return editor.select(ids)
@@ -126,6 +162,8 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
   }
 
   useEditorKeys((key) => {
+    // The query modal has its own keys and covers the canvas.
+    if (queryOpen) return false
     switch (key) {
       case 'search':
         return search.current?.focus()
@@ -137,6 +175,8 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
         return tools.path()
       case 'type':
         return setTypesOpen(true)
+      case 'query':
+        return tools.query()
       case 'fit':
         return canvas.current?.fit()
       case 'tidy':
@@ -346,6 +386,14 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
             >
               <RouteIcon />
             </ToolButton>
+            <ToolButton
+              label="Szukaj po powiązaniach"
+              hotkey="Q"
+              active={queryOpen}
+              onClick={tools.query}
+            >
+              <WaypointsIcon />
+            </ToolButton>
             <TidyButton
               label={selectedPlaced.length > 1 ? 'Uporządkuj zaznaczone' : 'Uporządkuj wszystko'}
               unavailable={editor.doc.entities.size > 1 ? undefined : 'Najpierw dodaj encje'}
@@ -360,6 +408,15 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
           </Dock>
         </div>
       </div>
+
+      <QueryHost
+        ref={queryHost}
+        spaceId={space.id}
+        canvas={canvasIds}
+        onOpenChange={setQueryOpen}
+        onShow={onQueryShow}
+        onOpenArticle={onQueryArticle}
+      />
 
       <ArticlePreview
         spaceId={space.id}

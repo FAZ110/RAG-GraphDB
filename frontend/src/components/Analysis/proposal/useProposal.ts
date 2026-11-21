@@ -7,6 +7,7 @@ import {
   fetchSubgraph,
 } from '@/services/analyses'
 import { fetchArticle } from '@/services/api'
+import type { QueryResult } from '@/types/query'
 import type { Point } from '@/types/analysis'
 import type { Placed } from '../state/canvasDoc'
 import {
@@ -14,6 +15,7 @@ import {
   commonProposal,
   expandProposal,
   pathProposal,
+  queryProposal,
   typeProposal,
 } from './build'
 import type { Context } from './build'
@@ -79,6 +81,9 @@ export function useProposal(spaceId: string, context: () => Context) {
         const graph = ids.length ? await fetchSubgraph(spaceId, ids) : { nodes: [], edges: [] }
         return articleProposal(articleId, article.title || 'Artykuł bez tytułu', graph, context())
       }),
+    /** Matches of a drawn question; `known` are the canvas entities it started from. */
+    fromQuery: (result: QueryResult, known: Placed[]) =>
+      run('wyniki zapytania', async () => queryProposal(result, known, context())),
     setGroup: (group: string | null) => setView((v) => v && { ...v, group, shown: PAGE }),
     showMore: () => setView((v) => v && { ...v, shown: v.shown + PAGE }),
     /** Move ghosts to where the layout would settle them, so taking one moves nothing. */

@@ -1,7 +1,7 @@
 import type { LoadedEdge, LoadedNode } from '@/types'
 import type { Point } from '@/types/analysis'
 
-export type ProposalKind = 'expand' | 'common' | 'path' | 'type' | 'article'
+export type ProposalKind = 'expand' | 'common' | 'path' | 'type' | 'article' | 'query'
 
 /** Candidates one relation brings, one way, of one type: "a player plays in" Inter. */
 export interface ProposalGroup {
