@@ -15,6 +15,7 @@ import {
   commonProposal,
   expandProposal,
   mentionsProposal,
+  pathKey,
   pathProposal,
   typeProposal,
 } from './build'
@@ -71,8 +72,12 @@ export function useProposal(spaceId: string, context: () => Context) {
         )
       ),
     path: (from: Placed, to: Placed) =>
-      run('ścieżkę', async () =>
-        pathProposal(from, to, await fetchPaths(spaceId, from.node.id, to.node.id), context())
+      run(
+        'ścieżkę',
+        async () =>
+          pathProposal(from, to, await fetchPaths(spaceId, from.node.id, to.node.id), context()),
+        // One route at a time, the shortest first, so several don't run into one another.
+        pathKey(0)
       ),
     ofType: (label: string) =>
       run(label, async () =>

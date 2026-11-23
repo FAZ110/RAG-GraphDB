@@ -196,10 +196,13 @@ export function useAnalysisEditor(
   }, [edges.data, initial, ghosts, view, doc.entities])
 
   const highlight = useMemo<CanvasHighlight>(() => {
-    const route = view?.proposal.route ?? NO_ROUTE
+    const routes = view?.proposal.routes
+    const route = (view?.group && routes?.get(view.group)) || view?.proposal.route || NO_ROUTE
     let lit: Set<string> | null = null
     const members = view?.proposal.memberOf
-    if (litGroup && members) {
+    if (litGroup && routes?.has(litGroup)) {
+      lit = new Set(routes.get(litGroup))
+    } else if (litGroup && members) {
       // A group's ghosts with the edges that bring them, and the entity at their other end.
       lit = new Set(ghosts.filter((g) => members.get(g.id)?.has(litGroup)).map((g) => g.id))
       for (const e of canvasEdges) {

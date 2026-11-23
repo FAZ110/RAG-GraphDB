@@ -35,11 +35,16 @@ RETURN m.id AS id,
 
 // name: shortest_paths
 // scope: space
-// Only through entities, never through the articles mentioning them. The path count and
-// length bounds are validated integers put into the query, as Cypher takes no parameters there.
+// Only through entities, never through the articles mentioning them. The path count is a
+// validated integer put into the query, as Cypher takes no parameter there.
 MATCH (s:Entity {space_id: $space_id, id: $source_id})
 MATCH (t:Entity {space_id: $space_id, id: $target_id})
-MATCH p = SHORTEST {k} (s) ((:Entity)-[]-(:Entity)){1,{max_length}} (t)
+// Inside the parentheses the check runs before the shortest are picked: no entity twice, as two
+// relations between one pair would otherwise let a path go there and back.
+MATCH p = SHORTEST {k} (
+  (s) ((:Entity)-[]-(step:Entity)){1,} (t)
+  WHERE all(i IN range(0, size(step) - 1) WHERE step[i] <> s AND NOT step[i] IN step[i + 1..])
+)
 RETURN [n IN nodes(p) | n.id] AS node_ids,
        [r IN relationships(p) | {
          edge_id: elementId(r),

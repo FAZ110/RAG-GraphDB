@@ -172,6 +172,7 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
         editor.expand(one, g && relationGroupKey(g.direction === 'in', g.type, g.label))
       }
       onMentions={() => void proposal.mentions(one)}
+      onPath={tools.path}
       onRemove={() => editor.remove([one.node.id])}
       onOpenArticle={(id) => setArticle({ id, focusId: one.node.id })}
     />

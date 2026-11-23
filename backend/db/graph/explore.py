@@ -32,12 +32,10 @@ async def common_neighbours(
 
 
 @translates_neo4j_errors
-async def shortest_paths(
-    scope: SpaceScope, source_id: str, target_id: str, k: int, max_length: int
-) -> dict:
+async def shortest_paths(scope: SpaceScope, source_id: str, target_id: str, k: int) -> dict:
     """Up to `k` shortest routes between two entities, shortest first, with every entity on
     them. Paths differing only in a parallel relationship are one route showing all of them."""
-    query = _QUERIES["shortest_paths"].with_numbers(k=k * _PATHS_PER_ROUTE, max_length=max_length)
+    query = _QUERIES["shortest_paths"].with_numbers(k=k * _PATHS_PER_ROUTE)
     rows = await gate.rows(scope, query, {"source_id": source_id, "target_id": target_id})
     routes: dict[tuple[str, ...], dict[str, dict]] = {}
     for r in rows:

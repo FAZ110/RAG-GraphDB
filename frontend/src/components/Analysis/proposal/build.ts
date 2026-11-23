@@ -87,26 +87,43 @@ export function commonProposal(selected: Placed[], res: CommonResult, ctx: Conte
 const ROUTE_SPREAD = 90
 const STEP_FORMS = { one: 'krok', few: 'kroki', many: 'kroków' }
 
+export const pathKey = (index: number) => `path:${index}`
+
 export function pathProposal(from: Placed, to: Placed, res: PathResult, ctx: Context): Proposal {
   const byId = new Map(res.nodes.map((n) => [n.id, n]))
   const spots = new Map<string, Point>()
   const route = new Set<string>()
+  const routes = new Map<string, Set<string>>()
+  const memberOf = new Map<string, Set<string>>()
+  const groups: ProposalGroup[] = []
   const edges: LoadedEdge[] = []
   res.paths.forEach((path, i) => {
+    const key = pathKey(i)
     const bow = (i - (res.paths.length - 1) / 2) * ROUTE_SPREAD
     const between = path.node_ids.slice(1, -1)
     const points = alongLine(from, to, between.length, bow)
     between.forEach((id, j) => {
       if (!ctx.onCanvas.has(id) && !spots.has(id)) spots.set(id, points[j])
+      if (!ctx.onCanvas.has(id)) memberOf.set(id, (memberOf.get(id) ?? new Set()).add(key))
     })
-    path.node_ids.forEach((id) => route.add(id))
-    path.edges.forEach((e) => {
-      route.add(e.id)
-      edges.push(e)
+    const own = new Set([...path.node_ids, ...path.edges.map((e) => e.id)])
+    own.forEach((id) => route.add(id))
+    routes.set(key, own)
+    edges.push(...path.edges)
+    const steps = path.node_ids.length - 1
+    const via = between.map((id) => byId.get(id)?.name ?? '').join(', ')
+    groups.push({
+      key,
+      type: '',
+      label: '',
+      incoming: false,
+      count: between.length,
+      name: `${via ? `przez ${via}` : 'bezpośrednio'} (${steps} ${pluralForm(steps, STEP_FORMS)})`,
     })
   })
   const nodes = [...spots.keys()].map((id) => byId.get(id)!).filter(Boolean)
-  const steps = res.paths[0] ? res.paths[0].node_ids.length - 1 : 0
+  // With several routes each says its own length where it is picked.
+  const steps = res.paths.length === 1 ? res.paths[0].node_ids.length - 1 : 0
   return {
     kind: 'path',
     title: `${from.node.name} → ${to.node.name}${steps ? `, ${steps} ${pluralForm(steps, STEP_FORMS)}` : ''}`,
@@ -114,7 +131,12 @@ export function pathProposal(from: Placed, to: Placed, res: PathResult, ctx: Con
     edges,
     spots,
     route,
-    empty: res.paths.length ? 'Cała ścieżka jest już w analizie' : 'Brak ścieżki do 6 kroków',
+    routes,
+    groups,
+    memberOf,
+    empty: res.paths.length
+      ? 'Cała ścieżka jest już w analizie'
+      : 'Te encje nie są ze sobą połączone',
   }
 }
 

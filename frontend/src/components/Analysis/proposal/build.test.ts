@@ -79,10 +79,42 @@ describe('pathProposal', () => {
     expect(p.route!.has('Jan-ZNA-Anna')).toBe(true)
   })
 
+  it('gives each path its own group and route, named by the way it goes', () => {
+    const res = {
+      nodes: [node('Jan'), node('Anna'), node('Ewa'), node('Inter')],
+      paths: [
+        { node_ids: ['Jan', 'Inter'], edges: [edge('Jan', 'Inter', 'GRA_W')] },
+        {
+          node_ids: ['Jan', 'Anna', 'Inter'],
+          edges: [edge('Jan', 'Anna', 'ZNA'), edge('Anna', 'Inter', 'GRA_W')],
+        },
+        {
+          node_ids: ['Jan', 'Ewa', 'Inter'],
+          edges: [edge('Jan', 'Ewa', 'ZNA'), edge('Ewa', 'Inter', 'GRA_W')],
+        },
+      ],
+    }
+    const p = pathProposal(from, to, res, ctx(from, to))
+    expect(p.groups!.map((g) => g.name)).toEqual([
+      'bezpośrednio (1 krok)',
+      'przez Anna (2 kroki)',
+      'przez Ewa (2 kroki)',
+    ])
+    const second = p.groups![1].key
+    expect([...p.routes!.get(second)!]).toEqual([
+      'Jan',
+      'Anna',
+      'Inter',
+      'Jan-ZNA-Anna',
+      'Anna-GRA_W-Inter',
+    ])
+    expect(candidates({ proposal: p, group: second, shown: 12 }).map((n) => n.id)).toEqual(['Anna'])
+  })
+
   it('says when there is no path', () => {
     const p = pathProposal(from, to, { nodes: [], paths: [] }, ctx(from, to))
     expect(p.nodes).toEqual([])
-    expect(p.empty).toBe('Brak ścieżki do 6 kroków')
+    expect(p.empty).toBe('Te encje nie są ze sobą połączone')
   })
 })
 

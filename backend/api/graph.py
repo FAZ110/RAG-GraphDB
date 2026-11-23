@@ -141,7 +141,7 @@ async def post_paths(space: SpaceAccess, body: PathQuery):
     """The shortest paths between two entities, through entities only."""
     if body.source_id == body.target_id:
         raise HTTPException(status_code=422, detail="Ścieżka musi łączyć dwa różne węzły")
-    return await shortest_paths(space, body.source_id, body.target_id, body.k, body.max_length)
+    return await shortest_paths(space, body.source_id, body.target_id, body.k)
 
 
 @router.post("/sources")

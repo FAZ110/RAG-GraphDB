@@ -1,5 +1,5 @@
-import { CircleDotDashedIcon, NewspaperIcon, Trash2Icon } from 'lucide-react'
-import { Button, IconButton, Kbd, Swatch } from '@/components/deck'
+import { CircleDotDashedIcon, NewspaperIcon, RouteIcon, Trash2Icon } from 'lucide-react'
+import { Button, IconButton, Swatch } from '@/components/deck'
 import { typeName } from '@/components/Spaces/spaceText'
 import { FloatingPanel } from '@/components/workspace/FloatingPanel'
 import { inkFor } from '@/design/inks'
@@ -14,6 +14,8 @@ interface Props {
   node: LoadedNode
   onExpand: (group?: RelationGroup) => void
   onMentions: () => void
+  /** Start a path from it; the next entity clicked is where it leads. */
+  onPath: () => void
   onRemove: () => void
   onOpenArticle: (articleId: string) => void
 }
@@ -23,6 +25,7 @@ export function EntityInspector({
   node,
   onExpand,
   onMentions,
+  onPath,
   onRemove,
   onOpenArticle,
 }: Props) {
@@ -49,16 +52,35 @@ export function EntityInspector({
           <p className="mt-0.5 text-xs text-fg-subtle">także: {aliases.join(', ')}</p>
         )}
         {description && <p className="mt-2 line-clamp-5 text-sm text-fg-muted">{description}</p>}
-        <div className="mt-3 flex gap-2">
-          <Button size="sm" variant="primary" onClick={() => onExpand()}>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {/* Three to a row leave no room for the shortcuts, which the titles give instead. */}
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => onExpand()}
+            title="Rozwiń (E)"
+            className="px-2"
+          >
             <CircleDotDashedIcon />
             Rozwiń
-            <Kbd>E</Kbd>
           </Button>
-          <Button size="sm" onClick={onMentions} title="Wymieniane razem w artykułach">
+          <Button
+            size="sm"
+            onClick={onMentions}
+            title="Wymieniane razem w artykułach (M)"
+            className="px-2"
+          >
             <NewspaperIcon />
             Razem
-            <Kbd>M</Kbd>
+          </Button>
+          <Button
+            size="sm"
+            onClick={onPath}
+            title="Najkrótsza ścieżka do innej encji (P)"
+            className="px-2"
+          >
+            <RouteIcon />
+            Ścieżka
           </Button>
         </div>
       </div>
