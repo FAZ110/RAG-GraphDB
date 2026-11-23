@@ -1,5 +1,6 @@
 import type { BoundingBox12, Core, EdgeCollection, EdgeSingular } from 'cytoscape'
-import { unbend } from './routes'
+import { canvasMotion } from './motion'
+import { BOW, unbend } from './routes'
 
 // Force-directed edge routing, as netgraph's curved edges and yFiles' organic router do it:
 // each route bows by one offset, pulled straight by a spring and pushed off the nodes, labels
@@ -138,20 +139,62 @@ function collisions(r: Route, bow: number): number {
   return hits
 }
 
-/** Draw each edge of a route: its own place in the fan, measured from its own direction. */
-function draw(r: Route) {
-  r.edges.forEach((edge, i) => {
+interface Bend {
+  edge: EdgeSingular
+  from: number
+  /** Null puts a lone edge back to a plain straight line. */
+  to: number | null
+}
+
+/** Each edge of a route: its own place in the fan, measured from its own direction. */
+function bends(r: Route): Bend[] {
+  return r.edges.map((edge, i) => {
     const offset = r.bow + i * FAN_SPACING - r.half
     const flipped = edge.source().id() !== r.edges[0].source().id()
     // A plain edge in a fan would be fanned again by Cytoscape, so only lone ones go back.
-    if (r.edges.length === 1 && Math.abs(offset) < STRAIGHT_BELOW) return unbend(edge)
-    // One control point at the middle; the curve's apex sits halfway out to it.
-    edge.style({
-      'curve-style': 'unbundled-bezier',
-      'control-point-distances': [2 * (flipped ? -offset : offset)],
-      'control-point-weights': [0.5],
-    })
+    const to =
+      r.edges.length === 1 && Math.abs(offset) < STRAIGHT_BELOW
+        ? null
+        : 2 * (flipped ? -offset : offset)
+    // Where it is drawn now; a fan Cytoscape spreads by itself has no bow to start from.
+    const from = (edge.scratch(BOW) as number | undefined) ?? to ?? 0
+    return { edge, from, to }
   })
+}
+
+// One control point at the middle; the curve's apex sits halfway out to it.
+const bendTo = (edge: EdgeSingular, distance: number) =>
+  edge.style({
+    'curve-style': 'unbundled-bezier',
+    'control-point-distances': [distance],
+    'control-point-weights': [0.5],
+  })
+
+function settle({ edge, to }: Bend) {
+  if (to === null) return unbend(edge)
+  bendTo(edge, to)
+  edge.scratch(BOW, to)
+}
+
+const easeOut = (t: number) => 1 - (1 - t) ** 3
+
+/** Bend each edge from the bow it has to the one routed for it, gliding rather than jumping. */
+function draw(cy: Core, all: Bend[]) {
+  cancelAnimationFrame(cy.scratch('_bending') as number)
+  const moving = all.filter((b) => b.from !== (b.to ?? 0))
+  const { duration } = canvasMotion('quick')
+  cy.batch(() => all.filter((b) => !moving.includes(b)).forEach(settle))
+  if (!moving.length) return
+  if (!duration) return cy.batch(() => moving.forEach(settle))
+  const start = performance.now()
+  const frame = (now: number) => {
+    const t = Math.min(1, (now - start) / duration)
+    if (t === 1) return cy.batch(() => moving.forEach(settle))
+    const k = easeOut(t)
+    cy.batch(() => moving.forEach((b) => bendTo(b.edge, b.from + ((b.to ?? 0) - b.from) * k)))
+    cy.scratch('_bending', requestAnimationFrame(frame))
+  }
+  cy.scratch('_bending', requestAnimationFrame(frame))
 }
 
 /**
@@ -187,5 +230,5 @@ export function routeEdges(cy: Core) {
   }
   // A bow that clears nothing only makes the edge harder to follow; it goes back straight.
   for (const r of routes) if (collisions(r, r.bow) >= collisions(r, 0)) r.bow = 0
-  cy.batch(() => routes.forEach(draw))
+  draw(cy, routes.flatMap(bends))
 }

@@ -32,12 +32,10 @@ async def common_neighbours(
 
 
 @translates_neo4j_errors
-async def shortest_paths(
-    scope: SpaceScope, source_id: str, target_id: str, k: int, max_length: int
-) -> dict:
+async def shortest_paths(scope: SpaceScope, source_id: str, target_id: str, k: int) -> dict:
     """Up to `k` shortest routes between two entities, shortest first, with every entity on
     them. Paths differing only in a parallel relationship are one route showing all of them."""
-    query = _QUERIES["shortest_paths"].with_numbers(k=k * _PATHS_PER_ROUTE, max_length=max_length)
+    query = _QUERIES["shortest_paths"].with_numbers(k=k * _PATHS_PER_ROUTE)
     rows = await gate.rows(scope, query, {"source_id": source_id, "target_id": target_id})
     routes: dict[tuple[str, ...], dict[str, dict]] = {}
     for r in rows:
@@ -64,3 +62,10 @@ async def entities_by_label(scope: SpaceScope, label: str, limit: int, offset: i
 async def sources_for(scope: SpaceScope, ids: list[str], limit: int) -> list[dict]:
     rows = await gate.rows(scope, _QUERIES["sources_for"], {"ids": ids, "limit": limit})
     return [{**dict(r), "created_at": r["created_at"].to_native()} for r in rows]
+
+
+@translates_neo4j_errors
+async def co_mentions(scope: SpaceScope, node_id: str, limit: int) -> list[dict]:
+    """Entities the articles mention together with the node though no relation links them."""
+    rows = await gate.rows(scope, _QUERIES["co_mentions"], {"node_id": node_id, "limit": limit})
+    return [{**_node(r), "articles": r["articles"]} for r in rows]

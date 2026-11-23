@@ -4,7 +4,6 @@ import { planned } from './arrange'
 import { edgeLengths } from './edgeLength'
 import { dotSource, graphviz } from './graphviz'
 import type { GraphvizJson } from './graphviz'
-import { unbendAround } from './routes'
 import type { Point } from './routes'
 import { NODE_GAP, settleAt } from './settle'
 
@@ -24,10 +23,12 @@ const centroid = (points: Point[]) => ({
  * Lay the whole canvas out afresh: stress gives the shape with as few crossings as it can, then
  * springs stretch each edge to the length its label needs, which stress only roughly keeps
  * where groups are dense. Measured on a real space: two crossings, no overlaps, no edge too
- * short for its label. Ghosts and hidden types are left out. Resolves with where nodes ended up.
+ * short for its label. Ghosts and hidden types are left out. Given `only`, just those are laid
+ * out afresh, where they stood, and every other node stays put. Resolves with where nodes ended up.
  */
-export async function tidy(cy: Core): Promise<PlacedId[]> {
-  const nodes = cy.nodes().not('.ghost').not('.hidden')
+export async function tidy(cy: Core, only?: readonly string[]): Promise<PlacedId[]> {
+  const all = cy.nodes().not('.ghost').not('.hidden')
+  const nodes = only ? all.filter((n) => only.includes(n.id())) : all
   if (nodes.empty()) return []
 
   const source = dotSource(nodes, SETTINGS, edgeLengths(nodes))
@@ -45,8 +46,6 @@ export async function tidy(cy: Core): Promise<PlacedId[]> {
     p.y += shift.y - at.y
   })
 
-  const laid = await planned(cy, nodes, nodes, stress)
-  // Old routes won't fit the new places; the router draws new ones once it settles.
-  unbendAround(cy, nodes)
+  const laid = await planned(cy, all, nodes, stress)
   return settleAt(nodes, laid)
 }

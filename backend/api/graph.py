@@ -15,6 +15,7 @@ from db.graph.edits import (
     update_relationship,
 )
 from db.graph.explore import (
+    co_mentions,
     common_neighbours,
     entities_by_label,
     relation_groups,
@@ -105,6 +106,12 @@ async def get_relations(space: SpaceAccess, node_id: str):
     return await relation_groups(space, node_id)
 
 
+@router.get("/nodes/{node_id}/co-mentions")
+async def get_co_mentions(space: SpaceAccess, node_id: str, limit: int = Query(50, ge=1, le=200)):
+    """Entities mentioned in the same articles as the node but not related to it."""
+    return await co_mentions(space, node_id, limit)
+
+
 @router.get("/nodes")
 async def get_nodes_by_label(
     space: SpaceAccess,
@@ -134,7 +141,7 @@ async def post_paths(space: SpaceAccess, body: PathQuery):
     """The shortest paths between two entities, through entities only."""
     if body.source_id == body.target_id:
         raise HTTPException(status_code=422, detail="Ścieżka musi łączyć dwa różne węzły")
-    return await shortest_paths(space, body.source_id, body.target_id, body.k, body.max_length)
+    return await shortest_paths(space, body.source_id, body.target_id, body.k)
 
 
 @router.post("/sources")

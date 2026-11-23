@@ -118,7 +118,7 @@ export function ProposalBar({
           onMouseLeave={() => onHoverGroup(null)}
         >
           <Chip on={group === null} onClick={() => onGroup(null)}>
-            Wszystkie
+            {proposal.routes ? 'Wszystkie trasy' : 'Wszystkie'}
           </Chip>
           {proposal.groups.map((g) => {
             const kind = (
@@ -137,7 +137,9 @@ export function ProposalBar({
               >
                 {/* Read as a sentence about the expanded entity: "Zawodnik gra w" it,
                     or it "wygrał w Klub". */}
-                {g.incoming ? (
+                {g.name ? (
+                  g.name
+                ) : g.incoming ? (
                   <>
                     {kind} {relation}
                   </>
@@ -146,7 +148,7 @@ export function ProposalBar({
                     {relation} {kind}
                   </>
                 )}
-                <span className="tabular-nums opacity-60">{g.count}</span>
+                {!g.name && <span className="tabular-nums opacity-60">{g.count}</span>}
               </Chip>
             )
           })}

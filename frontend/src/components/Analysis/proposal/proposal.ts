@@ -1,7 +1,7 @@
 import type { LoadedEdge, LoadedNode } from '@/types'
 import type { Point } from '@/types/analysis'
 
-export type ProposalKind = 'expand' | 'common' | 'path' | 'type' | 'article'
+export type ProposalKind = 'expand' | 'mentions' | 'common' | 'path' | 'type' | 'article'
 
 /** Candidates one relation brings, one way, of one type: "a player plays in" Inter. */
 export interface ProposalGroup {
@@ -10,6 +10,8 @@ export interface ProposalGroup {
   label: string
   incoming: boolean
   count: number
+  /** Said as it is, e.g. one path's route, instead of as a relation. */
+  name?: string
 }
 
 /** A narrower group: one relation, one way, to one type, as the inspector lists them. */
@@ -26,6 +28,8 @@ export interface Proposal {
   spots: ReadonlyMap<string, Point>
   /** Nodes and edges of the routes found, drawn in ink. */
   route?: ReadonlySet<string>
+  /** Each group's own route, inked alone while that group is picked or pointed at. */
+  routes?: ReadonlyMap<string, ReadonlySet<string>>
   /** Narrower sets of the candidates, e.g. the neighbours one relation brings. */
   groups?: ProposalGroup[]
   /** Entities a candidate links to, per candidate; groups filter on these. */

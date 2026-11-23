@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LoadedEdge, LoadedNode } from '@/types'
 import type { Placed } from '../state/canvasDoc'
-import { expandProposal, pathProposal, typeProposal } from './build'
+import { expandProposal, mentionsProposal, pathProposal, typeProposal } from './build'
 import type { Context } from './build'
 import { candidates, relationGroupKey, visible } from './proposal'
 
@@ -79,10 +79,42 @@ describe('pathProposal', () => {
     expect(p.route!.has('Jan-ZNA-Anna')).toBe(true)
   })
 
+  it('gives each path its own group and route, named by the way it goes', () => {
+    const res = {
+      nodes: [node('Jan'), node('Anna'), node('Ewa'), node('Inter')],
+      paths: [
+        { node_ids: ['Jan', 'Inter'], edges: [edge('Jan', 'Inter', 'GRA_W')] },
+        {
+          node_ids: ['Jan', 'Anna', 'Inter'],
+          edges: [edge('Jan', 'Anna', 'ZNA'), edge('Anna', 'Inter', 'GRA_W')],
+        },
+        {
+          node_ids: ['Jan', 'Ewa', 'Inter'],
+          edges: [edge('Jan', 'Ewa', 'ZNA'), edge('Ewa', 'Inter', 'GRA_W')],
+        },
+      ],
+    }
+    const p = pathProposal(from, to, res, ctx(from, to))
+    expect(p.groups!.map((g) => g.name)).toEqual([
+      'bezpośrednio (1 krok)',
+      'przez Anna (2 kroki)',
+      'przez Ewa (2 kroki)',
+    ])
+    const second = p.groups![1].key
+    expect([...p.routes!.get(second)!]).toEqual([
+      'Jan',
+      'Anna',
+      'Inter',
+      'Jan-ZNA-Anna',
+      'Anna-GRA_W-Inter',
+    ])
+    expect(candidates({ proposal: p, group: second, shown: 12 }).map((n) => n.id)).toEqual(['Anna'])
+  })
+
   it('says when there is no path', () => {
     const p = pathProposal(from, to, { nodes: [], paths: [] }, ctx(from, to))
     expect(p.nodes).toEqual([])
-    expect(p.empty).toBe('Brak ścieżki do 6 kroków')
+    expect(p.empty).toBe('Te encje nie są ze sobą połączone')
   })
 })
 
@@ -91,4 +123,23 @@ it('typeProposal leaves out what is on the canvas already', () => {
   const p = typeProposal('OSOBA', [node('Anna'), node('Ewa')], ctx(anna))
   expect(p.nodes.map((n) => n.id)).toEqual(['Ewa'])
   expect(p.spots.has('Ewa')).toBe(true)
+})
+
+describe('mentionsProposal', () => {
+  const found = [node('Anna'), node('Inter', 'KLUB')]
+
+  it('proposes what is written about with the entity, most often first, without edges', () => {
+    const p = mentionsProposal(root, found, ctx(root))
+    expect(p.nodes.map((n) => n.id)).toEqual(['Anna', 'Inter'])
+    expect([...p.spots.keys()]).toEqual(['Anna', 'Inter'])
+    expect(p.edges).toEqual([])
+  })
+
+  it('says whether nothing was found or all of it is on the canvas already', () => {
+    const all = ctx(root, placed(node('Anna')), placed(node('Inter', 'KLUB')))
+    expect(mentionsProposal(root, found, all).nodes).toEqual([])
+    expect(mentionsProposal(root, found, all).empty).not.toBe(
+      mentionsProposal(root, [], ctx(root)).empty
+    )
+  })
 })

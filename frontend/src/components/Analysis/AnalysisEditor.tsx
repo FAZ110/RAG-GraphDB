@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { BlendIcon, CircleDotDashedIcon, RouteIcon } from 'lucide-react'
+import { BlendIcon, CircleDotDashedIcon, NewspaperIcon, RouteIcon } from 'lucide-react'
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { GraphCanvas } from '@/components/canvas/GraphCanvas'
@@ -21,7 +21,6 @@ import { useCanvasSources } from './state/useCanvasSources'
 import { PickBar } from './dock/PickBar'
 import { ProposalBar } from './dock/ProposalBar'
 import { ToolButton } from './dock/ToolButton'
-import { TypePicker } from './dock/TypePicker'
 import { EmptyCanvas } from './EmptyCanvas'
 import { EntityInspector } from './panels/EntityInspector'
 import { LayersPanel } from './panels/LayersPanel'
@@ -51,7 +50,6 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
   const left = useRef<HTMLDivElement>(null)
   const right = useRef<HTMLDivElement>(null)
   const bottom = useRef<HTMLDivElement>(null)
-  const [typesOpen, setTypesOpen] = useState(false)
   // The article open in the side sheet, and the entity whose passages it marks and scrolls to.
   const [article, setArticle] = useState<{ id: string; focusId: string | null } | null>(null)
   const [blank, setBlank] = useState(false)
@@ -109,11 +107,13 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
     const placed = ids.flatMap((id) => editor.doc.entities.get(id) ?? [])
     editor.select(ids)
     if (tool === 'expand') editor.expand(placed[0])
+    if (tool === 'mentions') void proposal.mentions(placed[0])
     if (tool === 'common') void proposal.common(placed)
     if (tool === 'path') void proposal.path(placed[0], placed[1])
   })
   const tools = {
     expand: () => picks.start('expand', selected),
+    mentions: () => picks.start('mentions', selected),
     common: () => picks.start('common', selected),
     path: () => picks.start('path', selected),
   }
@@ -131,12 +131,15 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
         return search.current?.focus()
       case 'expand':
         return tools.expand()
+      case 'mentions':
+        return tools.mentions()
       case 'common':
         return tools.common()
       case 'path':
         return tools.path()
       case 'type':
-        return setTypesOpen(true)
+        browse.showScope('type')
+        return search.current?.focus()
       case 'fit':
         return canvas.current?.fit()
       case 'tidy':
@@ -168,6 +171,8 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
       onExpand={(g) =>
         editor.expand(one, g && relationGroupKey(g.direction === 'in', g.type, g.label))
       }
+      onMentions={() => void proposal.mentions(one)}
+      onPath={tools.path}
       onRemove={() => editor.remove([one.node.id])}
       onOpenArticle={(id) => setArticle({ id, focusId: one.node.id })}
     />
@@ -176,6 +181,7 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
       key="many"
       nodes={selectedPlaced.map((p) => p.node)}
       onCommon={tools.common}
+      onTidy={() => void editor.tidy()}
       onPath={tools.path}
       onRemove={() => editor.remove(selected)}
       onDeselect={(id) => editor.select(selected.filter((s) => s !== id))}
@@ -284,7 +290,7 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
             {
               id: 'layers',
               side: 'left',
-              width: 224,
+              width: 256,
               content:
                 editor.types.length > 0 ? (
                   <LayersPanel
@@ -293,6 +299,17 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
                     hidden={editor.hidden}
                     onToggle={editor.toggleType}
                     onSelectType={editor.selectType}
+                    shape={{
+                      lens: editor.lens,
+                      onLens: editor.setLens,
+                      found: editor.found,
+                      nodeOf: (id) => editor.doc.entities.get(id)?.node,
+                      onPick: (ids) => {
+                        editor.select(ids)
+                        canvas.current?.fit(ids)
+                      },
+                      onHover: editor.setLitIds,
+                    }}
                   />
                 ) : null,
             },
@@ -324,6 +341,7 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
             <span className="mx-1 h-6 w-px bg-line" />
             <ToolButton
               label="Rozwiń powiązania"
+              short="Rozwiń"
               hotkey="E"
               active={picks.picking?.tool === 'expand'}
               onClick={tools.expand}
@@ -331,7 +349,17 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
               <CircleDotDashedIcon />
             </ToolButton>
             <ToolButton
+              label="Wymieniane razem"
+              short="Razem"
+              hotkey="M"
+              active={picks.picking?.tool === 'mentions'}
+              onClick={tools.mentions}
+            >
+              <NewspaperIcon />
+            </ToolButton>
+            <ToolButton
               label="Co je łączy"
+              short="Łączy"
               hotkey="C"
               active={picks.picking?.tool === 'common'}
               onClick={tools.common}
@@ -340,22 +368,19 @@ export function AnalysisEditor({ space, initial, fragment, onCreated, onReload }
             </ToolButton>
             <ToolButton
               label="Najkrótsza ścieżka"
+              short="Ścieżka"
               hotkey="P"
               active={picks.picking?.tool === 'path'}
               onClick={tools.path}
             >
               <RouteIcon />
             </ToolButton>
+            <span className="mx-1 h-6 w-px bg-line" />
             <TidyButton
-              label={selectedPlaced.length > 1 ? 'Uporządkuj zaznaczone' : 'Uporządkuj wszystko'}
+              label={selectedPlaced.length > 1 ? 'Ułóż zaznaczone' : 'Uporządkuj wszystko'}
+              short={selectedPlaced.length > 1 ? 'Zaznaczone' : 'Układ'}
               unavailable={editor.doc.entities.size > 1 ? undefined : 'Najpierw dodaj encje'}
               onTidy={() => void editor.tidy()}
-            />
-            <TypePicker
-              spaceId={space.id}
-              open={typesOpen}
-              onOpenChange={setTypesOpen}
-              onPick={proposal.ofType}
             />
           </Dock>
         </div>

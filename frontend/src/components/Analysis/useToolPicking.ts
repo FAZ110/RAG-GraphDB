@@ -1,10 +1,11 @@
 import { useState } from 'react'
 
-export type PickTool = 'expand' | 'common' | 'path'
+export type PickTool = 'expand' | 'mentions' | 'common' | 'path'
 
 // How many entities each tool works on; it runs by itself once it has `runsAt`.
 const NEEDS: Record<PickTool, { min: number; max: number; runsAt: number | null }> = {
   expand: { min: 1, max: 1, runsAt: 1 },
+  mentions: { min: 1, max: 1, runsAt: 1 },
   path: { min: 2, max: 2, runsAt: 2 },
   // Any number can be compared, so it waits to be told to go.
   common: { min: 2, max: Infinity, runsAt: null },

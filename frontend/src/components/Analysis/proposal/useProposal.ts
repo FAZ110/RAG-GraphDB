@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import {
+  fetchCoMentions,
   fetchCommon,
   fetchEntitiesOfType,
   fetchNeighbours,
@@ -13,6 +14,8 @@ import {
   articleProposal,
   commonProposal,
   expandProposal,
+  mentionsProposal,
+  pathKey,
   pathProposal,
   typeProposal,
 } from './build'
@@ -52,6 +55,10 @@ export function useProposal(spaceId: string, context: () => Context) {
         async () => expandProposal(root, await fetchNeighbours(spaceId, root.node.id), context()),
         group
       ),
+    mentions: (root: Placed) =>
+      run(`wymieniane razem z: ${root.node.name}`, async () =>
+        mentionsProposal(root, await fetchCoMentions(spaceId, root.node.id), context())
+      ),
     common: (selected: Placed[], label?: string) =>
       run('wspólne powiązania', async () =>
         commonProposal(
@@ -65,8 +72,12 @@ export function useProposal(spaceId: string, context: () => Context) {
         )
       ),
     path: (from: Placed, to: Placed) =>
-      run('ścieżkę', async () =>
-        pathProposal(from, to, await fetchPaths(spaceId, from.node.id, to.node.id), context())
+      run(
+        'ścieżkę',
+        async () =>
+          pathProposal(from, to, await fetchPaths(spaceId, from.node.id, to.node.id), context()),
+        // One route at a time, the shortest first, so several don't run into one another.
+        pathKey(0)
       ),
     ofType: (label: string) =>
       run(label, async () =>

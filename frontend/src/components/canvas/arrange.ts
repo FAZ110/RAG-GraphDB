@@ -3,7 +3,6 @@ import type { Core, EdgeSingular, NodeCollection, NodeSingular } from 'cytoscape
 import fcose from 'cytoscape-fcose'
 import type { PlacedId } from '@/types/analysis'
 import { edgeLengths } from './edgeLength'
-import { unbendAround } from './routes'
 import type { Point } from './routes'
 import { separate, settleAt } from './settle'
 
@@ -72,7 +71,6 @@ export async function arrange(cy: Core, moving?: readonly string[]): Promise<Pla
   const nodes = cy.nodes().not('.ghost').not('.hidden')
   const move = moving ? nodes.filter((n) => moving.includes(n.id())) : nodes
   if (move.empty()) return []
-  unbendAround(cy, move)
   return settleAt(move, await planned(cy, nodes, move))
 }
 

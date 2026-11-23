@@ -63,4 +63,3 @@ class PathQuery(BaseModel):
     source_id: str
     target_id: str
     k: int = Field(default=1, ge=1, le=5)
-    max_length: int = Field(default=6, ge=1, le=10)

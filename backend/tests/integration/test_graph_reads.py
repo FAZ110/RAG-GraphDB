@@ -89,6 +89,14 @@ def test_subgraph_has_only_edges_among_the_picked(api, graph):
     assert [e["type"] for e in sub["edges"]] == ["GRA_W"]
 
 
+def test_co_mentions_are_in_the_same_article_but_unrelated(api, graph):
+    ids = graph["ids"]
+    # Article B names Ewa, Milan and Inter; Ewa plays in Milan, so only Inter is news.
+    [inter] = api("GET", f"/nodes/{ids['Ewa']}/co-mentions")
+    assert (inter["name"], inter["articles"]) == ("Inter", 1)
+    assert api("GET", f"/nodes/{ids['Jan']}/co-mentions") == []
+
+
 def test_common_neighbours(api, graph):
     ids = graph["ids"]
     common = api("POST", "/common", json={"ids": [ids["Jan"], ids["Anna"]]})
@@ -125,12 +133,11 @@ def test_shortest_path(api, graph):
     assert sorted(e["type"] for e in found["paths"][0]["edges"]) == ["GRA_W", "RYWAL"]
 
 
-def test_paths_ignore_direction_and_respect_max_length(api, graph):
+def test_paths_ignore_direction(api, graph):
     ids = graph["ids"]
     body = {"source_id": ids["Ewa"], "target_id": ids["Anna"]}
     [path] = api("POST", "/paths", json=body)["paths"]
     assert [_name(graph, i) for i in path["node_ids"]] == ["Ewa", "Milan", "Inter", "Anna"]
-    assert api("POST", "/paths", json={**body, "max_length": 2})["paths"] == []
 
 
 def test_several_shortest_paths(api, graph):
@@ -140,6 +147,22 @@ def test_several_shortest_paths(api, graph):
         [_name(graph, i) for i in p["node_ids"]] for p in api("POST", "/paths", json=body)["paths"]
     ]
     assert routes == [["Jan", "Anna"], ["Jan", "Inter", "Anna"]]
+
+
+def test_paths_never_come_back_through_an_entity(api, graph):
+    ids = graph["ids"]
+    # A second relation between Jan and Anna would let a path go there and back again.
+    cypher(
+        "MATCH (j:Entity {id: $jan}), (a:Entity {id: $anna}) CREATE (j)-[:KOLEGA]->(a)",
+        jan=ids["Jan"],
+        anna=ids["Anna"],
+    )
+    body = {"source_id": ids["Jan"], "target_id": ids["Milan"], "k": 5}
+    routes = [p["node_ids"] for p in api("POST", "/paths", json=body)["paths"]]
+    assert [[_name(graph, i) for i in r] for r in routes] == [
+        ["Jan", "Inter", "Milan"],
+        ["Jan", "Anna", "Inter", "Milan"],
+    ]
 
 
 def test_path_to_itself_rejected(client, alice, space, graph):
