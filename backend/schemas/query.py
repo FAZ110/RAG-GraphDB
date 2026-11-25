@@ -133,6 +133,13 @@ class GraphPattern(BaseModel):
         return [n.key for n in self.nodes if n.key not in aside]
 
 
+class TextQuestion(BaseModel):
+    """A question in words, to be drawn as a pattern by the given language model."""
+
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)]
+    provider: Annotated[str, StringConstraints(min_length=1, max_length=100)]
+
+
 def _connected(keys: list[str], edges: list[PatternEdge]) -> bool:
     if not keys:
         return False

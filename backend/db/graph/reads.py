@@ -183,6 +183,33 @@ async def edge_sources(scope: SpaceScope, edge_id: str) -> list[dict]:
 
 
 @translates_neo4j_errors
+async def entities_named(scope: SpaceScope, names: list[str]) -> dict[str, str]:
+    """The id of the best connected entity called each name, by name or alias, case aside."""
+    found: dict[str, str] = {}
+    for r in await gate.rows(scope, _QUERIES["entities_named"], {"names": names}):
+        found.setdefault(r["wanted"], r["id"])
+    return found
+
+
+@translates_neo4j_errors
+async def entities_starting(scope: SpaceScope, prefixes: list[str], limit: int) -> list[dict]:
+    """Entities whose name or an alias starts with one of the lowercase prefixes."""
+    params = {"prefixes": prefixes, "limit": limit}
+    return [dict(r) for r in await gate.rows(scope, _QUERIES["entities_starting"], params)]
+
+
+@translates_neo4j_errors
+async def entity_links(scope: SpaceScope, ids: list[str]) -> dict[str, list[dict]]:
+    """Each entity's links to other entities, grouped by relationship, way and far end's type."""
+    links: dict[str, list[dict]] = {}
+    for r in await gate.rows(scope, _QUERIES["entity_links"], {"ids": ids}):
+        links.setdefault(r["id"], []).append(
+            {"type": r["type"], "out": r["out"], "label": r["label"], "count": r["count"]}
+        )
+    return links
+
+
+@translates_neo4j_errors
 async def search_nodes(scope: SpaceScope, vec: list[float], top_k: int) -> list[dict]:
     params = {"vec": vec, "top_k": top_k, "search_k": top_k * _SEARCH_K_FACTOR}
     return [
