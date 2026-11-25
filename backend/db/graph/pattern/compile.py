@@ -1,6 +1,7 @@
-from itertools import combinations
+from itertools import combinations, pairwise
 
 from db.access.queries import Query
+from db.graph.pattern.symmetry import interchangeable
 from schemas.query import GraphPattern, PatternEdge, PatternNode
 
 # Rows read at most. A pattern with many paths per match is cut here, which the result reports.
@@ -140,6 +141,10 @@ def compile_pattern(pattern: GraphPattern) -> tuple[Query, dict]:
                 conditions.append(f"{key}.id IN $within")
     # Each node of the pattern stands for a different entity.
     conditions += [f"{a} <> {b}" for a, b in combinations(core, 2)]
+    # Nodes that can swap places take their entities in one order only, so a pair comes once.
+    sought = [k for k in core if not nodes[k].known]
+    for group in interchangeable(pattern, sought):
+        conditions += [f"{a}.id < {b}.id" for a, b in pairwise(group)]
     for key in excluded:
         conditions += [f"NOT {k}.id IN ${key}_ids" for k in core if not nodes[k].known]
     for edge in required:

@@ -2,8 +2,16 @@ from db.access import gate
 from db.access.scopes import SpaceScope
 from db.driver import translates_neo4j_errors
 from db.graph.pattern.compile import MAX_ROWS, compile_pattern
+from db.graph.pattern.symmetry import interchangeable
 from db.graph.reads import nodes_by_ids
 from schemas.query import GraphPattern
+
+
+def _counts(pattern: GraphPattern, sought: list[str], matches: list[dict]) -> dict[str, int]:
+    """Different entities standing for each sought node; nodes that can swap places share theirs,
+    as which of them an entity lands on is only the order the query takes them in."""
+    shared = {k: g for g in interchangeable(pattern, sought) for k in g}
+    return {k: len({b[j] for b in matches for j in shared.get(k, [k]) if b[j]}) for k in sought}
 
 
 @translates_neo4j_errors
@@ -55,7 +63,7 @@ async def run_pattern(scope: SpaceScope, pattern: GraphPattern) -> dict:
     return {
         "matches": [matches[key] for key in page],
         "total": len(matches),
-        "counts": {k: len({b[k] for b in matches.values() if b[k]}) for k in sought},
+        "counts": _counts(pattern, sought, list(matches.values())),
         "counted": {k: {i: n for i, n in c.items() if i in shown} for k, c in counted.items()},
         "nodes": [entities[i] for i in wanted if i in entities],
         "edges": list(edges.values()),

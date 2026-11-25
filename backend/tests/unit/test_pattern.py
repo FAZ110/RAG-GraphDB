@@ -59,6 +59,45 @@ def test_each_node_stands_for_a_different_entity():
     assert all(pair in query.text for pair in ("a <> b", "a <> k", "b <> k"))
 
 
+def _players_of_one_club(*players: str, **changes: dict) -> GraphPattern:
+    nodes = [{"key": p, "label": "OSOBA", **changes.get(p, {})} for p in players]
+    edges = [{"source": p, "target": "k", "type": "GRA_W", "direction": "out"} for p in players]
+    return pattern([*nodes, {"key": "k", "label": "KLUB"}], edges)
+
+
+def test_sought_nodes_that_can_swap_take_their_entities_in_one_order():
+    query, _ = compile_pattern(_players_of_one_club("a", "b"))
+    assert "a.id < b.id" in query.text
+
+
+def test_every_node_of_a_swappable_group_is_ordered_after_the_one_before():
+    query, _ = compile_pattern(_players_of_one_club("a", "b", "c"))
+    assert "a.id < b.id" in query.text and "b.id < c.id" in query.text
+
+
+def test_sought_nodes_asked_for_differently_are_not_ordered():
+    query, _ = compile_pattern(_players_of_one_club("a", "b", b={"name_contains": "an"}))
+    assert ".id <" not in query.text
+
+
+def test_sought_nodes_linked_differently_are_not_ordered():
+    query, _ = compile_pattern(
+        pattern(
+            [{"key": "a", "label": "OSOBA"}, {"key": "b", "label": "OSOBA"}, {"key": "k"}],
+            [
+                {"source": "a", "target": "k", "type": "GRA_W", "direction": "out"},
+                {"source": "b", "target": "k", "type": "GRA_W", "direction": "in"},
+            ],
+        )
+    )
+    assert ".id <" not in query.text
+
+
+def test_known_nodes_are_never_ordered():
+    query, _ = compile_pattern(TWO_PLAYERS_ONE_CLUB)
+    assert ".id <" not in query.text
+
+
 def test_a_link_that_must_not_exist_is_a_condition_not_a_match():
     query, params = compile_pattern(
         pattern(
