@@ -57,6 +57,21 @@ def test_club_both_players_play_in(ask, ids):
     assert sorted(e["type"] for e in result["edges"]) == ["GRA_W", "GRA_W"]
 
 
+def test_two_sought_players_of_one_club_come_once_per_pair(ask, ids):
+    result = ask(
+        [{"key": "a", "label": "OSOBA"}, {"key": "b", "label": "OSOBA"}, {"key": "k"}],
+        [
+            {"source": "a", "target": "k", "type": "GRA_W", "direction": "out"},
+            {"source": "b", "target": "k", "type": "GRA_W", "direction": "out"},
+        ],
+    )
+    names = {n["id"]: n["name"] for n in result["nodes"]}
+    pairs = [sorted([names[m["a"]], names[m["b"]]]) for m in result["matches"]]
+    assert pairs == [["Anna", "Jan"]] and result["total"] == 1
+    # Both players are counted on each of the two nodes they could stand for.
+    assert result["counts"] == {"a": 2, "b": 2, "k": 1}
+
+
 def test_people_of_two_clubs_when_nobody_plays_in_both(ask, ids):
     result = ask(
         [
