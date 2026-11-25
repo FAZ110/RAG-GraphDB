@@ -2,6 +2,8 @@ import { alongLine, blockBeside, centroid, spreadAround } from '@/components/can
 import { pluralForm, typeName } from '@/components/Spaces/spaceText'
 import type { ExpansionResponse, LoadedEdge, LoadedNode } from '@/types'
 import type { CommonResult, PathResult, Point, Subgraph } from '@/types/analysis'
+import type { QueryResult } from '@/types/query'
+import { MENTIONED_TOGETHER } from '@/types/query'
 import type { Placed } from '../state/canvasDoc'
 import { relationGroupKey } from './proposal'
 import type { Proposal, ProposalGroup } from './proposal'
@@ -168,5 +170,28 @@ export function articleProposal(
     spots: spotsFor(nodes, spreadAround(ctx.viewCenter, nodes.length, taken(ctx))),
     articleId,
     empty: 'Wszystkie encje z artykułu są już w analizie',
+  }
+}
+
+/** What a drawn question matched, gathered round the known entities it started from. */
+export function queryProposal(res: QueryResult, known: Placed[], ctx: Context): Proposal {
+  const nodes = fresh(res.nodes, ctx).toSorted((a, b) => b.degree - a.degree)
+  // "Mentioned together" is no relationship of the graph, so it is not drawn as one.
+  const edges = res.edges.filter((e) => e.type !== MENTIONED_TOGETHER)
+  const around = known.length ? centroid(known) : ctx.viewCenter
+  // Every match is inked with the links that make it, as the drawing showed them.
+  const route = new Set([
+    ...known.map((k) => k.node.id),
+    ...res.nodes.map((n) => n.id),
+    ...edges.map((e) => e.id),
+  ])
+  return {
+    kind: 'query',
+    title: 'wyniki zapytania',
+    nodes,
+    edges,
+    route,
+    spots: spotsFor(nodes, spreadAround(around, nodes.length, taken(ctx))),
+    empty: 'Wszystko, co pasuje do pytania, jest już w analizie',
   }
 }
