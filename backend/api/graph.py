@@ -22,6 +22,7 @@ from db.graph.explore import (
     shortest_paths,
     sources_for,
 )
+from db.graph.pattern.run import run_pattern
 from db.graph.reads import (
     duplicate_suggestions,
     edge_sources,
@@ -32,6 +33,7 @@ from db.graph.reads import (
     node_sources,
     overview_graph,
     search_nodes,
+    space_schema,
     subgraph,
     top_graph,
 )
@@ -46,6 +48,7 @@ from schemas.graph import (
     RelationshipCreate,
     RelationshipUpdate,
 )
+from schemas.query import GraphPattern
 from services.embedding_service import embed_in_thread, embedding_text
 
 router = APIRouter(
@@ -121,6 +124,19 @@ async def get_nodes_by_label(
 ):
     """Entities of one type, best connected first, with how many there are in all."""
     return await entities_by_label(space, label, limit, offset)
+
+
+@router.get("/schema")
+async def get_schema(space: SpaceAccess):
+    """The entity types and the relationships between types that the space has."""
+    return await space_schema(space)
+
+
+@router.post("/query")
+async def post_query(space: SpaceAccess, body: GraphPattern):
+    """Every place in the space's graph shaped like the pattern: known entities, sought ones
+    and the links between them."""
+    return await run_pattern(space, body)
 
 
 @router.post("/subgraph")

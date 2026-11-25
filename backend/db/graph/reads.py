@@ -110,11 +110,30 @@ async def edges_among(scope: SpaceScope, ids: list[str]) -> list[dict]:
 
 
 @translates_neo4j_errors
+async def nodes_by_ids(scope: SpaceScope, ids: list[str]) -> list[dict]:
+    """The given entities of the space, with fresh degrees; ids of other spaces are skipped."""
+    return [_node(r) for r in await gate.rows(scope, _QUERIES["nodes_by_id"], {"ids": ids})]
+
+
+@translates_neo4j_errors
 async def subgraph(scope: SpaceScope, ids: list[str]) -> dict:
     """The given entities of the space, with fresh degrees, and the edges among them."""
-    nodes = [_node(r) for r in await gate.rows(scope, _QUERIES["nodes_by_id"], {"ids": ids})]
+    nodes = await nodes_by_ids(scope, ids)
     edges = await edges_among(scope, [n["id"] for n in nodes]) if nodes else []
     return {"nodes": nodes, "edges": edges}
+
+
+@translates_neo4j_errors
+async def space_schema(scope: SpaceScope) -> dict:
+    """The space's entity types and which relationship links which types, with how often:
+    what a pattern can ask for here."""
+
+    async def work(db: Runner) -> dict:
+        labels = [dict(r) for r in await db.rows(_QUERIES["schema_labels"])]
+        relations = [dict(r) for r in await db.rows(_QUERIES["schema_relations"])]
+        return {"labels": labels, "relations": relations}
+
+    return await gate.read(scope, work)
 
 
 @translates_neo4j_errors
