@@ -98,35 +98,35 @@ export interface Space {
 }
 
 export interface CustomProvider {
-    id: string;
-    name: string;
-    base_url: string;
-    model: string;
-    has_api_key: boolean;
-    api_key_hint: string | null;
-    local: boolean;
+  id: string
+  name: string
+  base_url: string
+  model: string
+  has_api_key: boolean
+  api_key_hint: string | null
+  local: boolean
 }
 
 export interface CustomProviderInput {
-    name: string;
-    base_url: string;
-    model: string;
-    api_key: string | null;
-    local: boolean;
+  name: string
+  base_url: string
+  model: string
+  api_key: string | null
+  local: boolean
 }
 
 export interface ProviderCheck {
-    ok: boolean;
-    message: string;
+  ok: boolean
+  message: string
 }
 
 export interface ExtractionSettings {
-    preset: string | null;
-    labels: string[];
-    strict_labels: boolean;
-    presets: { key: string; name: string; description: string; rules: string }[];
-    domains: { key: string; name: string; labels: string[] }[];
-    prompt: { scope: string; user: string; label_rule: string; strict_label_rule: string };
+  preset: string | null
+  labels: string[]
+  strict_labels: boolean
+  presets: { key: string; name: string; description: string; rules: string }[]
+  domains: { key: string; name: string; labels: string[] }[]
+  prompt: { scope: string; user: string; label_rule: string; strict_label_rule: string }
 }
 
 export interface SpaceStats {
@@ -226,27 +226,27 @@ export interface SearchResults {
   articles: ArticleHit[]
 }
 
-export type Role = 'user' | 'admin';
+export type Role = 'user' | 'admin'
 
 export interface User {
-    id: string;
-    email: string;
-    role: Role;
-    server_models: boolean;
+  id: string
+  email: string
+  role: Role
+  server_models: boolean
 }
 
 export interface AdminUser extends User {
-    disabled: boolean;
-    created_at: string;
-    last_login_at: string | null;
-    space_count: number;
-    article_count: number;
+  disabled: boolean
+  created_at: string
+  last_login_at: string | null
+  space_count: number
+  article_count: number
 }
 
 export interface AppSettings {
-    registration_open: boolean;
+  registration_open: boolean
 }
 
 export interface AuthConfig extends AppSettings {
-    dev_accounts: { email: string; role: Role }[];
+  dev_accounts: { email: string; role: Role }[]
 }

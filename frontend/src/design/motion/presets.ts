@@ -8,11 +8,12 @@ export const fade = {
   exit: { opacity: 0, transition: leave.base },
 }
 
-/** A surface over the page, scaling from its `transform-origin`. */
+/** A surface over the page, scaling from its `transform-origin`. The scale is a whole
+ * `transform`, so it runs off the main thread while the surface's content mounts. */
 export const pop = {
-  initial: { opacity: 0, scale: 0.96 },
-  animate: { opacity: 1, scale: 1, transition: move.base },
-  exit: { opacity: 0, scale: 0.96, transition: leave.base },
+  initial: { opacity: 0, transform: 'scale(0.96)' },
+  animate: { opacity: 1, transform: 'scale(1)', transition: move.base },
+  exit: { opacity: 0, transform: 'scale(0.96)', transition: leave.base },
 }
 
 /** A block opening below what it belongs to; give it `overflow-hidden`. */
