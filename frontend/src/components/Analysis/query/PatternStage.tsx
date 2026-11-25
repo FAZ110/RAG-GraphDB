@@ -10,6 +10,8 @@ import { useElementSize } from '@/hooks/useElementSize'
 import { cn } from '@/lib/utils'
 import type { Direction } from '@/types/query'
 import { NODE_H, NODE_W, boxEdge } from './layout'
+import { Letter } from './Letter'
+import { useLetters } from './letters'
 import { linkColor, linkDash, linkText } from './linkLook'
 import type { Point } from './layout'
 import { caption, nodeTitle, SOUGHT } from './names'
@@ -42,14 +44,16 @@ interface Drag {
   moved: boolean
 }
 
+/** Sought nodes to pick out, each with the entity to show in it, e.g. a hovered match's. */
+export type Lit = ReadonlyMap<string, string | null>
+
 interface Props {
   pattern: Pattern
   /** Matches per sought node, shown on it; undefined while there is no answer. */
   counts: Record<string, number> | undefined
   /** The part whose settings are open. */
   selected: string | null
-  /** A sought node to pick out, e.g. while its results are hovered. */
-  lit: string | null
+  lit: Lit | null
   /** Linking by clicking two nodes, switched on from the toolbar. */
   linking: boolean
   onLinking: (on: boolean) => void
@@ -61,6 +65,7 @@ interface Props {
 export function PatternStage(props: Props) {
   const { pattern, selected, counts, lit, linking, onLinking, onSelect, onChange } = props
   const [measure, size] = useElementSize<HTMLDivElement>()
+  const letters = useLetters()
   const stage = useRef<HTMLDivElement | null>(null)
   // One ref for the stage's life: a new one each render would measure it again mid-animation
   // and leave the old size observer running.
@@ -308,6 +313,9 @@ export function PatternStage(props: Props) {
               const count = known ? undefined : counts?.[node.key]
               const target = drag?.mode === 'link' && drop === node.key && drop !== drag.key
               const marked = on || first === node.key
+              const letter = letters.get(node.key)
+              // A hovered match puts its entity where the drawing named only the type.
+              const shown = lit?.get(node.key)
               return (
                 <motion.div
                   key={node.key}
@@ -349,7 +357,7 @@ export function PatternStage(props: Props) {
                       linking ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing',
                       known ? 'border-solid' : 'border-dashed bg-surface',
                       marked && 'border-solid shadow-[4px_4px_0_var(--fg)]',
-                      (target || lit === node.key) &&
+                      (target || lit?.has(node.key)) &&
                         'ring-2 ring-fg ring-offset-2 ring-offset-surface-sunken',
                       focusRing
                     )}
@@ -367,7 +375,11 @@ export function PatternStage(props: Props) {
                     {!known && (
                       // The mark of a sought entity, set off by the same dashed line as its border.
                       <span className="flex w-10 shrink-0 items-center justify-center border-r border-dashed border-fg-subtle bg-surface-sunken text-fg-muted">
-                        <ScanSearchIcon className="size-[18px]" aria-hidden />
+                        {letter ? (
+                          <Letter letter={letter} className="text-base text-fg" />
+                        ) : (
+                          <ScanSearchIcon className="size-[18px]" aria-hidden />
+                        )}
                       </span>
                     )}
                     <span className="flex min-w-0 flex-1 flex-col items-center justify-center px-3">
@@ -382,23 +394,29 @@ export function PatternStage(props: Props) {
                             <span className="shrink-0">+{node.known.length - 1}</span>
                           </>
                         ) : (
-                          <span className="truncate">{nodeTitle(node)}</span>
+                          <span className="truncate">{shown ?? nodeTitle(node)}</span>
                         )}
                       </span>
-                      {(stray.has(node.key) || caption(node)) && (
-                        <span
-                          className={cn(
-                            'w-full truncate text-xs',
-                            stray.has(node.key) ? 'text-danger' : 'text-fg-subtle',
-                            // Plain "szukana encja", not the conditions, set as a small label.
-                            !known &&
-                              !stray.has(node.key) &&
-                              caption(node) === SOUGHT &&
-                              'text-[10px] font-medium tracking-wider uppercase'
-                          )}
-                        >
-                          {stray.has(node.key) ? 'niepołączony' : caption(node)}
+                      {shown ? (
+                        <span className="w-full truncate text-[10px] font-medium tracking-wider text-fg-subtle uppercase">
+                          {nodeTitle(node)}
                         </span>
+                      ) : (
+                        (stray.has(node.key) || caption(node)) && (
+                          <span
+                            className={cn(
+                              'w-full truncate text-xs',
+                              stray.has(node.key) ? 'text-danger' : 'text-fg-subtle',
+                              // Plain "szukana encja", not the conditions, set as a small label.
+                              !known &&
+                                !stray.has(node.key) &&
+                                caption(node) === SOUGHT &&
+                                'text-[10px] font-medium tracking-wider uppercase'
+                            )}
+                          >
+                            {stray.has(node.key) ? 'niepołączony' : caption(node)}
+                          </span>
+                        )
                       )}
                     </span>
                   </button>

@@ -6,13 +6,13 @@ const SOUGHT_BAND = { top: 0.1, bottom: 0.4 }
 const KNOWN_BAND = { top: 0.6, bottom: 0.9 }
 
 const across = (i: number, count: number) => (count === 1 ? 0.5 : 0.15 + (0.7 * i) / (count - 1))
+// Neighbours take turns at the band's top and bottom: a slope would line three nodes up and
+// hide the link between the outer two under the middle one.
 const down = (i: number, count: number, band: { top: number; bottom: number }) =>
-  count === 1
-    ? (band.top + band.bottom) / 2
-    : band.top + ((band.bottom - band.top) * i) / (count - 1)
+  count === 1 ? (band.top + band.bottom) / 2 : i % 2 ? band.bottom : band.top
 
-/** A pattern as the API gives it back, drawn: sought nodes above the known ones, each a step
- * lower than the one before so none covers another; known nodes with no entity are left out. */
+/** A pattern as the API gives it back, drawn: sought nodes above the known ones, zigzagging so
+ * none covers another or a link; known nodes with no entity are left out. */
 export function fromBody(body: QueryBody, entities: readonly LoadedNode[]): Pattern {
   const byId = new Map(entities.map((e) => [e.id, e]))
   const known = body.nodes

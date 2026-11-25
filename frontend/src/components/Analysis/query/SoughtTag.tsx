@@ -1,6 +1,8 @@
 import { ScanSearchIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
+import { Letter } from './Letter'
+import { useLetters } from './letters'
 import { nodeTitle } from './names'
 import type { PatternNode } from './pattern'
 
@@ -15,6 +17,7 @@ export function SoughtTag({
   /** More after the name, e.g. the type the answer is narrowed to. */
   children?: ReactNode
 }) {
+  const letter = useLetters().get(node.key)
   return (
     <span
       className={cn(
@@ -22,7 +25,11 @@ export function SoughtTag({
         className
       )}
     >
-      <ScanSearchIcon className="size-[0.9em] shrink-0 text-fg-muted" aria-label="szukana" />
+      {letter ? (
+        <Letter letter={letter} className="text-[0.85em]" />
+      ) : (
+        <ScanSearchIcon className="size-[0.9em] shrink-0 text-fg-muted" aria-label="szukana" />
+      )}
       <span className="truncate">{nodeTitle(node)}</span>
       {children}
     </span>

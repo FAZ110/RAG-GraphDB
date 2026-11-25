@@ -64,6 +64,13 @@ describe('fromBody', () => {
     expect(at('k1').x).toBe(0.5)
   })
 
+  it('zigzags three sought entities so the outer two are never lined up through the middle', () => {
+    const three: QueryBody = { nodes: [{ key: 'a' }, { key: 'b' }, { key: 'c' }], edges: [] }
+    const [a, b, c] = fromBody(three, []).nodes
+    expect(a.y).toBe(c.y)
+    expect(b.y).toBeGreaterThan(a.y)
+  })
+
   it('leaves out a known node whose entities did not come, with its links', () => {
     const pattern = fromBody(body, [])
     expect(pattern.nodes.map((n) => n.key)).toEqual(['x1', 'x2'])

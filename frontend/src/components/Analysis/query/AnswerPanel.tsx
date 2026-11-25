@@ -9,6 +9,7 @@ import { EntityDetails } from './EntityDetails'
 import type { Known } from './links'
 import { tiesOf } from './links'
 import type { Pattern } from './pattern'
+import type { Lit } from './PatternStage'
 import { NoMatches } from './NoMatches'
 import { QueryResults } from './QueryResults'
 import { Sentence } from './Sentence'
@@ -28,7 +29,7 @@ interface Props {
   found: number
   more: { has: boolean; loading: boolean; load: () => void }
   onOpenArticle: (articleId: string) => void
-  onHover: (key: string | null) => void
+  onHover: (lit: Lit | null) => void
   onShow: () => void
   /** Answers kept to the analysis are selected on the canvas, not added to it. */
   selecting: boolean
