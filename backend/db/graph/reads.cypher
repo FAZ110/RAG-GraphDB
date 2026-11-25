@@ -155,3 +155,32 @@ ORDER BY count DESC, label
 MATCH (a:Entity {space_id: $space_id})-[r]->(b:Entity)
 RETURN a.label AS source, type(r) AS type, b.label AS target, count(*) AS count
 ORDER BY count DESC, type
+
+// name: entities_named
+// scope: space
+// Exact names and aliases, case aside; the best connected entity first for each name.
+UNWIND $names AS wanted
+MATCH (e:Entity {space_id: $space_id})
+WHERE toLower(e.name) = toLower(wanted)
+   OR any(alias IN coalesce(e.aliases, []) WHERE toLower(alias) = toLower(wanted))
+RETURN wanted, e.id AS id, COUNT { (e)--(:Entity) } AS degree
+ORDER BY wanted, degree DESC
+
+// name: entities_starting
+// scope: space
+// Entities whose name or an alias starts like a word of a question: candidates to find in it.
+MATCH (e:Entity {space_id: $space_id})
+WHERE toLower(left(e.name, 3)) IN $prefixes
+   OR any(alias IN coalesce(e.aliases, []) WHERE toLower(left(alias, 3)) IN $prefixes)
+RETURN e.id AS id, e.name AS name, e.label AS label, coalesce(e.aliases, []) AS aliases,
+       COUNT { (e)--(:Entity) } AS degree
+ORDER BY degree DESC
+LIMIT $limit
+
+// name: entity_links
+// scope: space
+// What each entity links to, by relationship and the other end's type, both ways.
+UNWIND $ids AS id
+MATCH (e:Entity {space_id: $space_id, id: id})-[r]-(o:Entity)
+RETURN id, type(r) AS type, startNode(r) = e AS out, o.label AS label, count(*) AS count
+ORDER BY id, count DESC, type

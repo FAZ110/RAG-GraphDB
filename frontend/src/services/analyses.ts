@@ -14,7 +14,7 @@ import type {
   Viewport,
 } from '../types/analysis'
 import type { ExpansionResponse, LoadedNode } from '../types'
-import type { QueryBody, QueryResult, SpaceSchema } from '../types/query'
+import type { PatternFromText, QueryBody, QueryResult, SpaceSchema } from '../types/query'
 import { API_URL, readError, spaceUrl } from './api'
 
 /** Thrown when another tab saved the analysis first; the editor reloads it. */
@@ -104,3 +104,6 @@ export const fetchSpaceSchema = (spaceId: string) =>
 
 export const runQuery = (spaceId: string, body: QueryBody) =>
   request<QueryResult>(`${graphUrl(spaceId)}/query`, json('POST', body))
+
+export const drawFromText = (spaceId: string, text: string, provider: string) =>
+  request<PatternFromText>(`${graphUrl(spaceId)}/query/from-text`, json('POST', { text, provider }))

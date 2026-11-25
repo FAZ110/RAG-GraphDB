@@ -6,6 +6,7 @@ import { Button, IconButton, Modal } from '@/components/deck'
 import { inkFor } from '@/design/inks'
 import type { QueryResult } from '@/types/query'
 import { AnswerPanel } from './AnswerPanel'
+import { AskInWords } from './AskInWords'
 import { CypherView } from './CypherView'
 import { Guide } from './Guide'
 import { Inspector } from './Inspector'
@@ -145,6 +146,15 @@ function Body({
           } as CSSProperties
         }
       >
+        <AskInWords
+          spaceId={spaceId}
+          onDrawn={(next) => {
+            setCoding(false)
+            setAdding(false)
+            setLinking(false)
+            query.change(next, null)
+          }}
+        />
         {/* Above the drawing, so the hits under the search field are never covered by it. */}
         <header className="relative z-10 flex items-center gap-4 border-b border-line py-2 pr-3 pl-4">
           <StageToolbar

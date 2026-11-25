@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from api.dependencies import CurrentUser, SpaceAccess, space_scope
-from db.settings import owns_custom_provider
+from api.providers import check_provider
 from db.spaces.articles import delete_articles, get_article, list_articles
 from db.spaces.spaces import clear_space
 from schemas.articles import (
@@ -14,7 +14,6 @@ from schemas.articles import (
 )
 from schemas.jobs import JobStarted
 from services.jobs.extraction import retry_extraction, start_extraction
-from services.llm_service import CUSTOM_PROVIDER_PREFIX
 
 router = APIRouter(
     prefix="/spaces/{space_id}/articles",
@@ -23,24 +22,9 @@ router = APIRouter(
 )
 
 
-async def _check_provider(user: dict, space: SpaceAccess, provider: str | None) -> None:
-    if provider is None:
-        return
-    if provider.startswith(CUSTOM_PROVIDER_PREFIX):
-        if not await owns_custom_provider(
-            space.owner(), provider.removeprefix(CUSTOM_PROVIDER_PREFIX)
-        ):
-            raise HTTPException(status_code=422, detail="Wybrany model nie istnieje")
-    elif not user["server_models"]:
-        raise HTTPException(
-            status_code=403,
-            detail="Administrator nie udostępnił Ci modeli serwera, dodaj własny model w ustawieniach",
-        )
-
-
 @router.post("", response_model=JobStarted, status_code=status.HTTP_202_ACCEPTED)
 async def upload_articles(space: SpaceAccess, body: ArticlesUpload, user: CurrentUser):
-    await _check_provider(user, space, body.provider)
+    await check_provider(user, space, body.provider)
     articles = [a.model_dump() for a in body.articles]
     job_id = await start_extraction(space, articles, body.provider, body.force)
     return JobStarted(job_id=job_id)
@@ -48,7 +32,7 @@ async def upload_articles(space: SpaceAccess, body: ArticlesUpload, user: Curren
 
 @router.post("/retry", response_model=JobStarted, status_code=status.HTTP_202_ACCEPTED)
 async def retry_articles(space: SpaceAccess, body: ArticlesRetry, user: CurrentUser):
-    await _check_provider(user, space, body.provider)
+    await check_provider(user, space, body.provider)
     job_id = await retry_extraction(space, body.article_ids, body.provider, body.status)
     if job_id is None:
         raise HTTPException(status_code=409, detail="No articles to retry")

@@ -1,8 +1,10 @@
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from openai import RateLimitError
 
-from api.dependencies import SpaceAccess, space_scope
+from api.dependencies import CurrentUser, SpaceAccess, space_scope
+from api.providers import check_provider
 from db.errors import EntityKeyTakenError
 from db.graph.edits import (
     create_entity,
@@ -48,8 +50,9 @@ from schemas.graph import (
     RelationshipCreate,
     RelationshipUpdate,
 )
-from schemas.query import GraphPattern
+from schemas.query import GraphPattern, TextQuestion
 from services.embedding_service import embed_in_thread, embedding_text
+from services.text_query.translate import QuestionNotAnswerable, ServerModelBusy, translate
 
 router = APIRouter(
     prefix="/spaces/{space_id}/graph",
@@ -137,6 +140,30 @@ async def post_query(space: SpaceAccess, body: GraphPattern):
     """Every place in the space's graph shaped like the pattern: known entities, sought ones
     and the links between them."""
     return await run_pattern(space, body)
+
+
+@router.post("/query/from-text")
+async def post_query_from_text(space: SpaceAccess, body: TextQuestion, user: CurrentUser):
+    """A question in words drawn as a pattern by a language model, with the entities its
+    known nodes stand for and the names the space has no entity for. Not run: the user
+    sees the drawing first and asks it through /query."""
+    await check_provider(user, space, body.provider)
+    try:
+        return await translate(space, body.text, body.provider)
+    except QuestionNotAnswerable as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except ServerModelBusy as e:
+        raise HTTPException(
+            status_code=429, detail=str(e), headers={"Retry-After": str(e.wait)}
+        ) from e
+    except RateLimitError as e:
+        raise HTTPException(
+            status_code=429, detail="Wyczerpano limit zapytań modelu na minutę, spróbuj za chwilę"
+        ) from e
+    except ValueError as e:
+        raise HTTPException(
+            status_code=502, detail=str(e) or "Model nie odpowiedział poprawnie"
+        ) from e
 
 
 @router.post("/subgraph")

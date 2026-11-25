@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from openai import APIConnectionError, APIStatusError, RateLimitError
+from openai import APIConnectionError, APIStatusError, BadRequestError, RateLimitError
 
 from db.access.scopes import SpaceScope
 from services.llm_service import LLMService, check_model, describe_llm_error
@@ -227,3 +227,35 @@ def test_endless_stream_is_cut_off(monkeypatch):
     with pytest.raises(ValueError, match="zbyt długa"):
         svc.generate_graph_json("T", "x")
     assert closed == [True]
+
+
+def test_a_json_schema_is_sent_and_dropped_for_good_once_refused():
+    svc, fake = service('{"ok": true}')
+    request = httpx.Request("POST", "https://llm.example/v1")
+    answer = fake.create
+
+    def refuse_schemas(**kwargs):
+        if kwargs.get("response_format", {}).get("type") == "json_schema":
+            fake.calls.append(kwargs)
+            raise BadRequestError(
+                "no schemas", response=httpx.Response(400, request=request), body=None
+            )
+        return answer(**kwargs)
+
+    fake.create = refuse_schemas
+    shape = {"type": "json_schema", "json_schema": {"name": "x", "schema": {}}}
+    assert svc.chat_json([{"role": "user", "content": "json"}], shape) == {"ok": True}
+    assert [c.get("response_format", {}).get("type") for c in fake.calls] == [
+        "json_schema",
+        None,
+    ]
+    svc.chat_json([{"role": "user", "content": "json"}], shape)
+    assert fake.calls[-1].get("response_format") is None
+
+
+def test_a_json_schema_replaces_the_plain_json_mode():
+    svc, fake = service('{"ok": true}')
+    svc._extra = {"response_format": {"type": "json_object"}}
+    shape = {"type": "json_schema", "json_schema": {"name": "x", "schema": {}}}
+    svc.chat_json([{"role": "user", "content": "json"}], shape)
+    assert fake.calls[0]["response_format"] == shape

@@ -253,6 +253,7 @@ class LLMService:
     def __init__(self, provider: str = "local", scope: SpaceScope | None = None) -> None:
         self._extra: dict = {"temperature": 0.1}
         self._stream = False
+        self._takes_schema = True
 
         if provider == "groq":
             if not GROQ_API_KEY:
@@ -297,10 +298,13 @@ class LLMService:
 
         print(f"Initialized with: {self._model}")
 
-    def _complete(self, messages: list[dict]) -> tuple[str | None, str | None]:
+    def _complete(
+        self, messages: list[dict], extra: dict | None = None
+    ) -> tuple[str | None, str | None]:
+        extra = self._extra if extra is None else extra
         if not self._stream:
             response = self._client.chat.completions.create(
-                model=self._model, messages=messages, **self._extra
+                model=self._model, messages=messages, **extra
             )
             if not response.choices:
                 raise ValueError("Missing response from LLM")
@@ -309,7 +313,7 @@ class LLMService:
 
         parts, size, finish_reason = [], 0, None
         stream = self._client.chat.completions.create(
-            model=self._model, messages=messages, stream=True, **self._extra
+            model=self._model, messages=messages, stream=True, **extra
         )
         for chunk in stream:
             if not chunk.choices:
@@ -339,8 +343,26 @@ class LLMService:
             title=title,
             content=content,
         )
+        return self.chat_json([{"role": "user", "content": prompt}])
+
+    def _complete_shaped(
+        self, messages: list[dict], response_format: dict | None
+    ) -> tuple[str | None, str | None]:
+        """With the answer's schema where the provider takes one; a provider that refuses it
+        is asked again without, and not given one again."""
+        if response_format is None or not self._takes_schema:
+            return self._complete(messages)
         try:
-            raw, finish_reason = self._complete([{"role": "user", "content": prompt}])
+            return self._complete(messages, {**self._extra, "response_format": response_format})
+        except APIStatusError as e:
+            if e.status_code != 400:
+                raise
+            self._takes_schema = False
+            return self._complete(messages)
+
+    def chat_json(self, messages: list[dict], response_format: dict | None = None) -> dict:
+        try:
+            raw, finish_reason = self._complete_shaped(messages, response_format)
         except RateLimitError:
             raise  # retried by the task
         except (APIConnectionError, APIStatusError) as e:

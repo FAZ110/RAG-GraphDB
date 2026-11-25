@@ -57,3 +57,10 @@ export interface SpaceSchema {
   /** Which type links to which, by which relationship, as stored (source to target). */
   relations: { source: string; type: string; target: string; count: number }[]
 }
+
+/** A question in words as a language model drew it; `missing` are names no entity has. */
+export interface PatternFromText {
+  pattern: QueryBody
+  entities: LoadedNode[]
+  missing: string[]
+}
