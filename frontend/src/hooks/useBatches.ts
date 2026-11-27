@@ -36,6 +36,14 @@ export function refreshAfterUpload(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: BATCHES_QUERY_KEY })
 }
 
+/** While an upload runs: its progress, without the graph and the rest of the space. */
+export function refreshProgress(queryClient: QueryClient, spaceId: string) {
+  queryClient.invalidateQueries({ queryKey: BATCHES_QUERY_KEY })
+  queryClient.invalidateQueries({ queryKey: SPACES_QUERY_KEY, exact: true })
+  queryClient.invalidateQueries({ queryKey: [...SPACES_QUERY_KEY, spaceId, 'stats'] })
+  queryClient.invalidateQueries({ queryKey: [...SPACES_QUERY_KEY, spaceId, 'articles'] })
+}
+
 interface Upload {
   spaceId: string
   articles: ArticleRequest[]

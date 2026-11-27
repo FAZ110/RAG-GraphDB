@@ -1,26 +1,29 @@
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { refreshAfterUpload, useRunningBatches } from '@/hooks/useBatches'
+import { refreshAfterUpload, refreshProgress, useRunningBatches } from '@/hooks/useBatches'
 import { openBatchEvents } from '@/services/api'
 
-// On connecting the stream replays the results so far, so refreshes are bunched together.
-const SETTLE_MS = 300
+const PROGRESS_EVERY_MS = 10_000
 
-function BatchStream({ batchId }: { batchId: string }) {
+function BatchStream({ batchId, spaceId }: { batchId: string; spaceId: string }) {
   const queryClient = useQueryClient()
 
   useEffect(() => {
     const events = openBatchEvents(batchId)
     let timer: number | undefined
-    const settle = () => {
-      window.clearTimeout(timer)
-      timer = window.setTimeout(() => refreshAfterUpload(queryClient), SETTLE_MS)
+    const progress = () => {
+      if (timer !== undefined) return
+      timer = window.setTimeout(() => {
+        timer = undefined
+        refreshProgress(queryClient, spaceId)
+      }, PROGRESS_EVERY_MS)
     }
     const end = () => {
       events.close()
-      settle()
+      window.clearTimeout(timer)
+      refreshAfterUpload(queryClient)
     }
-    events.addEventListener('result', settle)
+    events.addEventListener('result', progress)
     events.addEventListener('done', end)
     // The server's own `error` event (an unknown job) is a message; a dropped connection is
     // a plain event, after which the browser reconnects by itself.
@@ -29,7 +32,7 @@ function BatchStream({ batchId }: { batchId: string }) {
       events.close()
       window.clearTimeout(timer)
     }
-  }, [batchId, queryClient])
+  }, [batchId, spaceId, queryClient])
 
   return null
 }
@@ -37,5 +40,7 @@ function BatchStream({ batchId }: { batchId: string }) {
 /** Keeps uploads, articles and stats current while any upload runs, from its event stream. */
 export function LiveBatches() {
   const running = useRunningBatches().data ?? []
-  return running.map((batch) => <BatchStream key={batch.id} batchId={batch.id} />)
+  return running.map((batch) => (
+    <BatchStream key={batch.id} batchId={batch.id} spaceId={batch.space_id} />
+  ))
 }
