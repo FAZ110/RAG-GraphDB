@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Checkbox, ErrorNote, HighlightedText, Swatch } from '@/components/deck'
 import { reveal } from '@/design/motion'
@@ -16,12 +16,19 @@ interface Props {
   spaceId: string
   article: Article
   selected: boolean
-  onToggle: () => void
-  onOpen: () => void
+  onToggle: (articleId: string) => void
+  onOpen: (articleId: string) => void
   needle: string
 }
 
-export function ArticleRow({ spaceId, article, selected, onToggle, onOpen, needle }: Props) {
+export const ArticleRow = memo(function ArticleRow({
+  spaceId,
+  article,
+  selected,
+  onToggle,
+  onOpen,
+  needle,
+}: Props) {
   const [showError, setShowError] = useState(false)
   const status = ARTICLE_STATUS[article.status]
   const title = article.title || article.url || 'Artykuł bez tytułu'
@@ -38,7 +45,7 @@ export function ArticleRow({ spaceId, article, selected, onToggle, onOpen, needl
           aria-label={`Zaznacz: ${title}`}
           checked={selected}
           disabled={article.status === 'processing'}
-          onChange={onToggle}
+          onChange={() => onToggle(article.id)}
         />
         <Swatch
           color={status.color}
@@ -48,7 +55,7 @@ export function ArticleRow({ spaceId, article, selected, onToggle, onOpen, needl
         <div className="min-w-0">
           <button
             type="button"
-            onClick={onOpen}
+            onClick={() => onOpen(article.id)}
             className="block max-w-full truncate text-left leading-6 font-medium text-fg hover:underline focus-visible:ring-2 focus-visible:ring-fg focus-visible:outline-none"
           >
             <HighlightedText text={title} needle={needle} />
@@ -90,4 +97,4 @@ export function ArticleRow({ spaceId, article, selected, onToggle, onOpen, needl
       </AnimatePresence>
     </li>
   )
-}
+})
