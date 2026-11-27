@@ -1,21 +1,28 @@
-// name: upsert_article
+// name: upsert_articles
 // scope: space
-MERGE (a:Article {space_id: $space_id, source_key: $source_key})
-ON CREATE SET a.id = randomUUID(), a.created_at = datetime()
-WITH a, coalesce(a.processed_hash = $content_hash AND a.status = 'ok', false) AND NOT $force
-     AS unchanged
-SET a.url = $url,
-    a.title = $title,
-    a.content = $content,
-    a.content_hash = $content_hash,
-    a.updated_at = datetime(),
-    a.status = CASE WHEN unchanged THEN a.status ELSE 'pending' END,
-    a.error = CASE WHEN unchanged THEN a.error ELSE null END,
-    a.provider = CASE WHEN unchanged THEN a.provider ELSE $provider END,
-    a.queued_at = CASE WHEN unchanged THEN a.queued_at ELSE datetime() END,
-    a.queue_token = CASE WHEN unchanged THEN a.queue_token ELSE randomUUID() END
-RETURN a.id AS id, unchanged, a.nodes_count AS nodes_count, a.edges_count AS edges_count,
-       a.queue_token AS token
+UNWIND range(0, size($articles) - 1) AS i
+CALL (i) {
+  WITH $articles[i] AS art
+  MERGE (a:Article {space_id: $space_id, source_key: art.source_key})
+  ON CREATE SET a.id = randomUUID(), a.created_at = datetime()
+  WITH a, art,
+       coalesce(a.processed_hash = art.content_hash AND a.status = 'ok', false) AND NOT $force
+       AS unchanged
+  SET a.url = art.url,
+      a.title = art.title,
+      a.content = art.content,
+      a.content_hash = art.content_hash,
+      a.updated_at = datetime(),
+      a.status = CASE WHEN unchanged THEN a.status ELSE 'pending' END,
+      a.error = CASE WHEN unchanged THEN a.error ELSE null END,
+      a.provider = CASE WHEN unchanged THEN a.provider ELSE $provider END,
+      a.queued_at = CASE WHEN unchanged THEN a.queued_at ELSE datetime() END,
+      a.queue_token = CASE WHEN unchanged THEN a.queue_token ELSE randomUUID() END
+  RETURN a.id AS id, unchanged, a.nodes_count AS nodes_count, a.edges_count AS edges_count,
+         a.queue_token AS token
+}
+RETURN id, unchanged, nodes_count, edges_count, token
+ORDER BY i
 
 // name: keep_waiting
 // scope: system
@@ -180,10 +187,10 @@ RETURN a.id AS id,
 
 // name: fail_stalled_in_space
 // scope: space
-// A task that died (worker, broker or Redis down) never reports back, so an article waiting or
-// processing longer than any task takes is marked failed and can be retried.
 MATCH (a:Article {space_id: $space_id})
-WHERE ((a.status = 'pending' AND a.queued_at < datetime() - duration({minutes: $stale_minutes}))
+WHERE ((a.status = 'pending' AND a.queued_at < datetime() - duration({minutes: $stale_minutes})
+      AND NOT CASE WHEN coalesce(a.provider, '') STARTS WITH 'custom:' THEN $custom_alive
+                   ELSE $shared_alive END)
     OR (a.status = 'processing'
       AND a.started_at < datetime() - duration({minutes: $stale_minutes})))
 SET a.error = CASE a.status
@@ -196,7 +203,9 @@ SET a.error = CASE a.status
 // scope: owner
 MATCH (s:Space {owner_id: $owner_id})
 MATCH (a:Article {space_id: s.id})
-WHERE ((a.status = 'pending' AND a.queued_at < datetime() - duration({minutes: $stale_minutes}))
+WHERE ((a.status = 'pending' AND a.queued_at < datetime() - duration({minutes: $stale_minutes})
+      AND NOT CASE WHEN coalesce(a.provider, '') STARTS WITH 'custom:' THEN $custom_alive
+                   ELSE $shared_alive END)
     OR (a.status = 'processing'
       AND a.started_at < datetime() - duration({minutes: $stale_minutes})))
 SET a.error = CASE a.status

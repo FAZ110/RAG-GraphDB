@@ -1,4 +1,6 @@
+import asyncio
 import uuid
+from collections.abc import Callable
 
 import redis.asyncio as aioredis
 
@@ -11,6 +13,10 @@ from services.jobs.results import cancelled_result, push_result, unchanged_resul
 from tasks.extract_task import drop_queued, queue_extraction
 
 _TTL_SECONDS = 86400
+
+
+async def _off_loop(work: Callable[[], None]) -> None:
+    await asyncio.to_thread(work)
 
 
 # A job is also an upload: its id marks the articles, so the page can find the job's stream.
@@ -34,17 +40,20 @@ async def start_extraction(
     stored = await upsert_articles(space, articles, provider, force)
     job_id = await _start_job(space, [row["id"] for row in stored])
 
-    for article, row in zip(articles, stored, strict=True):
-        title = article.get("title") or None
-        if row["unchanged"]:
-            push_result(
-                job_id,
-                unchanged_result(
-                    row["id"], title, row["nodes_count"] or 0, row["edges_count"] or 0
-                ),
-            )
-        else:
-            queue_extraction(job_id, row["id"], title, provider, row["token"])
+    def queue_all() -> None:
+        for article, row in zip(articles, stored, strict=True):
+            title = article.get("title") or None
+            if row["unchanged"]:
+                push_result(
+                    job_id,
+                    unchanged_result(
+                        row["id"], title, row["nodes_count"] or 0, row["edges_count"] or 0
+                    ),
+                )
+            else:
+                queue_extraction(job_id, row["id"], title, provider, row["token"])
+
+    await _off_loop(queue_all)
     return job_id
 
 
@@ -60,28 +69,45 @@ async def retry_extraction(
     if not claimed:
         return None
     job_id = await _start_job(space, [row["id"] for row in claimed])
-    for row in claimed:
-        queue_extraction(
-            job_id, row["id"], row["title"], provider or row["provider"] or "local", row["token"]
-        )
+
+    def queue_all() -> None:
+        for row in claimed:
+            queue_extraction(
+                job_id,
+                row["id"],
+                row["title"],
+                provider or row["provider"] or "local",
+                row["token"],
+            )
+
+    await _off_loop(queue_all)
     return job_id
 
 
 async def pause_extraction(space: SpaceScope, batch_id: str) -> None:
     paused = await pause_batch(space, batch_id)
-    drop_queued([row["token"] for row in paused])
+    await _off_loop(lambda: drop_queued([row["token"] for row in paused]))
 
 
 async def resume_extraction(space: SpaceScope, batch_id: str) -> None:
-    for row in await resume_batch(space, batch_id):
-        queue_extraction(
-            batch_id, row["id"], row["title"], row["provider"] or "local", row["token"]
-        )
+    resumed = await resume_batch(space, batch_id)
+
+    def queue_all() -> None:
+        for row in resumed:
+            queue_extraction(
+                batch_id, row["id"], row["title"], row["provider"] or "local", row["token"]
+            )
+
+    await _off_loop(queue_all)
 
 
 async def cancel_extraction(space: SpaceScope, batch_id: str) -> None:
     """Cancelled articles are reported here, so the job's stream can end."""
     cancelled = await cancel_batch(space, batch_id)
-    drop_queued([row["token"] for row in cancelled])
-    for row in cancelled:
-        push_result(batch_id, cancelled_result(row["id"], row["title"]))
+
+    def report_all() -> None:
+        drop_queued([row["token"] for row in cancelled])
+        for row in cancelled:
+            push_result(batch_id, cancelled_result(row["id"], row["title"]))
+
+    await _off_loop(report_all)

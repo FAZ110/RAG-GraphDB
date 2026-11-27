@@ -1,3 +1,6 @@
+import redis
+
+from core.config import REDIS_URL
 from services.articles.identity import content_hash
 from tests.integration.conftest import article_status, cypher, job_results
 
@@ -139,3 +142,41 @@ def test_latest_batch_counts(client, alice, space, queued):
     r = client.get(f"/spaces/{space}/batches/latest", headers=alice.headers)
     assert r.status_code == 200
     assert (r.json()["total"], r.json()["ok"], r.json()["pending"]) == (2, 1, 1)
+
+
+def test_waiting_article_is_stalled_only_when_its_queue_runs_nothing(client, alice, space, queued):
+    from db.spaces.articles import mark_queue_alive
+
+    upload(client, alice, space, [{"content": "Tekst A."}])
+    article_id = queued[0]["article_id"]
+    cypher(
+        "MATCH (a:Article {id: $id}) SET a.queued_at = datetime() - duration({minutes: 20})",
+        id=article_id,
+    )
+    mark_queue_alive("shared")
+    client.get(f"/spaces/{space}/articles", headers=alice.headers)
+    assert article_status(article_id) == "pending"
+    redis.from_url(REDIS_URL).delete("queue-alive:shared")
+    mark_queue_alive("custom")
+    client.get(f"/spaces/{space}/articles", headers=alice.headers)
+    assert article_status(article_id) == "error"
+
+
+def test_upload_queues_articles_in_their_order(client, alice, space, queued):
+    articles = [{"title": f"A{i}", "content": f"Tekst {i}."} for i in range(30)]
+    upload(client, alice, space, articles)
+    assert [q["title"] for q in queued] == [a["title"] for a in articles]
+    assert len({q["article_id"] for q in queued}) == 30
+
+
+def test_same_article_twice_in_one_upload_keeps_the_later_text(client, alice, space, queued):
+    url = "https://example.com/a"
+    upload(client, alice, space, [{"url": url, "content": TEXT}, {"url": url, "content": "Inny."}])
+    first, second = queued
+    assert first["article_id"] == second["article_id"]
+    assert first["token"] != second["token"]
+    [row] = cypher(
+        "MATCH (a:Article {id: $id}) RETURN a.content AS content, a.queue_token AS token",
+        id=second["article_id"],
+    )
+    assert row == {"content": "Inny.", "token": second["token"]}

@@ -1,4 +1,7 @@
-from core.config import STALE_PROCESSING_MINUTES
+import redis
+import redis.asyncio as aioredis
+
+from core.config import REDIS_URL, STALE_PROCESSING_MINUTES
 from db.access import gate, sync_gate
 from db.access.queries import load_queries
 from db.access.runner import Runner, SyncRunner
@@ -7,7 +10,27 @@ from db.driver import translates_neo4j_errors
 from services.articles.identity import content_hash, source_key
 
 _QUERIES = load_queries(__file__)
-_STALE = {"stale_minutes": STALE_PROCESSING_MINUTES}
+_QUEUE_ALIVE_KEY = "queue-alive:{queue}"
+_QUEUES = ("shared", "custom")
+
+
+def mark_queue_alive(queue: str) -> None:
+    key = _QUEUE_ALIVE_KEY.format(queue=queue)
+    redis.from_url(REDIS_URL).set(key, 1, ex=STALE_PROCESSING_MINUTES * 60)
+
+
+async def _stale_params() -> dict:
+    r = aioredis.from_url(REDIS_URL)
+    try:
+        alive = await r.mget([_QUEUE_ALIVE_KEY.format(queue=q) for q in _QUEUES])
+    except redis.exceptions.RedisError:
+        alive = [None] * len(_QUEUES)
+    finally:
+        await r.aclose()
+    return {
+        "stale_minutes": STALE_PROCESSING_MINUTES,
+        **{f"{q}_alive": a is not None for q, a in zip(_QUEUES, alive, strict=True)},
+    }
 
 
 @translates_neo4j_errors
@@ -17,33 +40,29 @@ async def upsert_articles(
     """Store uploaded articles in a space; `unchanged` marks those already processed
     with the same text."""
 
-    async def work(db: Runner) -> list[dict]:
-        results = []
-        for article in articles:
-            text = article["content"]
-            params = {
-                "source_key": source_key(article.get("url", ""), text),
-                "url": article.get("url") or None,
-                "title": article.get("title") or None,
-                "content": text,
-                "content_hash": content_hash(text),
-                "provider": provider,
-                "force": force,
-            }
-            results.append(dict(await db.single(_QUERIES["upsert_article"], params, strict=True)))
-        return results
-
-    return await gate.write(scope, work)
+    rows = [
+        {
+            "source_key": source_key(article.get("url", ""), article["content"]),
+            "url": article.get("url") or None,
+            "title": article.get("title") or None,
+            "content": article["content"],
+            "content_hash": content_hash(article["content"]),
+        }
+        for article in articles
+    ]
+    params = {"articles": rows, "provider": provider, "force": force}
+    stored = await gate.change(scope, _QUERIES["upsert_articles"], params)
+    return [dict(r) for r in stored]
 
 
 @translates_neo4j_errors
 async def fail_stalled_in_space(scope: SpaceScope) -> None:
-    await gate.change(scope, _QUERIES["fail_stalled_in_space"], _STALE)
+    await gate.change(scope, _QUERIES["fail_stalled_in_space"], await _stale_params())
 
 
 @translates_neo4j_errors
 async def fail_stalled_of_owner(scope: UserScope) -> None:
-    await gate.change(scope, _QUERIES["fail_stalled_of_owner"], _STALE)
+    await gate.change(scope, _QUERIES["fail_stalled_of_owner"], await _stale_params())
 
 
 @translates_neo4j_errors

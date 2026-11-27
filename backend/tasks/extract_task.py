@@ -27,6 +27,7 @@ from db.spaces.articles import (
     fail_article,
     finish_article,
     keep_waiting,
+    mark_queue_alive,
     release_article,
     start_article,
     still_running,
@@ -149,6 +150,7 @@ def drop_queued(tokens: list[str]) -> None:
 def _extract(
     self, job_id: str, article_id: str, title: str | None, provider: str, token: str | None
 ) -> None:
+    mark_queue_alive("custom" if provider.startswith(CUSTOM_PROVIDER_PREFIX) else "shared")
     if SERVER_LLM_PER_MINUTE and not provider.startswith(CUSTOM_PROVIDER_PREFIX):
         wait = server_llm_wait(redis.from_url(REDIS_URL), SERVER_LLM_PER_MINUTE)
         if wait:

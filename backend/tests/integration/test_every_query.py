@@ -63,7 +63,7 @@ def _sample_params(bob: dict) -> dict:
     vec = [0.5] * 8
     return {
         "a_label": "OSOBA", "a_name": "Jan", "b_label": "OSOBA", "b_name": _BOBS_ONLY,
-        "aliases": [], "analysis_id": bob["analysis"], "analysis_ids": [bob["analysis"]],
+        "aliases": [], "articles": [{"source_key": "k", "url": None, "title": "T", "content": "Tekst.", "content_hash": "h"}], "analysis_id": bob["analysis"], "analysis_ids": [bob["analysis"]],
         "any_name_min": 0.0, "api_key_encrypted": None, "api_key_hint": None,
         "article_id": bob["article"], "article_ids": [bob["article"]],
         "base_url": "https://llm.example/v1", "batch_id": bob["batch"], "batch_ids": [bob["batch"]],
@@ -79,6 +79,7 @@ def _sample_params(bob: dict) -> dict:
         "score_min": 0.0, "search_k": 100, "search_top": 100, "since": None,
         "source_id": bob["nodes"][0], "source_key": "k", "source_label": "OSOBA",
         "source_name": "Jan", "space_ids": [bob["space"]], "spans": [], "stale_minutes": 0,
+        "shared_alive": False, "custom_alive": False,
         "start": None, "status": "ok", "strict_labels": True, "suggestion_id": bob["suggestion"],
         "target_id": bob["nodes"][1], "target_label": "OSOBA", "target_name": "Anna",
         "title": "T", "token": bob["token"], "top_k": 100, "type": "ZNA", "url": None,
