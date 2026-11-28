@@ -82,7 +82,7 @@ def _sample_params(bob: dict) -> dict:
         "shared_alive": False, "custom_alive": False,
         "start": None, "status": "ok", "strict_labels": True, "suggestion_id": bob["suggestion"],
         "target_id": bob["nodes"][1], "target_label": "OSOBA", "target_name": "Anna",
-        "title": "T", "token": bob["token"], "top_k": 100, "type": "ZNA", "url": None,
+        "title": "T", "token": bob["token"], "tokens": [bob["token"]], "top_k": 100, "type": "ZNA", "url": None,
         "vec": vec, "week": None,
     }  # fmt: skip
 

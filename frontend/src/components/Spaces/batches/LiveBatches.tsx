@@ -11,6 +11,7 @@ function BatchStream({ batchId, spaceId }: { batchId: string; spaceId: string })
   useEffect(() => {
     const events = openBatchEvents(batchId)
     let timer: number | undefined
+    let ended = false
     const progress = () => {
       if (timer !== undefined) return
       timer = window.setTimeout(() => {
@@ -19,6 +20,7 @@ function BatchStream({ batchId, spaceId }: { batchId: string; spaceId: string })
       }, PROGRESS_EVERY_MS)
     }
     const end = () => {
+      ended = true
       events.close()
       window.clearTimeout(timer)
       refreshAfterUpload(queryClient)
@@ -31,6 +33,7 @@ function BatchStream({ batchId, spaceId }: { batchId: string; spaceId: string })
     return () => {
       events.close()
       window.clearTimeout(timer)
+      if (!ended) refreshAfterUpload(queryClient)
     }
   }, [batchId, spaceId, queryClient])
 

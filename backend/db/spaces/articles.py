@@ -56,6 +56,11 @@ async def upsert_articles(
 
 
 @translates_neo4j_errors
+async def fail_unqueued(scope: SpaceScope, tokens: list[str]) -> None:
+    await gate.change(scope, _QUERIES["fail_unqueued"], {"tokens": tokens})
+
+
+@translates_neo4j_errors
 async def fail_stalled_in_space(scope: SpaceScope) -> None:
     await gate.change(scope, _QUERIES["fail_stalled_in_space"], await _stale_params())
 
@@ -105,14 +110,18 @@ async def delete_articles(scope: SpaceScope, article_ids: list[str]) -> dict[str
         rows = await db.rows(_QUERIES["article_statuses"], {"article_ids": article_ids})
         statuses = {r["id"]: r["status"] for r in rows}
         deleted = [i for i, status in statuses.items() if status != "processing"]
-        for article_id in deleted:
-            for name in (
-                "release_article_relationships",
-                "release_article_mentions",
-                "delete_article",
-            ):
-                await db.run(_QUERIES[name], {"article_id": article_id})
-        return {"deleted": deleted, "processing": [i for i in statuses if i not in deleted]}
+        queued = [r["token"] for r in rows if r["status"] in ("pending", "paused") and r["token"]]
+        for name in (
+            "release_articles_relationships",
+            "release_articles_mentions",
+            "delete_articles",
+        ):
+            await db.run(_QUERIES[name], {"article_ids": deleted})
+        return {
+            "deleted": deleted,
+            "processing": [i for i in statuses if i not in deleted],
+            "queued_tokens": queued,
+        }
 
     return await gate.write(scope, work)
 
@@ -146,8 +155,8 @@ def still_running(db: SyncRunner, article_id: str, token: str) -> bool:
 def release_article(db: SyncRunner, article_id: str) -> None:
     """Remove the article's previous share of the graph: its id on relationships,
     relationships no article backs any more, its MENTIONS and orphaned entities."""
-    db.run(_QUERIES["release_article_relationships"], {"article_id": article_id})
-    db.run(_QUERIES["release_article_mentions"], {"article_id": article_id})
+    db.run(_QUERIES["release_articles_relationships"], {"article_ids": [article_id]})
+    db.run(_QUERIES["release_articles_mentions"], {"article_ids": [article_id]})
 
 
 def finish_article(

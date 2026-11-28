@@ -43,6 +43,12 @@ UNWIND range(0, size($space_ids) - 1) AS position
 MATCH (s:Space {id: $space_ids[position], owner_id: $owner_id})
 SET s.position = position
 
+// name: queued_tokens
+// scope: space
+MATCH (a:Article {space_id: $space_id})
+WHERE a.status IN ['pending', 'processing', 'paused'] AND a.queue_token IS NOT NULL
+RETURN a.queue_token AS token
+
 // name: delete_space_articles
 // scope: space
 MATCH (n:Article {space_id: $space_id})

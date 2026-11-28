@@ -2,6 +2,8 @@ from collections.abc import Callable
 
 import redis
 from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
+from celery.signals import worker_ready
+from celery.worker import state as worker_state
 from neo4j.exceptions import Neo4jError
 from openai import RateLimitError
 
@@ -141,10 +143,23 @@ def queue_extraction(
     )
 
 
+REVOKED_KEY = "revoked-tasks"
+_REVOKED_TTL_SECONDS = 24 * 3600
+
+
 def drop_queued(tokens: list[str]) -> None:
-    """Workers keep revoked ids in memory only; after a restart the token check skips them."""
-    if tokens:
-        celery_app.control.revoke(tokens)
+    if not tokens:
+        return
+    r = redis.from_url(REDIS_URL)
+    r.sadd(REVOKED_KEY, *tokens)
+    r.expire(REVOKED_KEY, _REVOKED_TTL_SECONDS)
+    celery_app.control.revoke(tokens)
+
+
+@worker_ready.connect
+def load_revoked(**_) -> None:
+    revoked = [t.decode() for t in redis.from_url(REDIS_URL).smembers(REVOKED_KEY)]
+    worker_state.revoked.update(revoked)
 
 
 def _extract(

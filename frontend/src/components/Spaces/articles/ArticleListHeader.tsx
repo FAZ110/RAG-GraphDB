@@ -28,7 +28,7 @@ export function ArticleListHeader({
       style={{ backgroundColor: ink.field }}
     >
       <Checkbox
-        aria-label="Zaznacz wszystkie artykuły"
+        aria-label={`Zaznacz wszystkie artykuły (${selectable}, ze wszystkich stron)`}
         checked={selectable > 0 && selected === selectable}
         indeterminate={selected > 0 && selected < selectable}
         disabled={selectable === 0}

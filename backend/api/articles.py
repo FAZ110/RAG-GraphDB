@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from api.dependencies import CurrentUser, SpaceAccess, space_scope
 from api.providers import check_provider
 from db.spaces.articles import delete_articles, get_article, list_articles
-from db.spaces.spaces import clear_space
+from db.spaces.spaces import clear_space, queued_tokens
 from schemas.articles import (
     Article,
     ArticleDetail,
@@ -13,7 +13,7 @@ from schemas.articles import (
     ArticlesUpload,
 )
 from schemas.jobs import JobStarted
-from services.jobs.extraction import retry_extraction, start_extraction
+from services.jobs.extraction import drop_tasks, retry_extraction, start_extraction
 
 router = APIRouter(
     prefix="/spaces/{space_id}/articles",
@@ -54,18 +54,23 @@ async def get_one_article(space: SpaceAccess, article_id: str):
 
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_articles(space: SpaceAccess):
+    tokens = await queued_tokens(space)
     await clear_space(space)
+    await drop_tasks(tokens)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/delete", response_model=ArticlesDeleted)
 async def delete_many_articles(space: SpaceAccess, body: ArticlesDelete):
-    return await delete_articles(space, body.article_ids)
+    result = await delete_articles(space, body.article_ids)
+    await drop_tasks(result.pop("queued_tokens"))
+    return result
 
 
 @router.delete("/{article_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_one_article(space: SpaceAccess, article_id: str):
     result = await delete_articles(space, [article_id])
+    await drop_tasks(result.pop("queued_tokens"))
     if result["processing"]:
         raise HTTPException(status_code=409, detail="Article is being processed")
     if not result["deleted"]:

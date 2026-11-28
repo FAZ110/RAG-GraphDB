@@ -16,7 +16,7 @@ import {
   reorderSpaces,
   saveExtractionSettings,
 } from '../services/api'
-import type { Space } from '../types'
+import type { Article, Space } from '../types'
 
 export const SPACES_QUERY_KEY = ['spaces']
 
@@ -145,9 +145,21 @@ export function useClearSpace(spaceId: string) {
 }
 
 export function useDeleteArticles(spaceId: string) {
-  const onSuccess = useInvalidateSpaces()
+  const queryClient = useQueryClient()
+  const { queryKey } = articlesQuery(spaceId)
   return useMutation({
     mutationFn: (articleIds: string[]) => deleteArticles(spaceId, articleIds),
-    onSuccess,
+    onMutate: async (articleIds) => {
+      await queryClient.cancelQueries({ queryKey, exact: true })
+      const before = queryClient.getQueryData<Article[]>(queryKey)
+      const gone = new Set(articleIds)
+      queryClient.setQueryData<Article[]>(queryKey, (list) => list?.filter((a) => !gone.has(a.id)))
+      return { before }
+    },
+    onError: (error, _articleIds, context) => {
+      queryClient.setQueryData(queryKey, context?.before)
+      toast.error(error.message)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: SPACES_QUERY_KEY }),
   })
 }

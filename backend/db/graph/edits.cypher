@@ -5,7 +5,7 @@ RETURN n.id AS id, n.label AS label, properties(n) AS props, COUNT { (n)--(:Enti
 
 // name: create_entity
 // scope: space
-// Manual entities are kept when no article mentions them (see release_article_mentions).
+// Manual entities are kept when no article mentions them (see release_articles_mentions).
 CREATE (n:Entity {
   id: randomUUID(),
   space_id: $space_id,

@@ -82,6 +82,21 @@ def test_delete_article_takes_back_only_its_share_of_the_graph(client, alice, fi
     assert [s["id"] for s in sources] == [filled["b"]]
 
 
+def test_delete_articles_together_takes_back_their_whole_graph(client, alice, filled):
+    main = filled["main"]
+    r = client.post(
+        f"/spaces/{main}/articles/delete",
+        json={"article_ids": [filled["a"], filled["b"]]},
+        headers=alice.headers,
+    )
+    assert r.json() == {"deleted": [filled["a"], filled["b"]], "processing": []}
+
+    assert count("Article", main) == 0
+    assert entity_names(main) == []
+    assert relation_types(main) == []
+    assert entity_names(filled["other"]) == ["Anna", "Inter", "Jan"]
+
+
 def test_delete_article_keeps_entities_made_by_hand(client, alice, filled):
     main = filled["main"]
     jan = cypher("MATCH (n:Entity {name: 'Jan', space_id: $s}) RETURN n.id AS id", s=main)[0]
