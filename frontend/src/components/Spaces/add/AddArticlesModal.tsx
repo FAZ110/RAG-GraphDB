@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { XIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Button, ErrorNote, IconButton, Modal } from '@/components/deck'
 import { PENCIL, inkFor } from '@/design/inks'
 import { slideFromEnd } from '@/design/motion'
@@ -66,9 +67,17 @@ export function AddArticlesModal({
 
   const submit = () => {
     if (!space || ready.length === 0) return
+    const count = `${ready.length} ${pluralForm(ready.length, ARTICLE_FORMS)}`
+    const pending = toast.loading(`Wgrywam ${count}…`)
     add.mutate(
       { spaceId: space.id, articles: ready.map(toRequest), provider },
-      { onSuccess: (batchId) => onAdded(space.id, batchId) }
+      {
+        onSuccess: (batchId) => {
+          toast.success(`Wgrano ${count} do „${space.name}”, trwa ekstrakcja`, { id: pending })
+          onAdded(space.id, batchId)
+        },
+        onError: () => toast.dismiss(pending),
+      }
     )
   }
 

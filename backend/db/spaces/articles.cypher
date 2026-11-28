@@ -1,21 +1,28 @@
-// name: upsert_article
+// name: upsert_articles
 // scope: space
-MERGE (a:Article {space_id: $space_id, source_key: $source_key})
-ON CREATE SET a.id = randomUUID(), a.created_at = datetime()
-WITH a, coalesce(a.processed_hash = $content_hash AND a.status = 'ok', false) AND NOT $force
-     AS unchanged
-SET a.url = $url,
-    a.title = $title,
-    a.content = $content,
-    a.content_hash = $content_hash,
-    a.updated_at = datetime(),
-    a.status = CASE WHEN unchanged THEN a.status ELSE 'pending' END,
-    a.error = CASE WHEN unchanged THEN a.error ELSE null END,
-    a.provider = CASE WHEN unchanged THEN a.provider ELSE $provider END,
-    a.queued_at = CASE WHEN unchanged THEN a.queued_at ELSE datetime() END,
-    a.queue_token = CASE WHEN unchanged THEN a.queue_token ELSE randomUUID() END
-RETURN a.id AS id, unchanged, a.nodes_count AS nodes_count, a.edges_count AS edges_count,
-       a.queue_token AS token
+UNWIND range(0, size($articles) - 1) AS i
+CALL (i) {
+  WITH $articles[i] AS art
+  MERGE (a:Article {space_id: $space_id, source_key: art.source_key})
+  ON CREATE SET a.id = randomUUID(), a.created_at = datetime()
+  WITH a, art,
+       coalesce(a.processed_hash = art.content_hash AND a.status = 'ok', false) AND NOT $force
+       AS unchanged
+  SET a.url = art.url,
+      a.title = art.title,
+      a.content = art.content,
+      a.content_hash = art.content_hash,
+      a.updated_at = datetime(),
+      a.status = CASE WHEN unchanged THEN a.status ELSE 'pending' END,
+      a.error = CASE WHEN unchanged THEN a.error ELSE null END,
+      a.provider = CASE WHEN unchanged THEN a.provider ELSE $provider END,
+      a.queued_at = CASE WHEN unchanged THEN a.queued_at ELSE datetime() END,
+      a.queue_token = CASE WHEN unchanged THEN a.queue_token ELSE randomUUID() END
+  RETURN a.id AS id, unchanged, a.nodes_count AS nodes_count, a.edges_count AS edges_count,
+         a.queue_token AS token
+}
+RETURN id, unchanged, nodes_count, edges_count, token
+ORDER BY i
 
 // name: keep_waiting
 // scope: system
@@ -81,23 +88,25 @@ WITH a, a IS NOT NULL AND a.status = 'processing' AND a.queue_token = $token AS 
 FOREACH (_ IN CASE WHEN mine THEN [1] ELSE [] END | SET a.status = 'error', a.error = $error)
 RETURN a IS NULL OR mine AS report
 
-// name: release_article_relationships
+// name: release_articles_relationships
 // scope: space
 // An article only connects entities it mentions, so its relationships are reached
 // through its MENTIONS instead of scanning the whole space.
-MATCH (:Article {id: $article_id, space_id: $space_id})-[:MENTIONS]->(:Entity)-[r]-(:Entity)
-WHERE $article_id IN coalesce(r.article_ids, [])
+UNWIND $article_ids AS article_id
+MATCH (:Article {id: article_id, space_id: $space_id})-[:MENTIONS]->(:Entity)-[r]-(:Entity)
+WHERE article_id IN coalesce(r.article_ids, [])
 WITH DISTINCT r
-SET r.article_ids = [i IN r.article_ids WHERE i <> $article_id],
-    r.evidence = [s IN coalesce(r.evidence, []) WHERE NOT s STARTS WITH $article_id + ':']
+SET r.article_ids = [i IN r.article_ids WHERE NOT i IN $article_ids],
+    r.evidence = [s IN coalesce(r.evidence, []) WHERE NOT split(s, ':')[0] IN $article_ids]
 WITH r
 // Hand-made relationships stay once no article backs them.
 WHERE size(r.article_ids) = 0 AND NOT coalesce(r.manual, false)
 DELETE r
 
-// name: release_article_mentions
+// name: release_articles_mentions
 // scope: space
-MATCH (:Article {id: $article_id, space_id: $space_id})-[m:MENTIONS]->(e:Entity)
+UNWIND $article_ids AS article_id
+MATCH (:Article {id: article_id, space_id: $space_id})-[m:MENTIONS]->(e:Entity)
 DELETE m
 WITH DISTINCT e
 // Entities made, edited or linked by hand stay without mentions.
@@ -128,11 +137,12 @@ ORDER BY a.created_at DESC
 // scope: space
 MATCH (a:Article {space_id: $space_id})
 WHERE a.id IN $article_ids
-RETURN a.id AS id, a.status AS status
+RETURN a.id AS id, a.status AS status, a.queue_token AS token
 
-// name: delete_article
+// name: delete_articles
 // scope: space
-MATCH (a:Article {id: $article_id, space_id: $space_id})
+UNWIND $article_ids AS article_id
+MATCH (a:Article {id: article_id, space_id: $space_id})
 DETACH DELETE a
 
 // name: get_article
@@ -178,12 +188,19 @@ RETURN a.id AS id,
        entities,
        relationships
 
+// name: fail_unqueued
+// scope: space
+MATCH (a:Article {space_id: $space_id})
+WHERE a.status = 'pending' AND a.queue_token IN $tokens
+SET a.status = 'error', a.error = 'Article could not be queued, try again'
+
 // name: fail_stalled_in_space
 // scope: space
-// A task that died (worker, broker or Redis down) never reports back, so an article waiting or
-// processing longer than any task takes is marked failed and can be retried.
 MATCH (a:Article {space_id: $space_id})
-WHERE ((a.status = 'pending' AND a.queued_at < datetime() - duration({minutes: $stale_minutes}))
+WHERE ((a.status = 'pending' AND a.queued_at < datetime() - duration({minutes: $stale_minutes})
+      AND (a.queued_at < datetime() - duration({hours: 24})
+        OR NOT CASE WHEN coalesce(a.provider, '') STARTS WITH 'custom:' THEN $custom_alive
+                    ELSE $shared_alive END))
     OR (a.status = 'processing'
       AND a.started_at < datetime() - duration({minutes: $stale_minutes})))
 SET a.error = CASE a.status
@@ -196,7 +213,10 @@ SET a.error = CASE a.status
 // scope: owner
 MATCH (s:Space {owner_id: $owner_id})
 MATCH (a:Article {space_id: s.id})
-WHERE ((a.status = 'pending' AND a.queued_at < datetime() - duration({minutes: $stale_minutes}))
+WHERE ((a.status = 'pending' AND a.queued_at < datetime() - duration({minutes: $stale_minutes})
+      AND (a.queued_at < datetime() - duration({hours: 24})
+        OR NOT CASE WHEN coalesce(a.provider, '') STARTS WITH 'custom:' THEN $custom_alive
+                    ELSE $shared_alive END))
     OR (a.status = 'processing'
       AND a.started_at < datetime() - duration({minutes: $stale_minutes})))
 SET a.error = CASE a.status

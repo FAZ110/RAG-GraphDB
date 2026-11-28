@@ -8,6 +8,7 @@ from db.spaces.spaces import (
     get_extraction_settings,
     get_space,
     list_spaces,
+    queued_tokens,
     rename_space,
     reorder_spaces,
     set_extraction_settings,
@@ -22,6 +23,7 @@ from schemas.spaces import (
     SpaceStats,
     SpaceUpdate,
 )
+from services.jobs.extraction import drop_tasks
 from services.llm_service import (
     DEFAULT_LABELS,
     EXTRACTION_PRESETS,
@@ -125,6 +127,8 @@ async def patch_space(space: SpaceAccess, body: SpaceUpdate):
     "/{space_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(space_scope)]
 )
 async def remove_space(space: SpaceAccess):
+    tokens = await queued_tokens(space)
     if not await delete_space(space):
         raise _not_found()
+    await drop_tasks(tokens)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -82,6 +82,11 @@ async def _clear(db: Runner) -> None:
 
 
 @translates_neo4j_errors
+async def queued_tokens(scope: SpaceScope) -> list[str]:
+    return [r["token"] for r in await gate.rows(scope, _QUERIES["queued_tokens"])]
+
+
+@translates_neo4j_errors
 async def clear_space(scope: SpaceScope) -> None:
     """Remove all articles of a space and the graph built from them; the space stays."""
     # CALL { } IN TRANSACTIONS needs auto-commit transactions.

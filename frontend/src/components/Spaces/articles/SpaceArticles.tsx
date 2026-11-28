@@ -10,6 +10,7 @@ import { useRecentBatch } from '../batches/useRecentBatch'
 import { ArticlePreview } from '../preview/ArticlePreview'
 import { useArticlePreview } from '../preview/useArticlePreview'
 import { filterArticles } from '../spaceSearch'
+import { ARTICLES_PER_PAGE, ArticlePager } from './ArticlePager'
 import { ArticlesTabs } from './ArticlesTabs'
 import { ArticlesToolbar } from './ArticlesToolbar'
 import { ArticleTable } from './ArticleTable'
@@ -35,6 +36,12 @@ export function SpaceArticles({ spaceId, ink }: Props) {
   const needle = normalize(query.trim())
   const shown = filterArticles(inTab, needle)
   const selection = useArticleSelection(shown)
+  const listKey = `${recent.tab}|${needle}`
+  const [paging, setPaging] = useState({ key: listKey, page: 0 })
+  if (paging.key !== listKey) setPaging({ key: listKey, page: 0 })
+  const pages = Math.max(1, Math.ceil(shown.length / ARTICLES_PER_PAGE))
+  const page = paging.key === listKey ? Math.min(paging.page, pages - 1) : 0
+  const onPage = shown.slice(page * ARTICLES_PER_PAGE, (page + 1) * ARTICLES_PER_PAGE)
 
   return (
     <section className="flex min-h-56 flex-1 flex-col gap-3">
@@ -76,7 +83,7 @@ export function SpaceArticles({ spaceId, ink }: Props) {
         <div className="relative flex min-h-0 flex-1 flex-col pb-2">
           <div
             // Keyed, so each tab fits its own rows and keeps its own open errors.
-            key={recent.tab}
+            key={`${recent.tab}-${page}`}
             className="flex min-h-0 flex-1 flex-col"
           >
             {recent.tab === 'recent' && recent.batch && (
@@ -89,13 +96,22 @@ export function SpaceArticles({ spaceId, ink }: Props) {
                 <ArticleTable
                   spaceId={spaceId}
                   ink={ink}
-                  articles={shown}
+                  articles={onPage}
                   needle={needle}
                   query={query}
                   onClearQuery={() => setQuery('')}
                   selection={selection}
                   onOpen={preview.show}
                   onDeleteSelected={() => setConfirmDelete(true)}
+                  footer={
+                    pages > 1 && (
+                      <ArticlePager
+                        page={page}
+                        pages={pages}
+                        onPageChange={(next) => setPaging({ key: listKey, page: next })}
+                      />
+                    )
+                  }
                 />
               ) : (
                 <div className={cn(surface, 'h-full animate-pulse')} />

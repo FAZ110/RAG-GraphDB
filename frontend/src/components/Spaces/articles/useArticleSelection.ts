@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { Article } from '@/types'
 
 // Articles being extracted can't be deleted, and picks hidden by the search or gone since the
@@ -7,17 +7,21 @@ export function useArticleSelection(shown: Article[]) {
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
   const selectable = shown.filter((a) => a.status !== 'processing')
   const selected = selectable.filter((a) => picked.has(a.id)).map((a) => a.id)
-
-  return {
-    selected,
-    selectableCount: selectable.length,
-    isPicked: (id: string) => picked.has(id),
-    toggle: (id: string) =>
+  const toggle = useCallback(
+    (id: string) =>
       setPicked((prev) => {
         const next = new Set(prev)
         if (!next.delete(id)) next.add(id)
         return next
       }),
+    []
+  )
+
+  return {
+    selected,
+    selectableCount: selectable.length,
+    isPicked: (id: string) => picked.has(id),
+    toggle,
     toggleAll: () =>
       setPicked(
         selected.length === selectable.length ? new Set() : new Set(selectable.map((a) => a.id))

@@ -1,3 +1,7 @@
+import pytest
+import redis
+
+from core.config import REDIS_URL
 from services.articles.identity import content_hash
 from tests.integration.conftest import article_status, cypher, job_results
 
@@ -139,3 +143,126 @@ def test_latest_batch_counts(client, alice, space, queued):
     r = client.get(f"/spaces/{space}/batches/latest", headers=alice.headers)
     assert r.status_code == 200
     assert (r.json()["total"], r.json()["ok"], r.json()["pending"]) == (2, 1, 1)
+
+
+def test_waiting_article_is_stalled_only_when_its_queue_runs_nothing(client, alice, space, queued):
+    from db.spaces.articles import mark_queue_alive
+
+    upload(client, alice, space, [{"content": "Tekst A."}])
+    article_id = queued[0]["article_id"]
+    cypher(
+        "MATCH (a:Article {id: $id}) SET a.queued_at = datetime() - duration({minutes: 20})",
+        id=article_id,
+    )
+    mark_queue_alive("shared")
+    client.get(f"/spaces/{space}/articles", headers=alice.headers)
+    assert article_status(article_id) == "pending"
+    redis.from_url(REDIS_URL).delete("queue-alive:shared")
+    mark_queue_alive("custom")
+    client.get(f"/spaces/{space}/articles", headers=alice.headers)
+    assert article_status(article_id) == "error"
+
+
+def test_article_waiting_a_day_is_stalled_even_in_a_busy_queue(client, alice, space, queued):
+    from db.spaces.articles import mark_queue_alive
+
+    upload(client, alice, space, [{"content": "Tekst A."}])
+    article_id = queued[0]["article_id"]
+    cypher(
+        "MATCH (a:Article {id: $id}) SET a.queued_at = datetime() - duration({hours: 25})",
+        id=article_id,
+    )
+    mark_queue_alive("shared")
+    client.get(f"/spaces/{space}/articles", headers=alice.headers)
+    assert article_status(article_id) == "error"
+
+
+def test_upload_queues_articles_in_their_order(client, alice, space, queued):
+    articles = [{"title": f"A{i}", "content": f"Tekst {i}."} for i in range(30)]
+    upload(client, alice, space, articles)
+    assert [q["title"] for q in queued] == [a["title"] for a in articles]
+    assert len({q["article_id"] for q in queued}) == 30
+
+
+def test_same_article_twice_in_one_upload_keeps_the_later_text(client, alice, space, queued):
+    url = "https://example.com/a"
+    job = upload(
+        client, alice, space, [{"url": url, "content": TEXT}, {"url": url, "content": "Inny."}]
+    )
+    [task] = queued
+    [row] = cypher(
+        "MATCH (a:Article {id: $id}) RETURN a.content AS content, a.queue_token AS token",
+        id=task["article_id"],
+    )
+    assert row == {"content": "Inny.", "token": task["token"]}
+    assert redis.from_url(REDIS_URL).get(f"job:{job}:total") == b"1"
+
+
+def test_articles_left_unqueued_by_a_broker_failure_are_failed(client, alice, space, monkeypatch):
+    sent = []
+
+    def flaky(job_id, article_id, title, provider, token):
+        if sent:
+            raise ConnectionError("broker down")
+        sent.append(article_id)
+
+    monkeypatch.setattr("services.jobs.extraction.queue_extraction", flaky)
+    with pytest.raises(ConnectionError):
+        client.post(
+            f"/spaces/{space}/articles",
+            json={
+                "articles": [
+                    {"title": "A", "content": "Tekst A."},
+                    {"title": "B", "content": "Tekst B."},
+                ]
+            },
+            headers=alice.headers,
+        )
+    rows = cypher("MATCH (a:Article {space_id: $s}) RETURN a.title AS t, a.status AS s", s=space)
+    assert sorted((r["t"], r["s"]) for r in rows) == [("A", "pending"), ("B", "error")]
+
+
+def test_delete_succeeds_when_tasks_cannot_be_dropped(client, alice, space, queued, monkeypatch):
+    upload(client, alice, space, [{"content": "Tekst A."}])
+
+    def broken(tokens):
+        raise ConnectionError("broker down")
+
+    monkeypatch.setattr("services.jobs.extraction.drop_queued", broken)
+    r = client.post(
+        f"/spaces/{space}/articles/delete",
+        json={"article_ids": [queued[0]["article_id"]]},
+        headers=alice.headers,
+    )
+    assert r.status_code == 200
+    assert r.json()["deleted"] == [queued[0]["article_id"]]
+
+
+def dropped(queued) -> list[str]:
+    return [t for call in queued if "dropped" in call for t in call["dropped"]]
+
+
+def test_deleting_articles_drops_their_queued_tasks(client, alice, space, queued):
+    upload(client, alice, space, [{"content": "Tekst A."}, {"content": "Tekst B."}])
+    waiting, done = queued[0], queued[1]
+    mark_processed(done["article_id"], "Tekst B.")
+
+    r = client.post(
+        f"/spaces/{space}/articles/delete",
+        json={"article_ids": [waiting["article_id"], done["article_id"]]},
+        headers=alice.headers,
+    )
+    assert r.json() == {"deleted": [waiting["article_id"], done["article_id"]], "processing": []}
+    assert dropped(queued) == [waiting["token"]]
+
+
+def test_clearing_a_space_drops_its_queued_tasks(client, alice, space, queued):
+    upload(client, alice, space, [{"content": "Tekst A."}, {"content": "Tekst B."}])
+    assert client.delete(f"/spaces/{space}/articles", headers=alice.headers).status_code == 204
+    assert sorted(dropped(queued)) == sorted(q["token"] for q in queued if "token" in q)
+
+
+def test_deleting_a_space_drops_its_queued_tasks(client, alice, space, queued):
+    upload(client, alice, space, [{"content": "Tekst A."}])
+    assert client.delete(f"/spaces/{space}", headers=alice.headers).status_code == 204
+    assert dropped(queued) == [queued[0]["token"]]

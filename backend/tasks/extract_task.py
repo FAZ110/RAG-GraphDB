@@ -2,6 +2,8 @@ from collections.abc import Callable
 
 import redis
 from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
+from celery.signals import worker_ready
+from celery.worker import state as worker_state
 from neo4j.exceptions import Neo4jError
 from openai import RateLimitError
 
@@ -27,6 +29,7 @@ from db.spaces.articles import (
     fail_article,
     finish_article,
     keep_waiting,
+    mark_queue_alive,
     release_article,
     start_article,
     still_running,
@@ -140,15 +143,29 @@ def queue_extraction(
     )
 
 
+REVOKED_KEY = "revoked-tasks"
+_REVOKED_TTL_SECONDS = 24 * 3600
+
+
 def drop_queued(tokens: list[str]) -> None:
-    """Workers keep revoked ids in memory only; after a restart the token check skips them."""
-    if tokens:
-        celery_app.control.revoke(tokens)
+    if not tokens:
+        return
+    r = redis.from_url(REDIS_URL)
+    r.sadd(REVOKED_KEY, *tokens)
+    r.expire(REVOKED_KEY, _REVOKED_TTL_SECONDS)
+    celery_app.control.revoke(tokens)
+
+
+@worker_ready.connect
+def load_revoked(**_) -> None:
+    revoked = [t.decode() for t in redis.from_url(REDIS_URL).smembers(REVOKED_KEY)]
+    worker_state.revoked.update(revoked)
 
 
 def _extract(
     self, job_id: str, article_id: str, title: str | None, provider: str, token: str | None
 ) -> None:
+    mark_queue_alive("custom" if provider.startswith(CUSTOM_PROVIDER_PREFIX) else "shared")
     if SERVER_LLM_PER_MINUTE and not provider.startswith(CUSTOM_PROVIDER_PREFIX):
         wait = server_llm_wait(redis.from_url(REDIS_URL), SERVER_LLM_PER_MINUTE)
         if wait:

@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.worker import state as worker_state
 
 from core.config import RABBITMQ_URL, REDIS_URL
 
@@ -17,3 +18,5 @@ celery_app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
 )
+
+worker_state.revoked.expires = 24 * 3600

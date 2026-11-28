@@ -350,3 +350,19 @@ def test_slot_is_freed_when_the_model_fails(space, llm, uploaded, limit):
     run_custom(task)
     assert article_status(task["article_id"]) == "error"
     assert slot().acquire(blocking=False)
+
+
+def test_revoked_tasks_outlive_a_worker_restart(monkeypatch):
+    from celery.worker import state as worker_state
+
+    from tasks import extract_task
+
+    sent = []
+    monkeypatch.setattr(extract_task.celery_app.control, "revoke", sent.append)
+    extract_task.drop_queued(["t-1", "t-2"])
+    assert sent == [["t-1", "t-2"]]
+
+    worker_state.revoked.clear()
+    extract_task.load_revoked()
+    assert {"t-1", "t-2"} <= set(worker_state.revoked)
+    worker_state.revoked.clear()
